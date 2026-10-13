@@ -252,8 +252,7 @@ impl Control {
 
 /// The command that installs or updates Slingshot. It builds from GitHub until Slingshot is
 /// published to crates.io (#17).
-const INSTALL: &str =
-    "cargo install --locked --git https://github.com/ado11231/slingshot slingshot-cli";
+const INSTALL: &str = "cargo install --locked --git https://github.com/ado11231/ss slingshot-cli";
 
 /// How to update after a protocol mismatch, naming the machine that runs the older build.
 fn update_advice(name: &str, mismatch: &control::Mismatch) -> String {

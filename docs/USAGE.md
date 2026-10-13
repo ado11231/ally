@@ -49,7 +49,7 @@
 2. Install Slingshot on both machines:
 
    ```sh
-   cargo install --locked --git https://github.com/ado11231/slingshot slingshot-cli
+   cargo install --locked --git https://github.com/ado11231/ss slingshot-cli
    ```
 
 3. If `slingshot` is then not found, add Rust's folder to your PATH, then open a new terminal. Use `~/.zshrc` instead if your shell is zsh.

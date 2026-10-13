@@ -1,16 +1,16 @@
-<p align="center"><img src="https://raw.githubusercontent.com/ado11231/slingshot/master/docs/media/slingshot.png" alt="Slingshot logo, a pixel art slingshot" width="96"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/ado11231/ss/master/docs/media/slingshot.png" alt="Slingshot logo, a pixel art slingshot" width="96"></p>
 
 <h3 align="center">slingshot</h3>
 
 <p align="center">
-  <a href="https://github.com/ado11231/slingshot/actions/workflows/ci.yml"><img src="https://github.com/ado11231/slingshot/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/ado11231/ss/actions/workflows/ci.yml"><img src="https://github.com/ado11231/ss/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://crates.io/crates/slingshot-cli"><img src="https://img.shields.io/crates/v/slingshot-cli" alt="crates.io"></a>
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey" alt="macOS and Linux">
 </p>
 
 <p align="center">use the CPU, RAM, and GPU of another computer from your own. Run terminal processes securely, with local models coming next.</p>
 
-<p align="center"><img src="https://raw.githubusercontent.com/ado11231/slingshot/master/docs/media/demo.gif" alt="Starting Slingshot on the powerful machine, linking the laptop, and opening a session" width="830"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/ado11231/ss/master/docs/media/demo.gif" alt="Starting Slingshot on the powerful machine, linking the laptop, and opening a session" width="830"></p>
 
 ## What It Does
 
@@ -43,7 +43,7 @@ rustup default stable
 **2. Install Slingshot.**
 
 ```sh
-cargo install --locked --git https://github.com/ado11231/slingshot slingshot-cli
+cargo install --locked --git https://github.com/ado11231/ss slingshot-cli
 ```
 
 **3. Check that it is found.**
@@ -80,7 +80,7 @@ A Linux Client needs `rsync` and Rust, but not `tmux` or an ssh server. See the 
 **2. Install Slingshot and check it**, as on the Agent.
 
 ```sh
-cargo install --locked --git https://github.com/ado11231/slingshot slingshot-cli
+cargo install --locked --git https://github.com/ado11231/ss slingshot-cli
 slingshot --version
 ```
 
@@ -116,12 +116,12 @@ slingshot run cargo build
 
 * On a Mac, `link` offers a menu bar app that shows the Agent's live use and notifies you when a run finishes.
 
-<p align="center"><img src="https://raw.githubusercontent.com/ado11231/slingshot/master/docs/media/menubar.png" alt="The Slingshot menu bar panel" width="360"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/ado11231/ss/master/docs/media/menubar.png" alt="The Slingshot menu bar panel" width="360"></p>
 
 ## Status
 
 * Early. Tested between a Mac and an Arch Linux machine.
-* What works is in the [roadmap](docs/ROADMAP.md). Planned work is in the [issues](https://github.com/ado11231/slingshot/issues).
+* What works is in the [roadmap](docs/ROADMAP.md). Planned work is in the [issues](https://github.com/ado11231/ss/issues).
 * Licensed under [MIT](LICENSE-MIT) or [Apache 2.0](LICENSE-APACHE), at your choice.
 
 <p align="center">

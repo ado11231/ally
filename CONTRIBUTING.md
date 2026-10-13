@@ -45,7 +45,7 @@
 1. Download and build the code:
 
    ```sh
-   git clone https://github.com/ado11231/slingshot.git
+   git clone https://github.com/ado11231/ss.git slingshot
    cd slingshot
    cargo build
    ```

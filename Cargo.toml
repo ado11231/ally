@@ -7,8 +7,8 @@ resolver = "3"
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/ado11231/slingshot"
-homepage = "https://github.com/ado11231/slingshot"
+repository = "https://github.com/ado11231/ss"
+homepage = "https://github.com/ado11231/ss"
 keywords = ["remote", "ssh", "gpu", "development", "cli"]
 categories = ["command-line-utilities", "development-tools"]
 

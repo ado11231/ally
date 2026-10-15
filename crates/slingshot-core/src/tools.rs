@@ -20,7 +20,7 @@ pub enum Tool {
 }
 
 /// Every tool, in install order. Codex installs with npm, so Node comes before it.
-pub const ALL: [Tool; 7] = [
+const ALL: [Tool; 7] = [
     Tool::Git,
     Tool::Docker,
     Tool::Node,
@@ -175,7 +175,7 @@ pub fn installed_here() -> Vec<Tool> {
 /// Folders in the home folder where installers put programs for one user, such as Claude
 /// Code in `~/.local/bin`. Login shells that are not interactive often leave them off PATH,
 /// so Slingshot adds them to everything it starts on the Agent instead of editing any file.
-pub const USER_FOLDERS: [&str; 2] = [".local/bin", ".cargo/bin"];
+const USER_FOLDERS: [&str; 2] = [".local/bin", ".cargo/bin"];
 
 /// A shell line that puts `USER_FOLDERS` at the front of PATH.
 pub fn user_path_line() -> String {

@@ -2,7 +2,7 @@
 //! checks, and a persistent identity. The public half of an identity is how the other
 //! machine addresses and recognizes this one.
 
-use crate::storage;
+use crate::{source, storage};
 use anyhow::Context;
 use iroh::{PublicKey, SecretKey};
 use std::path::Path;
@@ -28,7 +28,7 @@ pub fn identity(dir: &Path) -> anyhow::Result<SecretKey> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             let key = SecretKey::generate();
             storage::private_dir(dir)?;
-            storage::write_bytes(&path, hex(&key.to_bytes()).as_bytes())?;
+            storage::write_bytes(&path, source::hex(&key.to_bytes()).as_bytes())?;
             Ok(key)
         }
         Err(e) => Err(e).with_context(|| format!("Could not read {}", path.display())),
@@ -39,10 +39,6 @@ pub fn identity(dir: &Path) -> anyhow::Result<SecretKey> {
 pub fn public_key(text: &str) -> anyhow::Result<PublicKey> {
     text.parse()
         .map_err(|_| anyhow::anyhow!("'{text}' is not an iroh public key"))
-}
-
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 #[cfg(test)]

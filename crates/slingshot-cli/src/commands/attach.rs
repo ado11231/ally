@@ -8,7 +8,7 @@ use crate::ssh::{self, RemoteCommand};
 use crate::transfer::{self, Conflicts, Direction};
 use slingshot_core::config::{Agent, Config};
 use slingshot_core::control::{Request, Response, SessionInfo};
-use slingshot_core::presentation::{self, Style, Tone};
+use slingshot_core::presentation::{self, Style};
 
 pub async fn attach(
     agent: Option<String>,
@@ -35,10 +35,13 @@ pub async fn attach(
     };
     let style = Style::stderr();
     eprintln!(
-        "{} {verb} a session on {} via {} · {place}",
-        style.paint("▶", Tone::Info),
-        style.paint(&target.name, Tone::Info),
-        style.paint(route::resolve(target).name(), Tone::Info),
+        "{} · {place}",
+        route::announce(
+            &format!("{verb} a session on"),
+            &target.name,
+            route::resolve(target).name(),
+            style
+        )
     );
     eprintln!(
         "  {}",

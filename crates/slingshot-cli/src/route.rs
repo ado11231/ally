@@ -4,6 +4,7 @@
 
 use slingshot_core::config::Agent;
 use slingshot_core::network::Network;
+use slingshot_core::presentation::{Style, Tone};
 use slingshot_core::tunnel;
 use std::net::{TcpStream, ToSocketAddrs};
 use std::sync::Mutex;
@@ -159,6 +160,17 @@ fn iroh_key(agent: &Agent) -> Option<String> {
         .filter(|key| tunnel::public_key(key).is_ok())
 }
 
+/// The `▶` line every remote command starts with, saying which Agent does the work and by
+/// which path, such as `▶ Running on archbox via tailnet`.
+pub fn announce(action: &str, name: &str, path: &str, style: Style) -> String {
+    format!(
+        "{} {action} {} via {}",
+        style.paint("▶", Tone::Info),
+        style.paint(name, Tone::Info),
+        style.paint(path, Tone::Info)
+    )
+}
+
 fn answers(host: &str, port: u16) -> bool {
     let Ok(addresses) = (host, port).to_socket_addrs() else {
         return false;
@@ -172,6 +184,14 @@ fn answers(host: &str, port: u16) -> bool {
 mod tests {
     use super::*;
     use std::net::TcpListener;
+
+    #[test]
+    fn the_announcement_names_the_agent_and_the_path() {
+        assert_eq!(
+            announce("Installing on", "archbox", "iroh", Style::new(false)),
+            "▶ Installing on archbox via iroh"
+        );
+    }
 
     const KEY: &str = "ae58ff8833241ac82d6ff7611046ed67b5072d142c588d0063e942d9a75502b6";
 

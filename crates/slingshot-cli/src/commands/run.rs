@@ -139,12 +139,7 @@ pub fn show_warnings(result: anyhow::Result<Response>) {
 /// The line printed before anything runs. Saying where the work happens is a hard
 /// requirement, including the path taken, which project folder, and what build output moved.
 fn announcement(name: &str, path: &str, local: Option<&Local>, style: Style) -> String {
-    let mut line = format!(
-        "{} Running on {} via {}",
-        style.paint("▶", Tone::Info),
-        style.paint(name, Tone::Info),
-        style.paint(path, Tone::Info)
-    );
+    let mut line = route::announce("Running on", name, path, style);
 
     let Some(local) = local else {
         return line;

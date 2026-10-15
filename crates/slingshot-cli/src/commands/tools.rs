@@ -265,12 +265,14 @@ fn login_shell(target: &Agent, shell: &str, script: String) -> RemoteCommand {
 }
 
 fn announce(action: &str, target: &Agent) {
-    let style = Style::stderr();
     eprintln!(
-        "{} {action} {} via {}\n",
-        style.paint("▶", Tone::Info),
-        style.paint(&target.name, Tone::Info),
-        style.paint(route::resolve(target).name(), Tone::Info),
+        "{}\n",
+        route::announce(
+            action,
+            &target.name,
+            route::resolve(target).name(),
+            Style::stderr()
+        )
     );
 }
 

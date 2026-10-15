@@ -283,10 +283,10 @@ slingshot/
 | `control.rs` | Versioned control messages, job records, and message reading and writing. | `protocol`, `source`, `tools` | Agent `service`, `jobs`, `projects`, `runner`; Client `client`, `transfer`, most commands |
 | `config.rs` | The Client's saved Agents: loading, saving, and choosing one. | `network`, `protocol` | `keys` and nearly every Client file |
 | `network.rs` | Tells local, tailnet, and other addresses apart. | none | `config`, Agent `lib`, Client `route` |
-| `tunnel.rs` | What both machines share for iroh: the connection name and a saved identity. | `storage` | Agent `lib`, `clients`, `tunnel`; Client `route`, `tunnel`, `link` |
+| `tunnel.rs` | What both machines share for iroh: the connection name and a saved identity. | `storage`, `source` | Agent `lib`, `clients`, `tunnel`; Client `route`, `tunnel`, `link` |
 | `keys.rs` | Names the installed ssh key and reads this machine's ssh identity. | `config`, `storage` | Agent `lib`; Client `keys`, `link`, `unlink`, `transfer` |
 | `storage.rs` | Private folders, IDs, safe file writes, and file locks. | none | `source`, `sync`, `keys`, `tunnel`, and many files in both other crates |
-| `source.rs` | Decides which files are source, and fingerprints them. | `storage` | `control`, `sync`, Agent `projects`, Client `transfer`, `env`, `menubar` |
+| `source.rs` | Decides which files are source, and fingerprints them. | `storage` | `control`, `sync`, `tunnel`, Agent `projects`, Client `transfer`, `env`, `menubar` |
 | `sync.rs` | Three way sync: planning, conflicts, staging, and safe apply with rollback. | `source`, `storage` | Agent `projects`, Client `transfer` |
 | `stack.rs` | Recognizes Rust, Node, and Python projects. | none | `artifacts`, `tools` |
 | `artifacts.rs` | Where each kind of project keeps its build output on the Agent. | `stack` | Agent `projects`, Client `run` |
@@ -322,7 +322,7 @@ slingshot/
 | `bin/sling.rs` | The `sling` program, the same under a shorter name. | `lib` | none, it is an entry point |
 | `build.rs` | Puts the build's commit into `--version`, using `git` when present. | `git` | `lib` |
 | `client.rs` | The pairing connection, and the `Control` connection over `ssh`. | `route`, `ssh`, `tunnel` | `transfer`, `watch`, most commands |
-| `route.rs` | Chooses the path: local network, tailnet, or iroh. | none | `client`, `ssh`, `transfer`, `watch`, `run`, `attach`, `tools` |
+| `route.rs` | Chooses the path: local network, tailnet, or iroh. Prints the `▶` location line. | none | `client`, `ssh`, `transfer`, `watch`, `run`, `attach`, `tools` |
 | `ssh.rs` | Builds every `ssh` call, with safe quoting and a shared connection. | `route`, `tunnel` | `client`, `run`, `attach`, `unlink` |
 | `tunnel.rs` | `slingshot internal-tunnel`: the Client's end of an iroh connection. | `project` | `client`, `ssh` |
 | `transfer.rs` | Performs a sync: lists files, plans, calls `rsync`, and reports. | `client`, `project`, `route` | `run`, `attach`, `sync` |

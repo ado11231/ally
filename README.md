@@ -1,6 +1,6 @@
-<p align="center"><img src="https://raw.githubusercontent.com/ado11231/ss/master/docs/media/slingshot.png" alt="Slingshot logo, a pixel art slingshot" width="96"></p>
-
 <h3 align="center">slingshot</h3>
+
+<p align="center"><img src="docs/media/slingshot.png" alt="Slingshot logo, a pixel art slingshot" width="72"></p>
 
 <p align="center">
   <a href="https://github.com/ado11231/ss/actions/workflows/ci.yml"><img src="https://github.com/ado11231/ss/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -8,97 +8,198 @@
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey" alt="macOS and Linux">
 </p>
 
-<p align="center">use the CPU, RAM, and GPU of another computer from your own. Run terminal processes securely, with local models coming next.</p>
+<p align="center">Use the CPU, RAM, and GPU of a more powerful computer, right from your laptop. Local AI models are coming next.</p>
 
-<p align="center"><img src="https://raw.githubusercontent.com/ado11231/ss/master/docs/media/demo.gif" alt="Starting Slingshot on the powerful machine, linking the laptop, and opening a session" width="830"></p>
+<p align="center"><img src="docs/media/demo.gif" alt="Starting Slingshot on the powerful machine, linking the laptop, and opening a session" width="830"></p>
 
 ## What It Does
 
-* **Remote power.** Builds, servers, containers, and coding agents run on the powerful machine, started from your laptop.
-* **Feels local.** Typing, colors, Ctrl C, and exit codes work as they do on your own machine.
-* **Your tools.** You keep your own editor, terminal, and browser. Nothing new to learn.
-* **Light sync.** Only source files are copied. Build output such as `target` and `node_modules` stays on the powerful machine.
-* **Lasting sessions.** `slingshot attach` opens a terminal that keeps running when you close the laptop.
-* **Works anywhere.** At home, over a VPN such as Tailscale, or from any network, with no account and no router setup.
-* **Secure.** The pairing code never crosses the network, each laptop gets its own ssh key, and nothing runs as another user.
+* **Use a stronger computer.** Builds and servers run on your powerful machine, started from your laptop.
+* **Feels local.** Output, colors, and shortcuts work as usual.
+* **Keep your tools.** Your editor, terminal, and browser stay the same.
+* **Fast copying.** Only your code is copied. Build files stay on the powerful machine.
+* **Keeps running.** Close your laptop, and your work carries on.
+* **Works anywhere.** Home or away, with no account and no network setup.
+* **Private.** One time linking codes, and everything runs under your own account.
 
 ## Setup
 
-* The **Agent** is the powerful machine. The **Client** is the one you work on, such as your laptop.
-* Set up the Agent first, then the Client. Each takes a few minutes, mostly while Rust builds Slingshot.
+| Machine | What It Is |
+| --- | --- |
+| **Agent** | The powerful computer that does the work. |
+| **Client** | The computer you work on, such as your laptop. |
 
-### 1. The Agent
+### On The Agent
 
-**1. Install what Slingshot needs.** These commands need an admin account (`sudo`). On Arch Linux:
+**1. Install what Slingshot needs.** Open your system and run the commands.
+
+<details>
+<summary>Arch Linux</summary>
 
 ```sh
 sudo pacman -S --needed base-devel rsync tmux openssh rustup
-sudo systemctl enable --now sshd
 rustup default stable
+sudo systemctl enable --now sshd
 ```
 
-* Ubuntu, Debian, Fedora, and a Mac as the Agent are in the [install guide](docs/USAGE.md#install).
-* Without `sudo`, ask an admin to run the first two lines. Check that everything is there with `command -v rsync tmux cargo`.
+</details>
+
+<details>
+<summary>Ubuntu or Debian</summary>
+
+```sh
+sudo apt install rsync tmux openssh-server curl build-essential
+sudo systemctl enable --now ssh
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+When asked, press Enter to install Rust, then open a new terminal.
+
+</details>
+
+<details>
+<summary>Fedora</summary>
+
+```sh
+sudo dnf install rsync tmux openssh-server gcc
+sudo systemctl enable --now sshd
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+When asked, press Enter to install Rust, then open a new terminal.
+
+</details>
+
+<details>
+<summary>macOS</summary>
+
+```sh
+xcode-select --install
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+brew install tmux
+```
+
+A window opens to install Apple's developer tools. Finish it before going on.
+
+When asked, press Enter to install Rust, then open a new terminal.
+
+Install [Homebrew](https://brew.sh) first if you don't have it.
+
+Turn on Remote Login in System Settings, General, Sharing.
+
+</details>
+
+<br>
 
 **2. Install Slingshot.**
 
 ```sh
 cargo install --locked --git https://github.com/ado11231/ss slingshot-cli
-```
-
-**3. Check that it is found.**
-
-```sh
 slingshot --version
 ```
 
-If it says `command not found`, add Rust's folder to your PATH, then open a new terminal. Use `~/.zshrc` instead if your shell is zsh.
+If `command not found` shows, your terminal can't find Slingshot yet. Add it to your path with this line, then open a new terminal. On zsh, use `~/.zshrc` instead.
 
 ```sh
 echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
 ```
 
-**4. Start Slingshot.**
+**3. Start Slingshot.**
 
 ```sh
 slingshot start
 ```
 
-It checks the machine, offers to start by itself at boot, then prints a line such as `slingshot link 192.168.1.9:7433:K7QW9ZR2`. Keep it for the Client.
+Checks the machine and shows how to fix anything missing.
 
-### 2. The Client
+Asks whether to start Slingshot when the computer turns on. Answer yes to keep the Agent ready after a restart.
 
-**1. Install Rust.** On a Mac:
+Prints a line such as `slingshot link 192.168.1.9:7433:K7QW9ZR2` for the Client.
+
+Each line works once and expires after 10 minutes. Press Enter for a new one.
+
+### On The Client
+
+**1. Install what Slingshot needs.** Open your system and run the commands.
+
+<details>
+<summary>macOS</summary>
 
 ```sh
 xcode-select --install
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-A Linux Client needs `rsync` and Rust, but not `tmux` or an ssh server. See the [install guide](docs/USAGE.md#install).
+A window opens to install Apple's developer tools. Finish it before going on.
 
-**2. Install Slingshot and check it**, as on the Agent.
+When asked, press Enter to install Rust, then open a new terminal.
+
+</details>
+
+<details>
+<summary>Arch Linux</summary>
+
+```sh
+sudo pacman -S --needed base-devel rsync rustup
+rustup default stable
+```
+
+</details>
+
+<details>
+<summary>Ubuntu or Debian</summary>
+
+```sh
+sudo apt install rsync curl build-essential
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+When asked, press Enter to install Rust, then open a new terminal.
+
+</details>
+
+<details>
+<summary>Fedora</summary>
+
+```sh
+sudo dnf install rsync gcc
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+When asked, press Enter to install Rust, then open a new terminal.
+
+</details>
+
+<br>
+
+**2. Install Slingshot**, the same way as on the Agent.
 
 ```sh
 cargo install --locked --git https://github.com/ado11231/ss slingshot-cli
 slingshot --version
 ```
 
-**3. Run the line the Agent printed.** Both machines must be on the same network or VPN for this step only.
+If `command not found` shows, add Slingshot to your path the same way as on the Agent.
+
+**3. Link to the Agent.** Run the line the Agent printed.
 
 ```sh
 slingshot link 192.168.1.9:7433:K7QW9ZR2
 ```
 
-It pairs, offers to install the tools you use on the Agent, such as Claude Code, offers to sign in to them, and on a Mac adds the menu bar app. Each asks first.
+Both machines need the same network or Tailscale for this step only. After that, Slingshot works from anywhere.
 
-**4. Run anything on the Agent** from a project folder.
+Offers to set up your tools on the Agent, such as Claude Code, and the menu bar app on a Mac. Asks before each one.
+
+**4. Try it.** Open a terminal in your project folder, then run:
 
 ```sh
 slingshot run cargo build
 ```
 
-`sling` is the short name, so `sling run cargo build` works too.
+Any command works, such as `npm run dev` or `python main.py`.
+
+`sling` is the short name: `sling run cargo build`.
 
 ## Commands
 
@@ -110,23 +211,10 @@ slingshot run cargo build
 | `slingshot health` | Shows the Agent's hardware and use. Add `--watch` to keep it live. |
 | `slingshot ps` | Lists running jobs. `slingshot stop <id>` stops one. |
 
-* Every command and option is in [USAGE.md](docs/USAGE.md).
+Every command and option is in [USAGE.md](docs/USAGE.md).
 
 ## Menu Bar
 
-* On a Mac, `link` offers a menu bar app that shows the Agent's live use and notifies you when a run finishes.
+On a Mac, `link` offers a menu bar app showing how busy the Agent is and when a run finishes.
 
-<p align="center"><img src="https://raw.githubusercontent.com/ado11231/ss/master/docs/media/menubar.png" alt="The Slingshot menu bar panel" width="360"></p>
-
-## Status
-
-* Early. Tested between a Mac and an Arch Linux machine.
-* What works is in the [roadmap](docs/ROADMAP.md). Planned work is in the [issues](https://github.com/ado11231/ss/issues).
-* Licensed under [MIT](LICENSE-MIT) or [Apache 2.0](LICENSE-APACHE), at your choice.
-
-<p align="center">
-  <a href="docs/USAGE.md">Usage</a> ·
-  <a href="docs/TROUBLESHOOTING.md">Troubleshooting</a> ·
-  <a href="docs/ARCHITECTURE.md">Architecture</a> ·
-  <a href="CONTRIBUTING.md">Contributing</a>
-</p>
+<p align="center"><img src="docs/media/menubar.png" alt="The Slingshot menu bar panel" width="360"></p>

@@ -1,7 +1,6 @@
 # Contributing
 
 * How to set up Slingshot, make a change, and get it merged.
-* Slingshot is built for people who have never seen it. Every change should make it easier to install, understand, and trust.
 
 ## Contents
 
@@ -20,19 +19,10 @@
 
 ## Before You Start
 
-1. Read these documents:
-
-   | Document | Explains |
-   | --- | --- |
-   | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the parts fit together, and what every file does. |
-   | [USAGE.md](docs/USAGE.md) | Every command, as a user sees it. |
-   | [ROADMAP.md](docs/ROADMAP.md) | What works, what has been tested, and what comes next. |
-
-2. For anything larger than a small fix, open an issue first and describe the change, so the approach is agreed before you write code.
+* Read [ARCHITECTURE.md](docs/ARCHITECTURE.md), [USAGE.md](docs/USAGE.md), and [ROADMAP.md](docs/ROADMAP.md).
+* For anything bigger than a small fix, open an issue first, so the approach is agreed before you write code.
 
 ## Setting Up
-
-* You need:
 
 | Tool | Machine | Purpose |
 | --- | --- | --- |
@@ -42,208 +32,116 @@
 | `tmux` | Agent | Keeps sessions running. |
 | Xcode command line tools | Mac Client | Builds the menu bar app. |
 
-1. Download and build the code:
+```sh
+git clone https://github.com/ado11231/ss.git slingshot
+cd slingshot
+cargo install --path crates/slingshot-cli
+slingshot menubar
+```
 
-   ```sh
-   git clone https://github.com/ado11231/ss.git slingshot
-   cd slingshot
-   cargo build
-   ```
-
-2. Install your build as the `slingshot` command:
-
-   ```sh
-   cargo install --path crates/slingshot-cli
-   ```
-
-3. On a Mac, build and open the menu bar app:
-
-   ```sh
-   slingshot menubar
-   ```
-
-   * Run it again after changing the app. It rebuilds when the app's source changed.
+* `cargo install --path` installs your build as `slingshot`. `slingshot menubar` builds the app on a Mac, and rebuilds it when its source changed.
 
 ## Building And Testing
 
-* Run all three checks before you push. All three must pass with no warnings.
+* All three must pass with no warnings before you push:
 
-  ```sh
-  cargo fmt --check
-  cargo clippy --workspace --all-targets
-  cargo test --workspace
-  ```
+```sh
+cargo fmt --check
+cargo clippy --workspace --all-targets
+cargo test --workspace
+```
 
-* If you changed the menu bar app, also run:
-
-  ```sh
-  swift build -c release --package-path crates/slingshot-cli/menubar
-  ```
-
-* CI runs the same checks, and the menu bar build, on Linux and macOS for every pull request.
-
-* **Where tests live:**
-
-1. Unit tests sit at the bottom of the file they test, in a `tests` module.
-2. Tests that run the finished program live in `crates/slingshot-cli/tests/`.
-
-* **What needs a test:**
-
-1. Every rule or decision, such as which files are source, how a sync decides what to copy, when a notification is sent, or how an error is explained.
-2. Code that only starts another program, such as `ssh`, is tested on real machines instead.
+* After changing the menu bar app, also run `swift build -c release --package-path crates/slingshot-cli/menubar`.
+* CI runs the same checks on Linux and macOS for every pull request.
+* Unit tests sit in a `tests` module at the bottom of the file they test. Tests of the finished program are in `crates/slingshot-cli/tests/`.
+* Every rule or decision needs a test, such as which files are source, what a sync copies, when a notification is sent, or how an error is worded. Code that only starts another program, such as `ssh`, is tested on real machines.
 
 ## Testing On Two Machines
 
-* Automated tests cannot prove Slingshot works. Many problems only appear with a real network and a real second machine.
-* If your change affects running commands, syncing, sessions, or connections, test it on two machines:
+* Test changes to running, syncing, sessions, or connections on two real machines:
 
-1. Start the Agent with `slingshot start`.
-2. Link the Client with `slingshot link <code>`.
-3. Use the feature you changed, such as `slingshot run cargo build`, `slingshot sync`, or `slingshot attach`.
-4. Test failures: stop `slingshot start`, drop the network, or restart the Agent.
+1. `slingshot start` on the Agent, and `slingshot link <code>` on the Client.
+2. Use the changed feature, such as `slingshot run cargo build`, `slingshot sync`, or `slingshot attach`.
+3. Test failures: stop `slingshot start`, drop the network, or restart the Agent.
 
-* In your pull request, list exactly what you ran and what happened. Never describe something as working unless you ran it.
+* List exactly what you ran and what happened in the pull request. Never call something working unless you ran it.
 
 ## Making A Change
 
-1. **Find the right place.** Use the [file reference](docs/ARCHITECTURE.md#file-reference).
-   * Rules both machines need go in `slingshot-core`.
-   * Code only the Agent runs goes in `slingshot-agent`.
-   * Commands and Client code go in `slingshot-cli`.
-2. **Keep it focused.** Make the smallest change that solves the problem. Save unrelated improvements for another pull request.
-3. **Match what is there.** Follow the surrounding code's naming, structure, and comment style.
-4. **Test it.** Add or update tests for every rule you change.
-5. **Run it.** Use the changed command at least once.
-6. **Update the documentation:**
+1. **Find the place** in the [file reference](docs/ARCHITECTURE.md#file-reference). Shared rules go in `slingshot-core`, Agent only code in `slingshot-agent`, and commands and Client code in `slingshot-cli`.
+2. **Keep it focused.** The smallest change that solves the problem. Unrelated improvements go in another pull request.
+3. **Match what is there:** naming, structure, and comment style.
+4. **Test it,** and run the changed command at least once.
+5. **Update the docs:**
 
-   | If You | Update |
-   | --- | --- |
-   | Add or move a file | The [file reference](docs/ARCHITECTURE.md#file-reference) |
-   | Change a command or option | [USAGE.md](docs/USAGE.md) |
-   | Add or change an error message | [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) |
-   | Change what works, or test something new | [ROADMAP.md](docs/ROADMAP.md) |
+| If You | Update |
+| --- | --- |
+| Add or move a file | The [file reference](docs/ARCHITECTURE.md#file-reference) |
+| Change a command or option | [USAGE.md](docs/USAGE.md) |
+| Add or change an error message | [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) |
+| Change what works, or test something new | [ROADMAP.md](docs/ROADMAP.md) |
 
 ## Using AI Tools
 
-* AI coding tools are welcome. The same standards apply to every line, whoever wrote it.
-* **You are the author.** Opening a pull request makes you responsible for every line in it.
-* **Understand what you submit.** You must be able to explain what each change does and why. If you cannot, the pull request will be closed.
-* **Verify it yourself.** Run the checks and the feature, and read the output. AI tools often call functions that do not exist, miss edge cases, or change more than asked.
-* **Keep it small.** A small pull request is reviewed sooner and more carefully.
-* **Cut what is not needed.** Delete unused code, comments that repeat the code, and anything the change does not need.
+* AI coding tools are welcome. **You are the author,** and responsible for every line.
+* **Understand it.** You must be able to explain each change. If you cannot, the pull request will be closed.
+* **Verify it.** Run the checks and the feature, and read the output. AI tools often call functions that do not exist, miss edge cases, or change more than asked.
+* **Keep it small,** and cut unused code and comments that repeat the code.
 * AI agents working in this repository directly must also follow [AGENTS.md](AGENTS.md).
 
 ## Code Standards
 
-### Structure
-
-* `slingshot-core` uses neither of the other crates. `slingshot-agent` uses `slingshot-core`. `slingshot-cli` uses both.
-* Wrap existing tools. Slingshot uses `ssh`, `rsync`, `tmux`, `docker`, and `iroh`, and never writes its own versions.
-* Describe machines as Client and Agent, never as Mac and Linux. Only the menu bar app may be macOS specific.
-* Never write fixed paths such as `/Users/...` or `/home/...`. Use the `directories` crate.
-* Never assume a package manager. Detect what is missing and print the install command. Never install without asking: show exactly what will run, then ask once.
-
-### Rust
-
-* Errors use `anyhow`. Every visible error says what went wrong and how to fix it.
-* A user command that fails is not a Slingshot error. Pass its exit code through unchanged.
-* Use `tokio` for async code, `tracing` for logs, and `clap` for command line parsing.
-* Never use `unwrap` outside tests. Use `?`, or `expect` with the reason failure is impossible.
-* Quote every argument sent to the Agent on its own. Never join them into one shell command.
-* Never stop a process by its ID alone. Check its start time too.
-* Changing a control message raises `control::VERSION`. Changing the menu bar line format raises `watch::event::VERSION`.
-
-### Comments
-
-* Add a short comment above an item when its purpose is not obvious. Explain why, not what.
-* Keep comments out of function bodies.
-* No commented out code, and no `TODO`, `FIXME`, or `XXX` notes. Open an issue instead.
-
-### Dependencies
-
-* Explain every new crate in the pull request, and use its latest version from crates.io.
-* Prefer wrapping an existing tool over adding a large dependency.
-
-### The Menu Bar App
-
-* Swift only displays information and posts notifications. All thresholds and rules stay in Rust, in `crates/slingshot-cli/src/watch/`.
-* `Sources/Model.swift` must match `watch/event.rs`. Change them together.
+* `slingshot-core` uses neither other crate. `slingshot-agent` uses `slingshot-core`. `slingshot-cli` uses both.
+* Wrap existing tools such as `ssh`, `rsync`, `tmux`, `docker`, and `iroh`. Never write your own.
+* Say Client and Agent, never Mac and Linux. Only the menu bar app may be macOS specific.
+* No fixed paths such as `/Users/...`. Use the `directories` crate.
+* Never assume a package manager. Detect, print the install command, and ask once before running anything.
+* Errors use `anyhow`, and every visible error says how to fix it. A failing user command is not a Slingshot error; pass its exit code through.
+* Use `tokio` for async, `tracing` for logs, and `clap` for arguments. No `unwrap` outside tests.
+* Quote each argument sent to the Agent on its own. Never stop a process by ID alone; check its start time.
+* Changing a control message raises `control::VERSION`. Changing the menu bar line format raises `watch::event::VERSION`, and `Sources/Model.swift` changes with `watch/event.rs`.
+* Swift only displays and notifies. Thresholds and rules stay in `crates/slingshot-cli/src/watch/`.
+* Comments go above an item, only when its purpose is not obvious, and say why. No comments in function bodies, commented out code, or `TODO` notes.
+* Explain every new crate in the pull request, and use its latest version.
 
 ## Output Standards
 
-* Use the helpers in `slingshot-core/src/presentation.rs` and `slingshot-core/src/step.rs`. Never use raw color codes.
+* Use `slingshot-core/src/presentation.rs` and `step.rs`. Never raw color codes.
 * Slow work shows a spinner, then a line such as `✓ Synced 3 files  0.4s`.
-* Status symbols: `✓` success, `!` warning, `✗` failure, `▶` remote work.
-* Every remote command states where it runs, such as `▶ Running on archbox via tailnet`.
-* Color only marks what needs attention. Healthy values stay plain, headings are bold, and details are dimmed.
-* Messages use sentence case. CPU, RAM, GPU, and VRAM are always capitals.
+* Symbols: `✓` success, `!` warning, `✗` failure, `▶` remote work. Every remote command says where it runs, such as `▶ Running on archbox via tailnet`.
+* Color marks only what needs attention. Headings are bold, and details dimmed.
+* Sentence case. CPU, RAM, GPU, and VRAM are always capitals.
 * Every failed check prints the exact command that fixes it.
 
 ## Writing Documentation
 
-* Use plain words and short sentences. Explain a technical term the first time it appears.
-* Use bullets, numbered steps, and tables instead of paragraphs.
+* Plain words and short sentences. Explain a technical term the first time.
+* Bullets, numbered steps, and tables, not paragraphs.
 * Capitalize every word in titles.
-* Never use em dashes, or hyphens in ordinary text. Write "long lived", not the joined form. Hyphens are fine in code.
-* Describe only what is true today. Never present planned work as finished.
-* Remove anything that does not help the reader.
+* No em dashes, and no hyphens in ordinary text. Write "long lived", not the joined form. Hyphens are fine in code.
+* Describe only what is true today.
+* Cut anything that does not help the reader.
 
 ## Commits And Pull Requests
 
-### Branches
-
-* Work on a branch. Never commit directly to `master`.
-
-### Commit Messages
-
-* Use this form:
-
-  ```
-  type: a short summary in plain words
-
-  An optional body explaining why the change was made.
-  ```
-
-| Type | Use For |
-| --- | --- |
-| `feat` | A new feature or visible change. |
-| `fix` | A bug fix. |
-| `refactor` | A code change that keeps behavior the same. |
-| `docs` | Documentation only. |
-| `test` | Tests only. |
-
+* Work on a branch, never on `master`.
+* Commit messages use `type: summary`, with an optional body saying why. Types: `feat`, `fix`, `refactor` (same behavior), `docs`, and `test`.
 * Each commit should make sense alone, build, and pass its tests.
-
-### Pull Requests
-
-* Each pull request describes:
-
-1. What changed, and why.
-2. How you tested it, with the exact commands, and whether you used two machines.
-3. Anything not yet tested.
-
-* The pull request template has a checklist for the checks and the documentation.
-* It is ready for review when all checks pass and the documentation is updated.
+* A pull request says what changed and why, how you tested it with the exact commands, whether two machines were used, and what is untested. Its template has a checklist.
+* It is ready for review when all checks pass and the docs are updated.
 
 ## Out Of Scope
-
-* Pull requests for these ideas will be closed:
 
 | Idea | Why It Does Not Fit |
 | --- | --- |
 | Sharing RAM over the network | A network is about a hundred thousand times slower than RAM. |
 | Remote desktop or screen streaming | Sunshine and Moonlight already do this. |
 | Copying or mounting build output | `target`, `node_modules`, virtual environments, and caches stay on the Agent. Copying them makes Slingshot too slow. |
-| Syncing environment files as source | `.env`, `.env.*`, `*.env`, and `.envrc` often hold secrets. They are never synced. |
+| Syncing environment files as source | `.env`, `.env.*`, `*.env`, and `.envrc` often hold secrets. |
 | Requiring an account or VPN | A VPN is used when present, never required. iroh needs no account and no open router port. |
 | Custom `ssh`, `rsync`, `tmux`, or relay servers | Slingshot wraps these tools and never replaces them. |
 
 ## Reporting A Problem
 
 1. Check [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) first.
-2. If your problem is not there, open an issue with the Problem template. It asks for:
-   * The exact command you ran.
-   * What you expected.
-   * What happened, with the full output.
-   * Each machine's operating system, and how they connect: same network, tailnet, or different networks.
-   * The output of `slingshot health`, if the Agent can be reached.
+2. Open an issue with the Problem template. It asks for the exact command, what you expected, the full output, each machine's system and how they connect, and `slingshot health` output if the Agent answers.

@@ -96,21 +96,16 @@
 
 1. **Understand the request.** If it is unclear or has more than one meaning, ask. Never guess about anything that changes behavior, deletes data, or affects security.
 2. **Read the code you will change, and its callers.** Find both in the [file reference](docs/ARCHITECTURE.md#file-reference). Never edit a file you have not read.
-3. **Look for existing helpers.** Search before writing anything new:
-
-   | Need | Existing Helper |
-   | --- | --- |
-   | Printing output | `presentation::{success, warning, detail, row, capacity, plural}`, `Style`, `step::start` |
-   | Talking to the Agent | `client::Control`, `client::request`, `client::fetch`, `route::resolve` |
-   | Storing files | `storage::{data_dir, write_json, read_json, lock, now}` |
-   | Setup checks | `preflight::tool_check`, `preflight::report` |
-
-4. **Choose the right crate.**
-   * Rules both machines apply go in `slingshot-core`.
-   * Code only the Agent runs goes in `slingshot-agent`.
-   * Commands and Client code go in `slingshot-cli`.
-   * Dependencies flow one way: `slingshot-cli` uses the other two, `slingshot-agent` uses `slingshot-core`, and `slingshot-core` uses neither.
+3. **Look for existing helpers.** Search before writing anything new. See the table below.
+4. **Choose the right crate.** Rules both machines apply go in `slingshot-core`, Agent only code in `slingshot-agent`, and commands and Client code in `slingshot-cli`. `slingshot-cli` uses the other two, `slingshot-agent` uses `slingshot-core`, and `slingshot-core` uses neither.
 5. **Plan the smallest change** that solves the problem and keeps everything working end to end.
+
+| Need | Existing Helper |
+| --- | --- |
+| Printing output | `presentation::{success, warning, detail, row, capacity, plural}`, `Style`, `step::start` |
+| Talking to the Agent | `client::Control`, `client::request`, `client::fetch`, `route::resolve` |
+| Storing files | `storage::{data_dir, write_json, read_json, lock, now}` |
+| Setup checks | `preflight::tool_check`, `preflight::report` |
 
 ---
 
@@ -211,17 +206,17 @@
 
 * A change is not finished until all three checks pass with zero warnings:
 
-  ```sh
-  cargo fmt --check
-  cargo clippy --workspace --all-targets
-  cargo test --workspace
-  ```
+```sh
+cargo fmt --check
+cargo clippy --workspace --all-targets
+cargo test --workspace
+```
 
 * If you changed the menu bar app, also run:
 
-  ```sh
-  swift build -c release --package-path crates/slingshot-cli/menubar
-  ```
+```sh
+swift build -c release --package-path crates/slingshot-cli/menubar
+```
 
 * Every rule or decision you add or change gets a unit test in the same file's `tests` module.
 * Run the changed command at least once, for real, and read its output.

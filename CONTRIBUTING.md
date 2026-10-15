@@ -131,7 +131,7 @@
 * **Verify it yourself.** Run the checks and the feature, and read the output. AI tools often call functions that do not exist, miss edge cases, or change more than asked.
 * **Keep it small.** A small pull request is reviewed sooner and more carefully.
 * **Cut what is not needed.** Delete unused code, comments that repeat the code, and anything the change does not need.
-* AI agents working in this repository directly must also follow [CLAUDE.md](CLAUDE.md).
+* AI agents working in this repository directly must also follow [AGENTS.md](AGENTS.md).
 
 ## Code Standards
 

@@ -30,7 +30,7 @@
 | `Slingshot is already running here as archbox, not <name>` | `--name` differs from the running Agent's name, which linked Clients use. | Run `slingshot start` without `--name`. |
 | `! Port 7433 is in use, perhaps by another slingshot start, so this one uses 7434` | Another program or account has the pairing port, so the next free one is used. | Nothing. The printed link line has the new port. |
 | `Ports 7433 to 7442 are all in use` | All ten ports tried were taken. | Pick another with `slingshot start --port <port>`. |
-| `Could not stop this machine from sleeping` | A warning. A sleeping Agent cannot be reached. On Linux, a boot service with nobody logged in cannot block sleep, and GNOME's login screen suspends after about 15 minutes. Issue #68 tracks a fix. | Turn sleep off: `sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target`. Slingshot then prints `Sleep is turned off on this machine`. |
+| `Could not stop this machine from sleeping` | A warning. A sleeping Agent cannot be reached. On Linux, a boot service with nobody logged in needs the polkit rule that `slingshot start --boot` writes. | Run `slingshot start --boot` in a terminal. Or turn sleep off: `sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target`. |
 | `No iroh relay answered` | A warning. Other networks cannot reach the Agent yet. The same network still works, and Slingshot keeps trying. | Check the Agent's internet connection. |
 | No message: unreachable after a restart | Slingshot does not start by itself on this Agent. | Run `slingshot start --boot` on the Agent. |
 
@@ -44,6 +44,8 @@
 | `Slingshot was set up to start at boot but did not start` | The service did not answer within 15 seconds. | Fix what the logs report, then `slingshot start --boot`. |
 | `systemctl --user enable --now slingshot.service failed: <reason>`, or the same for `launchctl` | The service manager refused a step. | Fix the reason given, then `slingshot start --boot`. |
 | `! Slingshot starts when you log in, not at boot` | Linux refused linger without an admin password. | Run the `sudo loginctl enable-linger <user>` command printed. |
+| `Could not write /etc/polkit-1/rules.d/50-slingshot.rules. This machine may sleep with nobody logged in` | `sudo` was refused, or there was no terminal to type the password. | Run `slingshot start --boot` in a terminal. Without `sudo`, ask an admin, or turn sleep off. |
+| `Could not delete /etc/polkit-1/rules.d/50-slingshot.rules` | `sudo` was refused while removing. | Run the `sudo rm` command printed. |
 | `Slingshot is already running for this account. Stop the other slingshot start, then run slingshot start --boot again` | A `slingshot start` in another terminal holds the Agent. | Ctrl C there, then `slingshot start --boot`. |
 | `Run slingshot start --remove in a terminal to confirm` | Removing asks first, and there was no terminal. | Run it in a terminal on the Agent. |
 | `Starting at boot works on Linux and macOS`, or `A line break cannot go in a systemd unit` | No supported service manager, or the Agent name or program path has a line break. | Run `slingshot start` by hand, or rename the Agent with `--name`. |

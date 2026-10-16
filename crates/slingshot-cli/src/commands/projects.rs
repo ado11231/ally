@@ -1,11 +1,12 @@
-//! `slingshot projects`: the project copies on the Agent.
+//! `slingshot projects`: the project copies on the Agent, and freeing their space.
 
 use super::ps::ago;
 use crate::client::{self, unexpected};
+use crate::project;
 use slingshot_core::config::{Agent, Config};
 use slingshot_core::control::{ProjectSummary, Request, Response};
 use slingshot_core::presentation::{self, Style, Tone};
-use slingshot_core::storage;
+use slingshot_core::{step, storage};
 
 pub async fn list(agent: Option<String>) -> anyhow::Result<i32> {
     let config = Config::load()?;
@@ -18,11 +19,145 @@ pub async fn list(agent: Option<String>) -> anyhow::Result<i32> {
     Ok(0)
 }
 
+pub async fn clean(agent: Option<String>, project: Option<String>) -> anyhow::Result<i32> {
+    let config = Config::load()?;
+    let target = config.resolve(agent.as_deref())?;
+    let projects = fetch(target).await?;
+    let found = choose(&projects, project.as_deref(), &target.name)?;
+    if found.build == 0 {
+        presentation::success(format!(
+            "{} has no build output on {}",
+            found.name, target.name
+        ));
+        return Ok(0);
+    }
+    let cleaning = step::start(format!(
+        "Removing build output of {} on {}",
+        found.name, target.name
+    ));
+    let request = Request::CleanProject {
+        project: found.id.clone(),
+    };
+    let Response::Cleaned { bytes } = client::request(target, request).await? else {
+        return Err(unexpected());
+    };
+    cleaning.done(format!(
+        "Freed {} of build output from {} on {}",
+        size(bytes),
+        found.name,
+        target.name
+    ));
+    presentation::detail("Next", "the next build or install makes it again");
+    Ok(0)
+}
+
+pub async fn remove(agent: Option<String>, project: Option<String>) -> anyhow::Result<i32> {
+    let config = Config::load()?;
+    let target = config.resolve(agent.as_deref())?;
+    let projects = fetch(target).await?;
+    let found = choose(&projects, project.as_deref(), &target.name)?;
+    eprintln!("\n  This removes {} from {}:\n", found.name, target.name);
+    for line in listing(found, Style::stderr()) {
+        eprint!("{line}");
+    }
+    anyhow::ensure!(
+        crate::ssh::wants_terminal(),
+        "Run slingshot projects remove in a terminal to confirm, since it deletes files"
+    );
+    if !presentation::confirm_deleting("Remove it?".to_string()).await? {
+        presentation::success("Nothing was removed");
+        return Ok(0);
+    }
+    let removing = step::start(format!("Removing {} from {}", found.name, target.name));
+    let request = Request::RemoveProject {
+        project: found.id.clone(),
+    };
+    let Response::Done = client::request(target, request).await? else {
+        return Err(unexpected());
+    };
+    removing.done(format!("Removed {} from {}", found.name, target.name));
+    Ok(0)
+}
+
 async fn fetch(target: &Agent) -> anyhow::Result<Vec<ProjectSummary>> {
     let Response::Projects(projects) = client::fetch(target, Request::Projects).await? else {
         return Err(unexpected());
     };
     Ok(projects)
+}
+
+/// The project a name, an ID prefix, or the current folder points to. Two Clients may
+/// each have a project with the same name, so a name that matches more than one asks for
+/// the ID instead.
+fn choose<'a>(
+    projects: &'a [ProjectSummary],
+    query: Option<&str>,
+    agent: &str,
+) -> anyhow::Result<&'a ProjectSummary> {
+    let Some(query) = query else {
+        let local = project::require(None)?;
+        let registered = project::for_agent(&project::client_root()?, agent)?;
+        let id = registered
+            .iter()
+            .find(|p| p.root == local.root)
+            .map(|p| &p.id);
+        return projects.iter().find(|p| Some(&p.id) == id).ok_or_else(|| {
+            anyhow::anyhow!(
+                "{} has no copy on {agent}. See every project with slingshot projects",
+                local.name
+            )
+        });
+    };
+    let named: Vec<&ProjectSummary> = projects.iter().filter(|p| p.name == query).collect();
+    let matches = match named.is_empty() && query.len() >= 4 {
+        true => projects
+            .iter()
+            .filter(|p| p.id.starts_with(query))
+            .collect(),
+        false => named,
+    };
+    match matches.as_slice() {
+        [found] => Ok(found),
+        [] => anyhow::bail!(
+            "No project named {query} on {agent}. See every project with slingshot projects"
+        ),
+        several => anyhow::bail!(
+            "{} projects are named {query} on {agent}. Use the ID of the one you mean: {}",
+            several.len(),
+            several
+                .iter()
+                .map(|p| format!("{} from {}", storage::short_id(&p.id), p.client))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+    }
+}
+
+fn listing(project: &ProjectSummary, style: Style) -> Vec<String> {
+    let copy = match project.waiting {
+        0 => size(project.copy),
+        waiting => format!(
+            "{}, including {}",
+            size(project.copy),
+            style.paint(
+                format!("{} not brought back", presentation::plural(waiting, "edit")),
+                Tone::Warning
+            )
+        ),
+    };
+    let mut lines = vec![
+        presentation::row("Copy", copy),
+        presentation::row("Build", size(project.build)),
+        presentation::row("From", &project.client),
+        presentation::row("Kept", "the project on its Client"),
+    ];
+    if project.waiting > 0 {
+        lines.push(style.dim(presentation::row(
+            "Keep edits",
+            "run slingshot sync --pull in the project first",
+        )));
+    }
+    lines
 }
 
 /// Columns widen to fit the longest name, up to a limit, so a long name cannot push the
@@ -176,5 +311,54 @@ mod tests {
     fn an_empty_agent_says_how_to_add_a_project() {
         let text = render("archbox", &[], 0, Style::new(false));
         assert!(text.contains("None yet. slingshot sync in a project copies it"));
+    }
+
+    #[test]
+    fn a_project_is_chosen_by_name_or_id_and_a_shared_name_asks_for_the_id() {
+        let projects = [
+            summary("app", "MacBook-Pro-3f9c2a", "aaaa1111"),
+            summary("app", "archlaptop-a1b2c3", "bbbb2222"),
+            summary("api", "MacBook-Pro-3f9c2a", "cccc3333"),
+        ];
+        let target = "archbox";
+        assert_eq!(
+            choose(&projects, Some("api"), target).unwrap().id,
+            "cccc3333"
+        );
+        assert_eq!(
+            choose(&projects, Some("bbbb"), target).unwrap().id,
+            "bbbb2222"
+        );
+        let shared = choose(&projects, Some("app"), target)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            shared.contains("2 projects are named app on archbox"),
+            "{shared}"
+        );
+        assert!(
+            shared.contains("aaaa1111 from MacBook-Pro-3f9c2a"),
+            "{shared}"
+        );
+        let missing = choose(&projects, Some("web"), target)
+            .unwrap_err()
+            .to_string();
+        assert!(missing.starts_with("No project named web on archbox"));
+        assert!(choose(&projects, Some("cc"), target).is_err());
+    }
+
+    #[test]
+    fn removing_warns_about_edits_not_brought_back() {
+        let mut project = summary("api", "MacBook-Pro-3f9c2a", "aaaa1111");
+        project.waiting = 4;
+        let lines = listing(&project, Style::new(false)).concat();
+        assert!(lines.contains("2 MiB, including 4 edits not brought back"));
+        assert!(lines.contains("run slingshot sync --pull in the project first"));
+        project.waiting = 0;
+        assert!(
+            !listing(&project, Style::new(false))
+                .concat()
+                .contains("sync --pull")
+        );
     }
 }

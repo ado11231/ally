@@ -2,11 +2,13 @@
 //! service on Linux, with linger so it starts before anyone logs in, and a launchd agent on
 //! macOS, which starts at login. Either one runs `slingshot internal-daemon`.
 
+use crate::{awake, service};
 use anyhow::{Context, bail};
 use slingshot_core::presentation::{self, home_path};
 use slingshot_core::storage;
+use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 const UNIT: &str = "slingshot.service";
 const LABEL: &str = "dev.slingshot.agent";
@@ -21,6 +23,9 @@ pub struct Plan {
     commands: Vec<Vec<String>>,
     /// Lets a Linux user service start before anyone logs in. `None` when already on.
     linger: Option<Vec<String>>,
+    /// The polkit rule a Linux service needs to keep a machine that can sleep awake with
+    /// nobody logged in. `None` when sleep is off or the rule is already written.
+    sleep_rule: Option<String>,
     /// "at boot" or "at login", for the question and the result.
     pub when: &'static str,
     logs: String,
@@ -70,6 +75,7 @@ pub fn plan(root: &Path, name: &str, user: &str) -> anyhow::Result<Plan> {
                 &file.to_string_lossy(),
             ])],
             linger: None,
+            sleep_rule: None,
             when: "at login",
             logs: home_path(&log),
             file,
@@ -85,6 +91,10 @@ pub fn plan(root: &Path, name: &str, user: &str) -> anyhow::Result<Plan> {
             words(&["systemctl", "--user", "enable", "--now", UNIT]),
         ],
         linger: (!lingering(user)).then(|| words(&["loginctl", "enable-linger", user])),
+        sleep_rule: match awake::sleep_off() || awake::rule_written(root) {
+            true => None,
+            false => awake::sleep_rule(user),
+        },
         when: "at boot",
         logs: format!("journalctl --user -u {UNIT}"),
         file,
@@ -108,6 +118,15 @@ pub fn show(plan: &Plan) {
     presentation::detail("Writes", home_path(&plan.file));
     for command in plan.commands.iter().chain(&plan.linger) {
         presentation::detail("Runs", shell_words::join(command));
+    }
+    if plan.sleep_rule.is_some() {
+        presentation::detail(
+            "Writes",
+            format!(
+                "{}, with sudo, so this machine stays awake with nobody logged in",
+                awake::SLEEP_RULE
+            ),
+        );
     }
 }
 
@@ -134,7 +153,62 @@ pub fn install(plan: &Plan) -> anyhow::Result<()> {
             shell_words::join(linger)
         ));
     }
+    if let Some(rule) = &plan.sleep_rule {
+        match write_sleep_rule(rule) {
+            Ok(()) => {
+                awake::mark_rule(&service::root()?, true)?;
+                presentation::success("This machine stays awake with nobody logged in");
+            }
+            Err(error) => presentation::warning(format!(
+                "{error:#}. This machine may sleep with nobody logged in. Run slingshot start --boot in a terminal to try again"
+            )),
+        }
+    }
     Ok(())
+}
+
+/// Write the polkit rule with `sudo tee`, which asks for the password in this terminal.
+fn write_sleep_rule(rule: &str) -> anyhow::Result<()> {
+    let mut child = Command::new("sudo")
+        .args(["tee", awake::SLEEP_RULE])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .spawn()
+        .context("Could not start sudo")?;
+    child
+        .stdin
+        .take()
+        .context("Could not reach sudo")?
+        .write_all(rule.as_bytes())?;
+    anyhow::ensure!(
+        child.wait()?.success(),
+        "Could not write {}",
+        awake::SLEEP_RULE
+    );
+    Ok(())
+}
+
+/// Delete the polkit rule, if Slingshot wrote one. A failure leaves the exact command.
+fn remove_sleep_rule() -> anyhow::Result<()> {
+    let root = service::root()?;
+    if !awake::rule_written(&root) {
+        return Ok(());
+    }
+    let removed = Command::new("sudo")
+        .args(["rm", "-f", awake::SLEEP_RULE])
+        .status()
+        .is_ok_and(|status| status.success());
+    match removed {
+        true => awake::mark_rule(&root, false),
+        false => {
+            presentation::warning(format!(
+                "Could not delete {}. Delete it with sudo rm {}",
+                awake::SLEEP_RULE,
+                awake::SLEEP_RULE
+            ));
+            Ok(())
+        }
+    }
 }
 
 /// `slingshot start --remove`: show what will happen, ask, then stop the service and delete
@@ -149,6 +223,9 @@ pub async fn remove() -> anyhow::Result<i32> {
     eprintln!("\n  This stops Slingshot and stops it starting by itself:");
     presentation::detail("Runs", shell_words::join(&command));
     presentation::detail("Deletes", home_path(&file));
+    if awake::rule_written(&service::root()?) {
+        presentation::detail("Deletes", format!("{}, with sudo", awake::SLEEP_RULE));
+    }
     anyhow::ensure!(
         crate::interactive(),
         "Run slingshot start --remove in a terminal to confirm"
@@ -168,7 +245,8 @@ pub fn remove_service() -> anyhow::Result<()> {
         presentation::warning(format!("{error:#}"));
     }
     std::fs::remove_file(&file)
-        .with_context(|| format!("Could not delete {}. Delete it by hand", file.display()))
+        .with_context(|| format!("Could not delete {}. Delete it by hand", file.display()))?;
+    remove_sleep_rule()
 }
 
 fn run(command: &[String]) -> anyhow::Result<()> {

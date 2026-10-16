@@ -83,16 +83,21 @@ pub fn assume(agent: &Agent, token: &str) {
     *CHOSEN.lock().expect("route lock was poisoned") = Some((agent.name.clone(), route));
 }
 
-/// Probing waits on the network for up to a second. Inside the async runtime the wait
-/// is handed off, so other tasks on this worker keep running meanwhile.
+/// Probing waits on the network for up to a second.
 fn probe(agent: &Agent) -> Route {
+    off_runtime(|| probe_now(agent))
+}
+
+/// Run `work`, which waits on the network. Inside the async runtime the wait is handed
+/// off, so other tasks on this worker keep running meanwhile.
+pub fn off_runtime<T>(work: impl FnOnce() -> T) -> T {
     use tokio::runtime::{Handle, RuntimeFlavor};
 
     match Handle::try_current() {
         Ok(handle) if handle.runtime_flavor() == RuntimeFlavor::MultiThread => {
-            tokio::task::block_in_place(|| probe_now(agent))
+            tokio::task::block_in_place(work)
         }
-        _ => probe_now(agent),
+        _ => work(),
     }
 }
 

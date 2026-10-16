@@ -224,12 +224,6 @@ enum ProjectsAction {
     },
 }
 
-/// Help and errors always say `slingshot`, even when the program was started as `sling`, so
-/// they match the docs.
-fn command() -> clap::Command {
-    Cli::command().bin_name("slingshot")
-}
-
 /// Slingshot's own warnings show by default. Libraries such as iroh only show real errors,
 /// because their internals mean nothing to the person running a command.
 const DEFAULT_LOG: &str = "error,slingshot_cli=warn,slingshot_agent=warn,slingshot_core=warn";
@@ -261,7 +255,7 @@ pub async fn run() {
         }
         ColorMode::Auto => clap::ColorChoice::Auto,
     };
-    let matches = command().color(color).get_matches_from(args);
+    let matches = Cli::command().color(color).get_matches_from(args);
     let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|error| error.exit());
 
     let result = match cli.command {
@@ -408,15 +402,6 @@ mod tests {
             }
         ));
         assert!(Cli::try_parse_from(["slingshot", "start", "--boot", "--remove"]).is_err());
-    }
-
-    #[test]
-    fn help_says_slingshot_when_started_as_sling() {
-        let error = command()
-            .try_get_matches_from(["sling", "bogus"])
-            .unwrap_err()
-            .to_string();
-        assert!(error.contains("Usage: slingshot"), "{error}");
     }
 
     #[test]

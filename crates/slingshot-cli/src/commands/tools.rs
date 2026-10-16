@@ -34,7 +34,11 @@ pub async fn offer(target: &Agent) -> anyhow::Result<()> {
         .map(|local| local.stacks)
         .unwrap_or_default();
     let here = tools::installed_here();
-    let offered = tools::missing(&here, &before.installed, &stacks);
+    let gpu = target
+        .specs
+        .as_ref()
+        .is_some_and(|specs| !specs.gpus.is_empty());
+    let offered = tools::missing(&here, &before.installed, &stacks, gpu);
     if offered.is_empty() {
         checking.done(format!("{} has every tool this machine uses", target.name));
         return offer_sign_in(target, &before, &here, &[], true).await;
@@ -324,6 +328,13 @@ fn plan(
             style.dim("The docker group can control the whole Agent, as an admin can. Add only accounts you trust")
         ));
     }
+    if offered.contains(&Tool::Ollama) {
+        output.push_str(&format!(
+            "\n  {}\n",
+            style
+                .dim("Ollama runs as a service on the Agent, and listens only on the Agent itself")
+        ));
+    }
     output
 }
 
@@ -404,6 +415,25 @@ mod tests {
         );
         assert!(!mine.contains("sudo pacman"), "{text}");
         assert!(theirs.contains("Git          sudo pacman -S git"), "{text}");
+    }
+
+    #[test]
+    fn the_plan_shows_the_local_model_tools() {
+        let text = plan(
+            &[Tool::Ollama, Tool::OpenCode],
+            Some("pacman"),
+            None,
+            true,
+            Style::new(false),
+        );
+
+        assert!(
+            text.contains("  Ollama       curl -fsSL https://ollama.com/install.sh | sudo sh\n")
+        );
+        assert!(text.contains(
+            "  OpenCode     curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path\n"
+        ));
+        assert!(text.contains("Ollama runs as a service on the Agent"));
     }
 
     #[test]

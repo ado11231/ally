@@ -28,10 +28,10 @@
 
 ### Phase 1: Pairing And Remote Commands
 
-* `slingshot start` checks for an ssh server, `rsync`, and `tmux`, and prints a one time pairing code.
-* `slingshot link` installs the Client's key on the Agent. The Client needs no ssh server.
-* `slingshot run` runs a command with live output, typing, Ctrl C, and the real exit code.
-* `slingshot health` shows the Agent's hardware and use.
+* `ally start` checks for an ssh server, `rsync`, and `tmux`, and prints a one time pairing code.
+* `ally link` installs the Client's key on the Agent. The Client needs no ssh server.
+* `ally run` runs a command with live output, typing, Ctrl C, and the real exit code.
+* `ally health` shows the Agent's hardware and use.
 
 ### Phase 2: Mounting The Project
 
@@ -50,7 +50,7 @@
 
 * The Client tries the local network, then the tailnet, then iroh, and every run names its path.
 * iroh connects directly when it can, and through a relay when not. A relay sees only encrypted data.
-* The Agent accepts iroh only from paired Clients, stays awake while `slingshot start` runs, and closes iroh cleanly when stopped, so Clients reconnect at once.
+* The Agent accepts iroh only from paired Clients, stays awake while `ally start` runs, and closes iroh cleanly when stopped, so Clients reconnect at once.
 * Errors tell an Agent that is off apart from a Client that is no longer paired.
 * **Tested:** a connection lost for 4 minutes during a run over iroh ends the run with a clear message, and the Agent stops it.
 
@@ -58,42 +58,42 @@
 
 | Area | What Works |
 | --- | --- |
-| Menu bar app | CPU, RAM, GPU, VRAM, and workspace space; an offline screen with the cause, fix, and Try again; always a login item; follows a new `slingshot` by itself; moves to a better connection within a minute. `slingshot menubar` builds, signs, installs, and removes it. |
-| Notifications | Finished, failed, and interrupted runs; the Agent going offline or returning; low memory, low disk, or a hot GPU. Shown with the Slingshot icon. |
-| Sessions | `attach` from anywhere. Syncs first, and pulls edits back on leaving. Login shell, full color, `UTF-8`, mouse scrolling, a colored bar, `~/Slingshot/<project>`, and the user folders on PATH. Works from terminals the Agent may not know, such as Kitty. |
-| Tools | `link` ends by offering the Client's tools on the Agent, including OpenCode, and Ollama when the Agent has a GPU, then signs in to Claude Code and Codex. `slingshot tools` repeats it, offers sign in when signed out, and lists `sudo` steps for an admin on accounts without it. |
-| Starting | A systemd user service with linger, or a launchd agent, offered on the first `slingshot start`. On Linux, a polkit rule keeps an Agent that can sleep awake with nobody logged in. `--boot` and `--remove` manage it. Moves to the next free port when the pairing port is taken. Warns when Docker is unusable, and says when sleep is off. |
+| Menu bar app | CPU, RAM, GPU, VRAM, and workspace space; an offline screen with the cause, fix, and Try again; always a login item; follows a new `ally` by itself; moves to a better connection within a minute. `ally menubar` builds, signs, installs, and removes it. |
+| Notifications | Finished, failed, and interrupted runs; the Agent going offline or returning; low memory, low disk, or a hot GPU. Shown with the Ally icon. |
+| Sessions | `attach` from anywhere. Syncs first, and pulls edits back on leaving. Login shell, full color, `UTF-8`, mouse scrolling, a colored bar, `~/Ally/<project>`, and the user folders on PATH. Works from terminals the Agent may not know, such as Kitty. |
+| Tools | `link` ends by offering the Client's tools on the Agent, including OpenCode, and Ollama when the Agent has a GPU, then signs in to Claude Code and Codex. `ally tools` repeats it, offers sign in when signed out, and lists `sudo` steps for an admin on accounts without it. |
+| Starting | A systemd user service with linger, or a launchd agent, offered on the first `ally start`. On Linux, a polkit rule keeps an Agent that can sleep awake with nobody logged in. `--boot` and `--remove` manage it. Moves to the next free port when the pairing port is taken. Warns when Docker is unusable, and says when sleep is off. |
 | Sync | `--overwrite` keeps one side of a conflict, with a backup. Pulls refuse names that differ only in case. A Python `.venv` works on the Agent. |
 | Output | Problems on one line with dimmed fixes. `link` and `tools` in sections. Stopped runs are not failed, and `ps --all` shows `Lost connection`. Version errors name the older machine. |
-| Removal | `slingshot uninstall` lists everything on a Client or Agent, asks once with No as the default, and keeps the owner's own files and keys. |
-| Projects | `slingshot projects` lists each copy on the Agent with its size, build output, last sync, and edits waiting. `clean` frees build output, and `remove` deletes a copy after asking. |
+| Removal | `ally uninstall` lists everything on a Client or Agent, asks once with No as the default, and keeps the owner's own files and keys. |
+| Projects | `ally projects` lists each copy on the Agent with its size, build output, last sync, and edits waiting. `clean` frees build output, and `remove` deletes a copy after asking. |
 
 ## Planned
 
 | Phase | Work | Issue |
 | --- | --- | --- |
-| 5 | Port forwarding, plus ready and waiting notifications | [#9](https://github.com/ado11231/ss/issues/9) |
-| 6 | Local AI models through Ollama | [#20](https://github.com/ado11231/ss/issues/20) |
-| 6 | Pairing across networks, keeping the code safe through a relay | [#19](https://github.com/ado11231/ss/issues/19) |
-| 6 | Watching several Agents from the menu bar | [#109](https://github.com/ado11231/ss/issues/109) |
+| 5 | Port forwarding, plus ready and waiting notifications | [#9](https://github.com/ado11231/ally/issues/9) |
+| 6 | Local AI models through Ollama | [#20](https://github.com/ado11231/ally/issues/20) |
+| 6 | Pairing across networks, keeping the code safe through a relay | [#19](https://github.com/ado11231/ally/issues/19) |
+| 6 | Watching several Agents from the menu bar | [#109](https://github.com/ado11231/ally/issues/109) |
 | 6 | A setting to use your own iroh relay, and stronger Linux Client support | |
 | 7 | Ready to run programs for macOS and Linux, on Intel and ARM | |
-| 7 | Publishing to crates.io, AUR, and Homebrew | [#17](https://github.com/ado11231/ss/issues/17) |
-| 7 | A one line installer, and `slingshot doctor` to check a setup | |
+| 7 | Publishing to crates.io, AUR, and Homebrew | [#17](https://github.com/ado11231/ally/issues/17) |
+| 7 | A one line installer, and `ally doctor` to check a setup | |
 
-* Phase 7 is done when a newcomer goes from install to a working `slingshot run` in under five minutes, with no help.
+* Phase 7 is done when a newcomer goes from install to a working `ally run` in under five minutes, with no help.
 
 ## Known Limitations
 
 * Starting by itself on a macOS Agent is untested.
 * After a power loss, the first iroh connection is untested. A crash is tested below.
-* Edits in a session whose connection dropped stay on the Agent until `slingshot sync --pull`.
+* Edits in a session whose connection dropped stay on the Agent until `ally sync --pull`.
 * The tools step installs Docker only with `pacman`, `apt`, `dnf`, and `zypper`, and Git, Node, and Python only with package managers it knows.
 * Untested: file watchers in sessions, two Clients on one Agent account at once, and large Node and Python projects.
-* `slingshot.toml` supports only `sync.exclude`.
+* `ally.toml` supports only `sync.exclude`.
 * Linking needs a shared network or tailnet.
 * The back online notification and resource warnings have not been seen on real machines.
-* A dev server or container on the Agent cannot open in the Client's browser yet ([#9](https://github.com/ado11231/ss/issues/9)).
+* A dev server or container on the Agent cannot open in the Client's browser yet ([#9](https://github.com/ado11231/ally/issues/9)).
 * The tools step on an account without `sudo` is checked only by unit tests.
 * Installing Ollama and OpenCode through the tools step is checked only by unit tests. On archbox, the step found both already installed.
 
@@ -103,19 +103,19 @@
 
 ### Phase 3: September 13, 2026, Same Network
 
-1. The first `slingshot run cargo build` copied 47 files in 9 seconds. The second started in 1 second.
+1. The first `ally run cargo build` copied 47 files in 9 seconds. The second started in 1 second.
 2. Subfolders, exit codes, typing, and Ctrl C behaved as local. The copy held no `.git` or `target`.
 3. Push, pull, preview, an Agent only edit, and a conflict worked. The conflict was refused and nothing changed.
 4. Environment files were private to the Agent account, visible to `run`, and never synced.
 5. A release build in `attach` kept running through four minutes offline, and `attach` returned to it.
-6. Restarting `slingshot start` kept the session. Restarting the Agent marked it interrupted.
+6. Restarting `ally start` kept the session. Restarting the Agent marked it interrupted.
 7. `unlink` refused during a session, then removed the key and files after `stop`.
 
 ### Phase 4: September 22, 2026
 
 1. `run` worked over the home network, the tailnet from a hotspot, and iroh with Tailscale off.
 2. Over iroh, the first ssh connection took about 1.5 seconds, later ones about 0.3.
-3. With `slingshot start` stopped, `run` failed after about 20 seconds, naming the cause.
+3. With `ally start` stopped, `run` failed after about 20 seconds, naming the cause.
 4. An unpaired Client was refused over iroh, and a paired one accepted. `sync` and `attach` worked over iroh.
 
 ### Phase 5: September 23 And 24, 2026
@@ -124,7 +124,7 @@
 2. Runs gave the right notifications, and none for a quick `echo hi`.
 3. `attach` outside a project opened `~` with color, `UTF-8`, mouse scrolling, Claude Code, and `docker ps` working. In a project it synced first.
 4. `cargo build` in a session ran on archbox while the Mac stayed quiet. `sync --pull` worked with the session open.
-5. `slingshot menubar` built in 12 seconds, skipped the build when nothing changed, and rebuilt after a Swift change.
+5. `ally menubar` built in 12 seconds, skipped the build when nothing changed, and rebuilt after a Swift change.
 
 ### Safe Pairing: September 25, 2026, Mac Only
 
@@ -139,31 +139,31 @@
 * A new account, `slingtest`, on archbox played a first time user. Both machines followed only the README.
 
 1. `cargo install` needed `rustup default stable` and `~/.cargo/bin` on PATH, both from Arch Linux's `rustup` package.
-2. `slingshot start` passed every check, found the GPU, and reached iroh. Pairing took 0.1 seconds.
+2. `ally start` passed every check, found the GPU, and reached iroh. Pairing took 0.1 seconds.
 3. Codex installed and signed in through the forwarded port. Claude Code installed into `~/.local/bin` but was reported missing; fixed the same day.
 4. `cargo build --release` took 54 seconds on archbox against 3 minutes 20 on the Mac. The second run took 0.6 seconds.
-5. Wi Fi off for 15 seconds during a run over iroh did not interrupt it. After restarting `slingshot start`, the Mac reconnected without linking again.
+5. Wi Fi off for 15 seconds during a run over iroh did not interrupt it. After restarting `ally start`, the Mac reconnected without linking again.
 
 ### Menu Bar And Sign In: September 28, 2026
 
-1. The app stayed a login item, and switched to a changed `slingshot` within 3 to 9 seconds in four of five tries. Once it took 20 seconds, cause not found.
-2. `slingshot menubar --remove` listed, asked, and removed the app.
+1. The app stayed a login item, and switched to a changed `ally` within 3 to 9 seconds in four of five tries. Once it took 20 seconds, cause not found.
+2. `ally menubar --remove` listed, asked, and removed the app.
 3. `link` paired again and restarted the app. `health` showed the hardware heading above live numbers.
-4. Closing the terminal running `slingshot start` had made the next iroh run take 22 seconds. After the fix, 1.4 to 1.6 seconds.
-5. `slingshot tools` noticed Codex was signed out and offered to sign in.
-6. A second `slingshot start` under another home moved to port 7434 and said so.
+4. Closing the terminal running `ally start` had made the next iroh run take 22 seconds. After the fix, 1.4 to 1.6 seconds.
+5. `ally tools` noticed Codex was signed out and offered to sign in.
+6. A second `ally start` under another home moved to port 7434 and said so.
 
 ### Start Screen And Starting By Itself: October 6, 2026
 
-1. A new build beside an older running `slingshot start` refused with `A different version of Slingshot is already running for this account`.
-2. With a linked Client, `slingshot start` showed the Client and no code. Enter printed a code.
-3. The first `slingshot start` offered the service and asked once. After `sudo reboot` with nobody logged in, `run` worked 20 seconds after boot. Masked sleep kept archbox reachable.
+1. A new build beside an older running `ally start` refused with `A different version of Ally is already running for this account`.
+2. With a linked Client, `ally start` showed the Client and no code. Enter printed a code.
+3. The first `ally start` offered the service and asked once. After `sudo reboot` with nobody logged in, `run` worked 20 seconds after boot. Masked sleep kept archbox reachable.
 4. `--remove` and `--boot` removed and reinstalled the service.
 5. Leaving `attach` pulled a file written on archbox. A conflict left each machine its own version.
 
 ### Fresh Install And Full Test: October 7, 2026
 
-* Both machines were cleaned and installed from the README. The Agent was a new account without `sudo`. Full results are on [#56](https://github.com/ado11231/ss/issues/56).
+* Both machines were cleaned and installed from the README. The Agent was a new account without `sudo`. Full results are on [#56](https://github.com/ado11231/ally/issues/56).
 
 1. The Mac install took 2m 43s. `link` paired, installed and signed in to the tools, and built the menu bar app in one flow.
 2. A Rust release build took 2.6s on archbox and 7.3s on the Mac. `node_modules` and `dist` stayed on the Agent. `.env` never synced.
@@ -182,14 +182,14 @@
 
 ### Projects: October 15, 2026
 
-1. `slingshot projects` listed three projects on archbox with their sizes, last sync, and edits waiting.
-2. `clean` on Slingshot itself freed 3.9 GiB, and the next `cargo build` made it again in 28 seconds.
-3. A throwaway project showed 2 edits waiting. `remove` listed them, kept everything on Enter, and on `y` deleted the copy and its `~/Slingshot` link.
+1. `ally projects` listed three projects on archbox with their sizes, last sync, and edits waiting.
+2. `clean` on Ally itself freed 3.9 GiB, and the next `cargo build` made it again in 28 seconds.
+3. A throwaway project showed 2 edits waiting. `remove` listed them, kept everything on Enter, and on `y` deleted the copy and its `~/Ally` link.
 
 ### Sleep Rule: October 16, 2026
 
-1. With sleep turned back on, `slingshot start --boot` showed the polkit rule, wrote it with `sudo`, and printed `This machine stays awake with nobody logged in`.
-2. After `sudo reboot`, with only the login screen on archbox, Slingshot held the sleep lock from the first minute.
+1. With sleep turned back on, `ally start --boot` showed the polkit rule, wrote it with `sudo`, and printed `This machine stays awake with nobody logged in`.
+2. After `sudo reboot`, with only the login screen on archbox, Ally held the sleep lock from the first minute.
 3. 15 minutes after boot, GNOME tried to suspend and was refused by the lock. archbox was still reachable after 30 minutes.
 
 ### Agent Crash Over iroh: October 16, 2026

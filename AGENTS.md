@@ -9,7 +9,7 @@
 
 1. [Accountability](#1-accountability)
 2. [Read First](#2-read-first)
-3. [What Slingshot Is](#3-what-slingshot-is)
+3. [What Ally Is](#3-what-ally-is)
 4. [Rules That Are Never Broken](#4-rules-that-are-never-broken)
 5. [Out Of Scope](#5-out-of-scope)
 6. [Before Writing Code](#6-before-writing-code)
@@ -51,13 +51,13 @@
 
 ---
 
-## 3. What Slingshot Is
+## 3. What Ally Is
 
-* Slingshot lets a light machine use the CPU, RAM, and GPU of a powerful one.
+* Ally lets a light machine use the CPU, RAM, and GPU of a powerful one.
 * The user keeps their own editor, terminal, and browser. Builds, servers, databases, containers, coding agents, and small AI models run on the powerful machine.
 * It must feel local. There is no virtual machine and no remote desktop.
 * **Goal:** a public open source tool a stranger can install and set up in minutes. Setup friction is a bug.
-* **Name:** Slingshot. The command is `slingshot`. It was called borrow until September 22, 2026.
+* **Name:** Ally. The command is `ally`. It was called Slingshot until October 16, 2026, and borrow until September 22, 2026.
 * **Languages:** Rust, except the macOS menu bar app, which is SwiftUI.
 * **Roles:** the **Client** is the machine the user works on. The **Agent** is the machine with the resources.
 
@@ -67,7 +67,7 @@
 
 1. **The Client stays light.** Never move heavy work onto the Client. If a change makes the Client do real work, the change is wrong.
 2. **Always state where work runs.** Every remote command prints its location, such as `▶ Running on archbox via tailnet`.
-3. **Wrap existing tools. Never rebuild them.** Slingshot wraps `ssh`, `rsync`, `tmux`, `docker`, `ollama`, `nvidia-smi`, and the `iroh` library. Never write your own ssh, file transfer, terminal multiplexer, container engine, inference engine, relay server, or NAT traversal.
+3. **Wrap existing tools. Never rebuild them.** Ally wraps `ssh`, `rsync`, `tmux`, `docker`, `ollama`, `nvidia-smi`, and the `iroh` library. Never write your own ssh, file transfer, terminal multiplexer, container engine, inference engine, relay server, or NAT traversal.
 4. **Keep setup simple.** One program per machine, one pairing step, one command to use. Reject designs that add setup steps.
 5. **Stay platform neutral.** Describe everything as Client and Agent, never as Mac and Linux. Mac to Linux and Linux to Linux must both work. Only the menu bar app may be macOS specific.
 6. **Design for a stranger.** Anything easy only on the author's machine becomes a setup check or an installer step. Every failed check prints the exact fix. Detect and instruct. Never install without asking: show exactly what will run, then ask once.
@@ -87,7 +87,7 @@
 | Treating environment files as source | `.env`, `.env.*`, `*.env`, and `.envrc` never enter a sync, and their contents never appear in arguments. |
 | Assuming a package manager | The main test Agent runs Arch Linux, which uses `pacman`, not `apt`. Detect and instruct. |
 | Fixed system paths in shared code | Never write `/Users/...` or `/home/...`. Use the `directories` crate. |
-| New operations on the pairing port | The TCP port only pairs. Every other request uses `slingshot internal-control` over ssh. |
+| New operations on the pairing port | The TCP port only pairs. Every other request uses `ally internal-control` over ssh. |
 | A custom way to run commands | ssh carries all work. `run`, `attach`, and `rsync` always go through it. |
 
 ---
@@ -97,7 +97,7 @@
 1. **Understand the request.** If it is unclear or has more than one meaning, ask. Never guess about anything that changes behavior, deletes data, or affects security.
 2. **Read the code you will change, and its callers.** Find both in the [file reference](docs/ARCHITECTURE.md#file-reference). Never edit a file you have not read.
 3. **Look for existing helpers.** Search before writing anything new. See the table below.
-4. **Choose the right crate.** Rules both machines apply go in `slingshot-core`, Agent only code in `slingshot-agent`, and commands and Client code in `slingshot-cli`. `slingshot-cli` uses the other two, `slingshot-agent` uses `slingshot-core`, and `slingshot-core` uses neither.
+4. **Choose the right crate.** Rules both machines apply go in `ally-core`, Agent only code in `ally-agent`, and commands and Client code in `ally-cli`. `ally-cli` uses the other two, `ally-agent` uses `ally-core`, and `ally-core` uses neither.
 5. **Plan the smallest change** that solves the problem and keeps everything working end to end.
 
 | Need | Existing Helper |
@@ -130,7 +130,7 @@
 * Match the surrounding code's names, structure, and idioms.
 * Use plain English names. Never names like `mgr`, `ctx2`, `tmp_data`, or `handle_stuff`.
 * Errors use `anyhow`. Every visible error says what went wrong and what to do, in one sentence, with the exact command when there is one.
-* A failing user command is not a Slingshot error. Report its exit code faithfully.
+* A failing user command is not an Ally error. Report its exit code faithfully.
 * Never use `unwrap()` outside tests. Use `?`, or `expect("reason this cannot fail")` for true invariants only.
 * Never use `unsafe` unless existing code already does the same thing, and explain why.
 * Never add `#[allow(...)]` to silence a warning. Fix the cause, or ask.
@@ -149,9 +149,9 @@
 
 ### Formats And Versions
 
-* **Control messages:** any change to a `Request` or `Response` shape in `slingshot-core/src/control.rs` raises `control::VERSION`, currently 14.
-* **Menu bar lines:** if a field in `slingshot-cli/src/watch/event.rs` changes meaning or is removed, raise `watch::event::VERSION` and change `slingshot-cli/menubar/Sources/Model.swift` in the same commit.
-* **Pairing messages:** a change to the pairing messages in `slingshot-core/src/protocol.rs` means both machines must update before the next link. A change to `Specs` or `Health`, which are saved or sent after pairing, forces every user to link again. Say which one explicitly.
+* **Control messages:** any change to a `Request` or `Response` shape in `ally-core/src/control.rs` raises `control::VERSION`, currently 14.
+* **Menu bar lines:** if a field in `ally-cli/src/watch/event.rs` changes meaning or is removed, raise `watch::event::VERSION` and change `ally-cli/menubar/Sources/Model.swift` in the same commit.
+* **Pairing messages:** a change to the pairing messages in `ally-core/src/protocol.rs` means both machines must update before the next link. A change to `Specs` or `Health`, which are saved or sent after pairing, forces every user to link again. Say which one explicitly.
 
 ### Security
 
@@ -169,7 +169,7 @@
 
 ### The Menu Bar App
 
-* Swift only displays information and posts notifications. All thresholds, rules, and wording live in Rust, in `crates/slingshot-cli/src/watch/`.
+* Swift only displays information and posts notifications. All thresholds, rules, and wording live in Rust, in `crates/ally-cli/src/watch/`.
 * Confirm an SF Symbol name exists before using it. A wrong name draws nothing and reports no error.
 * macOS only Rust code sits behind `#[cfg(target_os = "macos")]`, with a clear message on other systems.
 
@@ -193,12 +193,12 @@
 
 ## 8. Output Style
 
-* All output goes through `slingshot-core/src/presentation.rs` and `slingshot-core/src/step.rs`.
+* All output goes through `ally-core/src/presentation.rs` and `ally-core/src/step.rs`.
 * Slow work is a step: a spinner in a terminal, then a line such as `✓ Synced 3 files  0.4s`.
 * Status symbols: `✓`, `!`, `✗`, and `▶`.
 * Color marks only what needs attention: symbols, the Agent and path in `▶` lines, and warning or failing values. Healthy values stay plain, headings are bold, and details are dimmed.
 * Messages use sentence case. CPU, RAM, GPU, and VRAM are always capitals.
-* `--color auto|always|never` controls color. Slingshot's options come before `run`. Everything after `run` belongs to the user's command.
+* `--color auto|always|never` controls color. Ally's options come before `run`. Everything after `run` belongs to the user's command.
 
 ---
 
@@ -215,7 +215,7 @@ cargo test --workspace
 * If you changed the menu bar app, also run:
 
 ```sh
-swift build -c release --package-path crates/slingshot-cli/menubar
+swift build -c release --package-path crates/ally-cli/menubar
 ```
 
 * Every rule or decision you add or change gets a unit test in the same file's `tests` module.
@@ -255,7 +255,7 @@ swift build -c release --package-path crates/slingshot-cli/menubar
 * Commit messages follow `type: summary`, with type `feat`, `fix`, `refactor`, `docs`, or `test`. The body explains why.
 * Make small commits that each build and pass tests.
 * **No AI attribution.** Never add `Co-Authored-By` lines, "Generated with" lines, or tool names. Commits belong to the person who asked for them.
-* Never commit secrets, build output, or anything in `crates/slingshot-cli/menubar/.build/`.
+* Never commit secrets, build output, or anything in `crates/ally-cli/menubar/.build/`.
 
 ---
 
@@ -310,6 +310,6 @@ swift build -c release --package-path crates/slingshot-cli/menubar
 * **Phases 1, 3, and 4 are complete.** Phase 5 is in progress: the menu bar app, notifications, and the fixes from the October 7, 2026 fresh install test are built, and automatic port forwarding is not.
 * **Next:** port forwarding (#9), then local models (#20, #38 to #40). Every finding from the October 7, 2026 fresh install test is fixed.
 * **All tests, formatting, and Clippy pass on `master`.** CI checks every pull request on Linux and macOS.
-* **The rename from borrow has no migration.** Both machines must run `slingshot link` again after updating.
+* **The renames from borrow and Slingshot have no migration.** Both machines must run `slingshot uninstall`, install Ally, then run `ally link`.
 * Everything under [known limitations](docs/ROADMAP.md#known-limitations) does not work yet. Never describe it as working.
 * The full [test record](docs/ROADMAP.md#test-record) is in the roadmap.

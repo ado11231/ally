@@ -1,16 +1,16 @@
-<h3 align="center">slingshot</h3>
+<h3 align="center">ally</h3>
 
-<p align="center"><img src="docs/media/slingshot.png" alt="Slingshot logo, a pixel art slingshot" width="72"></p>
+<p align="center"><img src="docs/media/ally.png" alt="Ally logo, a small blue pixel art creature" width="72"></p>
 
 <p align="center">
-  <a href="https://github.com/ado11231/ss/actions/workflows/ci.yml"><img src="https://github.com/ado11231/ss/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://crates.io/crates/slingshot-cli"><img src="https://img.shields.io/crates/v/slingshot-cli" alt="crates.io"></a>
+  <a href="https://github.com/ado11231/ally/actions/workflows/ci.yml"><img src="https://github.com/ado11231/ally/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://crates.io/crates/ally-cli"><img src="https://img.shields.io/crates/v/ally-cli" alt="crates.io"></a>
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey" alt="macOS and Linux">
 </p>
 
-<p align="center">Use the CPU, RAM, and GPU of a more powerful computer, right from your laptop. Local AI models are coming next.</p>
+<p align="center">run terminal processes and local models on your stronger computer. use your gaming PC or mini computer as a server.</p>
 
-<p align="center"><img src="docs/media/demo.gif" alt="Starting Slingshot on the powerful machine, linking the laptop, and opening a session" width="830"></p>
+<p align="center"><img src="docs/media/demo.gif" alt="Starting Ally on the powerful machine, linking the laptop, and opening a session" width="830"></p>
 
 ## What It Does
 
@@ -31,7 +31,7 @@
 
 ### On The Agent
 
-**1. Install what Slingshot needs.** Open your system and run the commands.
+**1. Install what Ally needs.** Open your system and run the commands.
 
 <details>
 <summary>Arch Linux</summary>
@@ -91,36 +91,36 @@ Turn on Remote Login in System Settings, General, Sharing.
 
 <br>
 
-**2. Install Slingshot.**
+**2. Install Ally.**
 
 ```sh
-cargo install --locked --git https://github.com/ado11231/ss slingshot-cli
-slingshot --version
+cargo install --locked --git https://github.com/ado11231/ally ally-cli
+ally --version
 ```
 
-If `command not found` shows, your terminal can't find Slingshot yet. Add it to your path with this line, then open a new terminal. On zsh, use `~/.zshrc` instead.
+If `command not found` shows, your terminal can't find Ally yet. Add it to your path with this line, then open a new terminal. On zsh, use `~/.zshrc` instead.
 
 ```sh
 echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
 ```
 
-**3. Start Slingshot.**
+**3. Start Ally.**
 
 ```sh
-slingshot start
+ally start
 ```
 
 Checks the machine and shows how to fix anything missing.
 
-Asks whether to start Slingshot when the computer turns on. Answer yes to keep the Agent ready after a restart.
+Asks whether to start Ally when the computer turns on. Answer yes to keep the Agent ready after a restart.
 
-Prints a line such as `slingshot link 192.168.1.9:7433:K7QW9ZR2` for the Client.
+Prints a line such as `ally link 192.168.1.9:7433:K7QW9ZR2` for the Client.
 
 Each line works once and expires after 10 minutes. Press Enter for a new one.
 
 ### On The Client
 
-**1. Install what Slingshot needs.** Open your system and run the commands.
+**1. Install what Ally needs.** Open your system and run the commands.
 
 <details>
 <summary>macOS</summary>
@@ -172,45 +172,43 @@ When asked, press Enter to install Rust, then open a new terminal.
 
 <br>
 
-**2. Install Slingshot**, the same way as on the Agent.
+**2. Install Ally**, the same way as on the Agent.
 
 ```sh
-cargo install --locked --git https://github.com/ado11231/ss slingshot-cli
-slingshot --version
+cargo install --locked --git https://github.com/ado11231/ally ally-cli
+ally --version
 ```
 
-If `command not found` shows, add Slingshot to your path the same way as on the Agent.
+If `command not found` shows, add Ally to your path the same way as on the Agent.
 
 **3. Link to the Agent.** Run the line the Agent printed.
 
 ```sh
-slingshot link 192.168.1.9:7433:K7QW9ZR2
+ally link 192.168.1.9:7433:K7QW9ZR2
 ```
 
-Both machines need the same network or Tailscale for this step only. After that, Slingshot works from anywhere.
+Both machines need the same network or Tailscale for this step only. After that, Ally works from anywhere.
 
 Offers to set up your tools on the Agent, such as Claude Code, and the menu bar app on a Mac. Asks before each one.
 
 **4. Try it.** Open a terminal in your project folder, then run:
 
 ```sh
-slingshot run cargo build
+ally run cargo build
 ```
 
 Any command works, such as `npm run dev` or `python main.py`.
-
-`sling` is the short name: `sling run cargo build`.
 
 ## Commands
 
 | Command | Does |
 | --- | --- |
-| `slingshot run <command>` | Copies your changes, then runs the command on the Agent. |
-| `slingshot attach` | Opens a terminal on the Agent that keeps running when you disconnect. |
-| `slingshot sync --pull` | Brings edits made on the Agent back to the Client. |
-| `slingshot health` | Shows the Agent's hardware and use. Add `--watch` to keep it live. |
-| `slingshot ps` | Lists running jobs. `slingshot stop <id>` stops one. |
-| `slingshot projects` | Lists the projects on the Agent and their size. `clean` frees build output. |
+| `ally run <command>` | Copies your changes, then runs the command on the Agent. |
+| `ally attach` | Opens a terminal on the Agent that keeps running when you disconnect. |
+| `ally sync --pull` | Brings edits made on the Agent back to the Client. |
+| `ally health` | Shows the Agent's hardware and use. Add `--watch` to keep it live. |
+| `ally ps` | Lists running jobs. `ally stop <id>` stops one. |
+| `ally projects` | Lists the projects on the Agent and their size. `clean` frees build output. |
 
 Every command and option is in [USAGE.md](docs/USAGE.md).
 
@@ -218,4 +216,4 @@ Every command and option is in [USAGE.md](docs/USAGE.md).
 
 On a Mac, `link` offers a menu bar app showing how busy the Agent is and when a run finishes.
 
-<p align="center"><img src="docs/media/menubar.png" alt="The Slingshot menu bar panel" width="360"></p>
+<p align="center"><img src="docs/media/menubar.png" alt="The Ally menu bar panel" width="360"></p>

@@ -1,6 +1,6 @@
 # Contributing
 
-* How to set up Slingshot, make a change, and get it merged.
+* How to set up Ally, make a change, and get it merged.
 
 ## Contents
 
@@ -26,20 +26,20 @@
 
 | Tool | Machine | Purpose |
 | --- | --- | --- |
-| Rust, latest stable | Both | Builds Slingshot. |
+| Rust, latest stable | Both | Builds Ally. |
 | `rsync` | Both | Copies project files. |
 | An ssh server | Agent | Carries all work and requests. |
 | `tmux` | Agent | Keeps sessions running. |
 | Xcode command line tools | Mac Client | Builds the menu bar app. |
 
 ```sh
-git clone https://github.com/ado11231/ss.git slingshot
-cd slingshot
-cargo install --path crates/slingshot-cli
-slingshot menubar
+git clone https://github.com/ado11231/ally.git ally
+cd ally
+cargo install --path crates/ally-cli
+ally menubar
 ```
 
-* `cargo install --path` installs your build as `slingshot`. `slingshot menubar` builds the app on a Mac, and rebuilds it when its source changed.
+* `cargo install --path` installs your build as `ally`. `ally menubar` builds the app on a Mac, and rebuilds it when its source changed.
 
 ## Building And Testing
 
@@ -51,24 +51,24 @@ cargo clippy --workspace --all-targets
 cargo test --workspace
 ```
 
-* After changing the menu bar app, also run `swift build -c release --package-path crates/slingshot-cli/menubar`.
+* After changing the menu bar app, also run `swift build -c release --package-path crates/ally-cli/menubar`.
 * CI runs the same checks on Linux and macOS for every pull request.
-* Unit tests sit in a `tests` module at the bottom of the file they test. Tests of the finished program are in `crates/slingshot-cli/tests/`.
+* Unit tests sit in a `tests` module at the bottom of the file they test. Tests of the finished program are in `crates/ally-cli/tests/`.
 * Every rule or decision needs a test, such as which files are source, what a sync copies, when a notification is sent, or how an error is worded. Code that only starts another program, such as `ssh`, is tested on real machines.
 
 ## Testing On Two Machines
 
 * Test changes to running, syncing, sessions, or connections on two real machines:
 
-1. `slingshot start` on the Agent, and `slingshot link <code>` on the Client.
-2. Use the changed feature, such as `slingshot run cargo build`, `slingshot sync`, or `slingshot attach`.
-3. Test failures: stop `slingshot start`, drop the network, or restart the Agent.
+1. `ally start` on the Agent, and `ally link <code>` on the Client.
+2. Use the changed feature, such as `ally run cargo build`, `ally sync`, or `ally attach`.
+3. Test failures: stop `ally start`, drop the network, or restart the Agent.
 
 * List exactly what you ran and what happened in the pull request. Never call something working unless you ran it.
 
 ## Making A Change
 
-1. **Find the place** in the [file reference](docs/ARCHITECTURE.md#file-reference). Shared rules go in `slingshot-core`, Agent only code in `slingshot-agent`, and commands and Client code in `slingshot-cli`.
+1. **Find the place** in the [file reference](docs/ARCHITECTURE.md#file-reference). Shared rules go in `ally-core`, Agent only code in `ally-agent`, and commands and Client code in `ally-cli`.
 2. **Keep it focused.** The smallest change that solves the problem. Unrelated improvements go in another pull request.
 3. **Match what is there:** naming, structure, and comment style.
 4. **Test it,** and run the changed command at least once.
@@ -91,22 +91,22 @@ cargo test --workspace
 
 ## Code Standards
 
-* `slingshot-core` uses neither other crate. `slingshot-agent` uses `slingshot-core`. `slingshot-cli` uses both.
+* `ally-core` uses neither other crate. `ally-agent` uses `ally-core`. `ally-cli` uses both.
 * Wrap existing tools such as `ssh`, `rsync`, `tmux`, `docker`, and `iroh`. Never write your own.
 * Say Client and Agent, never Mac and Linux. Only the menu bar app may be macOS specific.
 * No fixed paths such as `/Users/...`. Use the `directories` crate.
 * Never assume a package manager. Detect, print the install command, and ask once before running anything.
-* Errors use `anyhow`, and every visible error says how to fix it. A failing user command is not a Slingshot error; pass its exit code through.
+* Errors use `anyhow`, and every visible error says how to fix it. A failing user command is not an Ally error; pass its exit code through.
 * Use `tokio` for async, `tracing` for logs, and `clap` for arguments. No `unwrap` outside tests.
 * Quote each argument sent to the Agent on its own. Never stop a process by ID alone; check its start time.
 * Changing a control message raises `control::VERSION`. Changing the menu bar line format raises `watch::event::VERSION`, and `Sources/Model.swift` changes with `watch/event.rs`.
-* Swift only displays and notifies. Thresholds and rules stay in `crates/slingshot-cli/src/watch/`.
+* Swift only displays and notifies. Thresholds and rules stay in `crates/ally-cli/src/watch/`.
 * Comments go above an item, only when its purpose is not obvious, and say why. No comments in function bodies, commented out code, or `TODO` notes.
 * Explain every new crate in the pull request, and use its latest version.
 
 ## Output Standards
 
-* Use `slingshot-core/src/presentation.rs` and `step.rs`. Never raw color codes.
+* Use `ally-core/src/presentation.rs` and `step.rs`. Never raw color codes.
 * Slow work shows a spinner, then a line such as `✓ Synced 3 files  0.4s`.
 * Symbols: `✓` success, `!` warning, `✗` failure, `▶` remote work. Every remote command says where it runs, such as `▶ Running on archbox via tailnet`.
 * Color marks only what needs attention. Headings are bold, and details dimmed.
@@ -136,12 +136,12 @@ cargo test --workspace
 | --- | --- |
 | Sharing RAM over the network | A network is about a hundred thousand times slower than RAM. |
 | Remote desktop or screen streaming | Sunshine and Moonlight already do this. |
-| Copying or mounting build output | `target`, `node_modules`, virtual environments, and caches stay on the Agent. Copying them makes Slingshot too slow. |
+| Copying or mounting build output | `target`, `node_modules`, virtual environments, and caches stay on the Agent. Copying them makes Ally too slow. |
 | Syncing environment files as source | `.env`, `.env.*`, `*.env`, and `.envrc` often hold secrets. |
 | Requiring an account or VPN | A VPN is used when present, never required. iroh needs no account and no open router port. |
-| Custom `ssh`, `rsync`, `tmux`, or relay servers | Slingshot wraps these tools and never replaces them. |
+| Custom `ssh`, `rsync`, `tmux`, or relay servers | Ally wraps these tools and never replaces them. |
 
 ## Reporting A Problem
 
 1. Check [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) first.
-2. Open an issue with the Problem template. It asks for the exact command, what you expected, the full output, each machine's system and how they connect, and `slingshot health` output if the Agent answers.
+2. Open an issue with the Problem template. It asks for the exact command, what you expected, the full output, each machine's system and how they connect, and `ally health` output if the Agent answers.

@@ -24,4 +24,4 @@ Paste the full output here.
 * Client operating system:
 * Agent operating system:
 * How they connect: same network, tailnet, or different networks
-* Output of `slingshot health`, if the Agent can be reached:
+* Output of `ally health`, if the Agent can be reached:

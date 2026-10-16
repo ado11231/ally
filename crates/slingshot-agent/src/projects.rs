@@ -549,6 +549,41 @@ fn changed(baseline: &Manifest, current: &Manifest) -> usize {
             .count()
 }
 
+/// Remove a project's build output, and return how many bytes it held. Waits for every job,
+/// since a session may be using the output.
+pub fn clean(root: &Path, id: &str) -> anyhow::Result<u64> {
+    let (paths, metadata) = load(root, id)?;
+    let _lock = acquire(root, &paths, &metadata, Blocking::AllJobs)?;
+    let bytes = size(&paths.artifacts) + size(&paths.venv());
+    fs::remove_dir_all(&paths.artifacts)
+        .or_else(|e| match e.kind() {
+            std::io::ErrorKind::NotFound => Ok(()),
+            _ => Err(e),
+        })
+        .with_context(|| format!("Could not remove the build output of {}", metadata.name))?;
+    storage::private_dir(&paths.artifacts)?;
+    if fs::symlink_metadata(paths.venv()).is_ok_and(|meta| meta.is_dir()) {
+        fs::remove_dir_all(paths.venv())
+            .with_context(|| format!("Could not remove .venv in {}", metadata.name))?;
+    }
+    Ok(bytes)
+}
+
+/// Delete a project from the Agent, with its `~/Slingshot` link. Waits for every job.
+pub fn remove(root: &Path, home: Option<&Path>, id: &str) -> anyhow::Result<()> {
+    let (paths, metadata) = load(root, id)?;
+    let _lock = acquire(root, &paths, &metadata, Blocking::AllJobs)?;
+    if let Some(Ok(items)) = home.map(|home| fs::read_dir(home.join("Slingshot"))) {
+        for item in items.flatten() {
+            if fs::read_link(item.path()).is_ok_and(|target| target == paths.source) {
+                fs::remove_file(item.path())?;
+            }
+        }
+    }
+    fs::remove_dir_all(&paths.dir)
+        .with_context(|| format!("Could not remove {} from the Agent", metadata.name))
+}
+
 /// The bytes under `path`, without following links, so a project link never counts twice.
 pub fn size(path: &Path) -> u64 {
     let Ok(meta) = fs::symlink_metadata(path) else {
@@ -831,6 +866,51 @@ mod tests {
         let current = Manifest::from([("a".into(), entry("9")), ("c".into(), entry("3"))]);
         assert_eq!(changed(&baseline, &current), 3);
         assert_eq!(changed(&baseline, &baseline), 0);
+    }
+
+    #[test]
+    fn clean_removes_build_output_and_the_venv_but_keeps_source() {
+        let root = Root::new();
+        let id = project(&root.0);
+        let paths = initialize(&root.0, &id);
+        fs::write(paths.source.join("main.rs"), "code").unwrap();
+        fs::create_dir(paths.venv()).unwrap();
+        fs::write(paths.venv().join("lib"), "123").unwrap();
+        fs::write(paths.artifacts.join("app"), "1234567").unwrap();
+        let expected = 7 + size(&paths.venv());
+        assert_eq!(clean(&root.0, &id).unwrap(), expected);
+        assert!(paths.artifacts.is_dir());
+        assert_eq!(fs::read_dir(&paths.artifacts).unwrap().count(), 0);
+        assert!(!paths.venv().exists());
+        assert!(paths.source.join("main.rs").exists());
+    }
+
+    #[test]
+    fn remove_deletes_the_project_and_only_its_own_link() {
+        let root = Root::new();
+        let home = Root::new();
+        let id = project(&root.0);
+        let paths = initialize(&root.0, &id);
+        let folder = home.0.join("Slingshot");
+        fs::create_dir(&folder).unwrap();
+        std::os::unix::fs::symlink(&paths.source, folder.join("app")).unwrap();
+        std::os::unix::fs::symlink(&home.0, folder.join("other")).unwrap();
+        remove(&root.0, Some(&home.0), &id).unwrap();
+        assert!(!paths.dir.exists());
+        assert!(fs::symlink_metadata(folder.join("app")).is_err());
+        assert!(fs::symlink_metadata(folder.join("other")).is_ok());
+        assert!(list(&root.0).unwrap().is_empty());
+    }
+
+    #[test]
+    fn clean_and_remove_wait_for_running_work() {
+        let root = Root::new();
+        let id = project(&root.0);
+        initialize(&root.0, &id);
+        let run = crate::jobs::new_job(JobKind::Run, Some((&id, "app")), "cargo build".into());
+        crate::jobs::save(&root.0, &run).unwrap();
+        assert!(clean(&root.0, &id).is_err());
+        assert!(remove(&root.0, None, &id).is_err());
     }
 
     struct TempDirLike(PathBuf);

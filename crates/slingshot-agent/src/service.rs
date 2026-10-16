@@ -265,6 +265,14 @@ fn respond(root: &Path, name: &str, request: Request) -> anyhow::Result<Response
         }
         Request::Tools => Response::Tools(agent_tools(root)?),
         Request::Projects => Response::Projects(projects::list(root)?),
+        Request::CleanProject { project } => Response::Cleaned {
+            bytes: projects::clean(root, &project)?,
+        },
+        Request::RemoveProject { project } => {
+            let home = directories::BaseDirs::new().map(|dirs| dirs.home_dir().to_path_buf());
+            projects::remove(root, home.as_deref(), &project)?;
+            Response::Done
+        }
         Request::Ping
         | Request::Status
         | Request::Begin { .. }

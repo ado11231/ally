@@ -128,6 +128,14 @@ pub enum Request {
     Status,
     /// Every project copy on the Agent, from any Client.
     Projects,
+    /// Remove a project's build output. The next build or install makes it again.
+    CleanProject {
+        project: String,
+    },
+    /// Delete a project's copy, build output, and environment files from the Agent.
+    RemoveProject {
+        project: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -149,6 +157,7 @@ pub enum Response {
     Tools(AgentTools),
     Status(AgentStatus),
     Projects(Vec<ProjectSummary>),
+    Cleaned { bytes: u64 },
 }
 
 /// One project copy on the Agent, as `slingshot projects` lists it.

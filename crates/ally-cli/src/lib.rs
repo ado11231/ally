@@ -1,4 +1,4 @@
-//! slingshot: run heavy work on another machine, from a light one.
+//! ally: run heavy work on another machine, from a light one.
 
 mod client;
 mod commands;
@@ -18,7 +18,7 @@ use std::path::PathBuf;
 
 /// Global options precede run so the remote command can receive its own flags.
 #[derive(Parser)]
-#[command(name = "slingshot", version = env!("SLINGSHOT_VERSION"), about = "Use the CPU, RAM, and GPU of another machine from this one", long_about = None)]
+#[command(name = "ally", version = env!("ALLY_VERSION"), about = "Use the CPU, RAM, and GPU of another machine from this one", long_about = None)]
 struct Cli {
     /// Control terminal colors.
     #[arg(long, global = true, value_parser = ["auto", "always", "never"], default_value = "auto")]
@@ -57,7 +57,7 @@ enum Commands {
     #[command(hide = true)]
     InternalWatch,
 
-    /// The remote shell rsync uses, with Slingshot's saved SSH options.
+    /// The remote shell rsync uses, with Ally's saved SSH options.
     #[command(hide = true)]
     InternalRsh {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
@@ -71,7 +71,7 @@ enum Commands {
         name: Option<String>,
     },
 
-    #[command(about = "Agent: start Slingshot and print a pairing code")]
+    #[command(about = "Agent: start Ally and print a pairing code")]
     Start {
         /// The name this Agent will be known by. Defaults to its hostname.
         #[arg(long)]
@@ -81,16 +81,16 @@ enum Commands {
         #[arg(long, default_value_t = DEFAULT_PORT)]
         port: u16,
 
-        /// Start Slingshot by itself at boot, even after answering no before.
+        /// Start Ally by itself at boot, even after answering no before.
         #[arg(long, conflicts_with = "remove")]
         boot: bool,
 
-        /// Stop Slingshot starting by itself at boot, and stop the running service.
+        /// Stop Ally starting by itself at boot, and stop the running service.
         #[arg(long)]
         remove: bool,
     },
 
-    #[command(about = "Client: link to an Agent with the code slingshot start printed")]
+    #[command(about = "Client: link to an Agent with the code ally start printed")]
     Link {
         code: String,
 
@@ -102,16 +102,14 @@ enum Commands {
     #[command(about = "Remove this machine's access and environment files from an Agent")]
     Unlink,
 
-    #[command(
-        about = "Remove everything Slingshot keeps on this machine, after listing it and asking"
-    )]
+    #[command(about = "Remove everything Ally keeps on this machine, after listing it and asking")]
     Uninstall,
 
     #[command(about = "Install the developer tools this machine uses on the Agent, after asking")]
     Tools,
 
     /// `trailing_var_arg` stops clap parsing after `run`, so flags like `--release`
-    /// reach the remote program untouched rather than being claimed by slingshot.
+    /// reach the remote program untouched rather than being claimed by ally.
     #[command(about = "Sync the project, then run a command on the Agent")]
     Run {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
@@ -155,16 +153,16 @@ enum Commands {
         action: Option<ProjectsAction>,
     },
 
-    #[command(about = "List Slingshot runs and sessions on the Agent")]
+    #[command(about = "List Ally runs and sessions on the Agent")]
     Ps {
         /// Include the most recent 100 finished jobs.
         #[arg(long)]
         all: bool,
     },
 
-    #[command(about = "Stop a Slingshot run or session")]
+    #[command(about = "Stop an Ally run or session")]
     Stop {
-        /// The job ID from slingshot ps. A unique prefix is enough.
+        /// The job ID from ally ps. A unique prefix is enough.
         id: String,
     },
 
@@ -213,22 +211,22 @@ enum ProjectsAction {
         about = "Remove a project's build output on the Agent. The next build makes it again"
     )]
     Clean {
-        /// The project name or ID from slingshot projects. Defaults to the current project.
+        /// The project name or ID from ally projects. Defaults to the current project.
         project: Option<String>,
     },
 
     #[command(about = "Delete a project from the Agent, after asking")]
     Remove {
-        /// The project name or ID from slingshot projects. Defaults to the current project.
+        /// The project name or ID from ally projects. Defaults to the current project.
         project: Option<String>,
     },
 }
 
-/// Slingshot's own warnings show by default. Libraries such as iroh only show real errors,
+/// Ally's own warnings show by default. Libraries such as iroh only show real errors,
 /// because their internals mean nothing to the person running a command.
 const DEFAULT_LOG: &str = "error,ally_cli=warn,ally_agent=warn,ally_core=warn";
 
-/// Pass through command exit codes. Slingshot failures exit with code 1.
+/// Pass through command exit codes. Ally failures exit with code 1.
 #[tokio::main]
 pub async fn run() {
     let args: Vec<_> = std::env::args_os().collect();
@@ -236,7 +234,7 @@ pub async fn run() {
     presentation::configure(mode);
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_env("SLINGSHOT_LOG")
+            tracing_subscriber::EnvFilter::try_from_env("ALLY_LOG")
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(DEFAULT_LOG)),
         )
         .with_writer(std::io::stderr)
@@ -329,7 +327,7 @@ pub async fn run() {
 /// nothing about it has to survive rsync's own argument splitting.
 fn internal_rsh(args: Vec<String>) -> anyhow::Result<i32> {
     let name =
-        std::env::var("SLINGSHOT_RSH_AGENT").map_err(|_| anyhow::anyhow!("Missing Agent name"))?;
+        std::env::var("ALLY_RSH_AGENT").map_err(|_| anyhow::anyhow!("Missing Agent name"))?;
     let config = ally_core::config::Config::load()?;
     let agent = config.resolve(Some(&name))?;
     if let Ok(token) = std::env::var(route::ROUTE_ENV) {
@@ -373,7 +371,7 @@ mod tests {
     #[test]
     fn remote_flags_stay_with_the_remote_command() {
         let cli = Cli::try_parse_from([
-            "slingshot",
+            "ally",
             "--color",
             "never",
             "run",
@@ -392,7 +390,7 @@ mod tests {
 
     #[test]
     fn start_sets_up_or_removes_the_boot_service_but_not_both() {
-        let cli = Cli::try_parse_from(["slingshot", "start", "--boot"]).unwrap();
+        let cli = Cli::try_parse_from(["ally", "start", "--boot"]).unwrap();
         assert!(matches!(
             cli.command,
             Commands::Start {
@@ -401,13 +399,13 @@ mod tests {
                 ..
             }
         ));
-        assert!(Cli::try_parse_from(["slingshot", "start", "--boot", "--remove"]).is_err());
+        assert!(Cli::try_parse_from(["ally", "start", "--boot", "--remove"]).is_err());
     }
 
     #[test]
     fn internal_helpers_keep_their_arguments() {
         let cli = Cli::try_parse_from([
-            "slingshot",
+            "ally",
             "internal-run",
             "--project",
             "abc",
@@ -425,9 +423,9 @@ mod tests {
         assert_eq!(cmd, ["cargo", "--color", "always"]);
 
         let cli = Cli::try_parse_from([
-            "slingshot",
+            "ally",
             "internal-rsh",
-            "slingshot",
+            "ally",
             "rsync",
             "--server",
             "-a",
@@ -438,10 +436,9 @@ mod tests {
         let Commands::InternalRsh { args } = cli.command else {
             panic!("Expected internal rsh")
         };
-        assert_eq!(args, ["slingshot", "rsync", "--server", "-a", ".", "."]);
+        assert_eq!(args, ["ally", "rsync", "--server", "-a", ".", "."]);
 
-        let cli =
-            Cli::try_parse_from(["slingshot", "internal-daemon", "--name", "archbox"]).unwrap();
+        let cli = Cli::try_parse_from(["ally", "internal-daemon", "--name", "archbox"]).unwrap();
         let Commands::InternalDaemon { name } = cli.command else {
             panic!("Expected internal daemon")
         };
@@ -450,7 +447,7 @@ mod tests {
 
     #[test]
     fn sync_and_env_commands_parse() {
-        let cli = Cli::try_parse_from(["slingshot", "sync", "--pull", "--check", "app"]).unwrap();
+        let cli = Cli::try_parse_from(["ally", "sync", "--pull", "--check", "app"]).unwrap();
         assert!(matches!(
             cli.command,
             Commands::Sync {
@@ -460,7 +457,7 @@ mod tests {
                 path: Some(_)
             }
         ));
-        let cli = Cli::try_parse_from(["slingshot", "sync", "--pull", "--overwrite"]).unwrap();
+        let cli = Cli::try_parse_from(["ally", "sync", "--pull", "--overwrite"]).unwrap();
         assert!(matches!(
             cli.command,
             Commands::Sync {
@@ -469,9 +466,9 @@ mod tests {
                 ..
             }
         ));
-        assert!(Cli::try_parse_from(["slingshot", "sync", "--overwrite", "--check"]).is_err());
+        assert!(Cli::try_parse_from(["ally", "sync", "--overwrite", "--check"]).is_err());
         let cli = Cli::try_parse_from([
-            "slingshot",
+            "ally",
             "env",
             "add",
             "local.env",
@@ -486,31 +483,28 @@ mod tests {
                 action: EnvAction::Add { replace: true, .. }
             }
         ));
-        let cli = Cli::try_parse_from(["slingshot", "env", "add", ".env"]).unwrap();
+        let cli = Cli::try_parse_from(["ally", "env", "add", ".env"]).unwrap();
         assert!(matches!(
             cli.command,
             Commands::Env {
                 action: EnvAction::Add { target: None, .. }
             }
         ));
-        assert!(Cli::try_parse_from(["slingshot", "stop"]).is_err());
+        assert!(Cli::try_parse_from(["ally", "stop"]).is_err());
     }
 
     #[test]
     fn color_scan_respects_option_values_and_run_boundary() {
         for (args, expected) in [
             (
-                vec!["slingshot", "--agent", "run", "--color=always", "info"],
+                vec!["ally", "--agent", "run", "--color=always", "info"],
                 ColorMode::Always,
             ),
             (
-                vec!["slingshot", "run", "echo", "--color=always"],
+                vec!["ally", "run", "echo", "--color=always"],
                 ColorMode::Auto,
             ),
-            (
-                vec!["slingshot", "--color", "never", "--help"],
-                ColorMode::Never,
-            ),
+            (vec!["ally", "--color", "never", "--help"], ColorMode::Never),
         ] {
             let args: Vec<_> = args.into_iter().map(std::ffi::OsString::from).collect();
             assert_eq!(color_mode(&args), expected);

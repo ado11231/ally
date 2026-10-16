@@ -1,4 +1,4 @@
-//! `slingshot ps` and `slingshot stop`: Slingshot runs and sessions on the Agent.
+//! `ally ps` and `ally stop`: Ally runs and sessions on the Agent.
 
 use crate::client::{self, unexpected};
 use ally_core::config::Config;
@@ -90,7 +90,7 @@ pub fn render(
             true => output.push_str("  No jobs recorded\n"),
             false => output.push_str(&format!(
                 "  Nothing running. See finished jobs with {}\n",
-                style.paint("slingshot ps --all", Tone::Info)
+                style.paint("ally ps --all", Tone::Info)
             )),
         }
         return output;
@@ -232,7 +232,7 @@ mod tests {
     #[test]
     fn an_empty_list_explains_itself() {
         let text = render("archbox", &[], false, 0, None, Style::new(false));
-        assert!(text.contains("Nothing running. See finished jobs with slingshot ps --all"));
+        assert!(text.contains("Nothing running. See finished jobs with ally ps --all"));
     }
 
     #[test]

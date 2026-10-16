@@ -1,4 +1,4 @@
-//! `slingshot attach [path]`: open or rejoin a persistent session on the Agent, in the
+//! `ally attach [path]`: open or rejoin a persistent session on the Agent, in the
 //! current project's copy, or in the Agent's home folder when there is no project.
 
 use crate::client::{self, Refused, unexpected};
@@ -15,7 +15,7 @@ pub async fn attach(
     path: Option<std::path::PathBuf>,
 ) -> anyhow::Result<i32> {
     if !ssh::wants_terminal() {
-        anyhow::bail!("slingshot attach needs an interactive terminal");
+        anyhow::bail!("ally attach needs an interactive terminal");
     }
     let config = Config::load()?;
     let target = config.resolve(agent.as_deref())?;
@@ -64,7 +64,7 @@ pub async fn attach(
     let lost = format!(
         "Lost connection to {}. The session keeps running there\n{}",
         target.name,
-        presentation::row("Return", "slingshot attach").trim_end()
+        presentation::row("Return", "ally attach").trim_end()
     );
     let code = super::run::interact(target, &remote, lost).await?;
     if pulls_after(code)
@@ -99,7 +99,7 @@ fn tmux_args(socket: &str, id: &str, label: &str, returning: bool) -> Vec<String
         "set-option",
         "-t",
         &pane,
-        "@slingshot",
+        "@ally",
         label,
     ]
     .map(String::from)
@@ -141,7 +141,7 @@ fn say_left(target: &Agent, running: bool) {
                 "Left the session on {}. It keeps running",
                 target.name
             ));
-            presentation::detail("Return", "slingshot attach");
+            presentation::detail("Return", "ally attach");
         }
         false => presentation::success(format!("The session on {} ended", target.name)),
     }
@@ -154,7 +154,7 @@ fn pulls_after(code: i32) -> bool {
 }
 
 /// Say whether the session was left or ended, then bring back what changed on the Agent
-/// during it, such as a coding agent's edits, as `slingshot sync --pull` does. A failure is
+/// during it, such as a coding agent's edits, as `ally sync --pull` does. A failure is
 /// a warning, because the session itself ended well and the edits wait safely on the Agent.
 async fn after_leaving(target: &Agent, local: Option<&Local>, session: &str) -> anyhow::Result<()> {
     let Some(local) = local else {
@@ -293,7 +293,7 @@ mod tests {
                 "set-option",
                 "-t",
                 "=j1:",
-                "@slingshot",
+                "@ally",
                 "L",
                 ";",
                 "attach-session",

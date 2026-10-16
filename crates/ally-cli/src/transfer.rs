@@ -436,10 +436,10 @@ fn conflict_message(paths: &[String], agent: &str) -> String {
     for (label, command) in [
         (
             "Compare",
-            "slingshot sync --check, then slingshot sync --pull --check",
+            "ally sync --check, then ally sync --pull --check",
         ),
-        ("Keep mine", "slingshot sync --overwrite"),
-        ("Keep theirs", "slingshot sync --pull --overwrite"),
+        ("Keep mine", "ally sync --overwrite"),
+        ("Keep theirs", "ally sync --pull --overwrite"),
     ] {
         lines.push(presentation::row(label, command).trim_end().to_string());
     }
@@ -518,16 +518,16 @@ async fn rsync(
         ally_core::preflight::install_hint("rsync")
     );
     let exe = std::env::current_exe()?;
-    let exe = exe.to_str().context("Slingshot's own path is not UTF 8")?;
+    let exe = exe.to_str().context("Ally's own path is not UTF 8")?;
     ensure!(
         !exe.contains('\''),
-        "Slingshot's own path contains a quote, which rsync cannot use: {exe}"
+        "Ally's own path contains a quote, which rsync cannot use: {exe}"
     );
     let list = FileList::write(&files.join("\n"))?;
     let local_path = format!("{}/", local.display());
     let (from, to) = match direction {
-        Direction::Push => (local_path, "slingshot:.".to_string()),
-        Direction::Pull => ("slingshot:./".to_string(), local_path),
+        Direction::Push => (local_path, "ally:.".to_string()),
+        Direction::Pull => ("ally:./".to_string(), local_path),
     };
     let rsync_path = format!("cd {} && rsync", escape_remote(remote)?);
     let mut child = tokio::process::Command::new("rsync")
@@ -537,7 +537,7 @@ async fn rsync(
         .arg(format!("--files-from={}", list.0))
         .arg(from)
         .arg(to)
-        .env("SLINGSHOT_RSH_AGENT", &agent.name)
+        .env("ALLY_RSH_AGENT", &agent.name)
         .env(route::ROUTE_ENV, route::resolve(agent).token())
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -592,7 +592,7 @@ impl FileList {
         let path = file
             .to_str()
             .map(str::to_string)
-            .context("Slingshot storage path is not UTF 8")?;
+            .context("Ally storage path is not UTF 8")?;
         Ok(FileList(path))
     }
 }
@@ -698,16 +698,16 @@ mod tests {
             [
                 "NOTES.md changed on both this machine and archbox",
                 "  Nothing was changed on either machine.",
-                "  Compare      slingshot sync --check, then slingshot sync --pull --check",
-                "  Keep mine    slingshot sync --overwrite",
-                "  Keep theirs  slingshot sync --pull --overwrite",
+                "  Compare      ally sync --check, then ally sync --pull --check",
+                "  Keep mine    ally sync --overwrite",
+                "  Keep theirs  ally sync --pull --overwrite",
             ]
         );
         let many = conflict_message(&["a.rs".to_string(), "b.rs".to_string()], "archbox");
         assert!(
             many.starts_with("2 files changed on both this machine and archbox\n  a.rs\n  b.rs\n")
         );
-        assert!(many.ends_with("Keep theirs  slingshot sync --pull --overwrite"));
+        assert!(many.ends_with("Keep theirs  ally sync --pull --overwrite"));
     }
 
     #[test]
@@ -791,8 +791,8 @@ mod tests {
     #[test]
     fn remote_paths_survive_rsync_splitting() {
         assert_eq!(
-            escape_remote("/Users/me/Library/Application Support/slingshot").unwrap(),
-            "/Users/me/Library/Application\\ Support/slingshot"
+            escape_remote("/Users/me/Library/Application Support/ally").unwrap(),
+            "/Users/me/Library/Application\\ Support/ally"
         );
         assert_eq!(escape_remote("/a/$(x)&b").unwrap(), "/a/\\$\\(x\\)\\&b");
         assert!(escape_remote("/it's").is_err());
@@ -810,6 +810,6 @@ mod tests {
         let error = error.to_string();
         assert!(error.starts_with("src/main.rs changed on both this machine and archbox"));
         assert!(error.contains("Nothing was changed"));
-        assert!(error.contains("slingshot sync --overwrite"));
+        assert!(error.contains("ally sync --overwrite"));
     }
 }

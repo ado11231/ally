@@ -41,7 +41,7 @@ pub const DISK_WARNING_MIB: u64 = 2 * 1024;
 
 /// A live snapshot. CPU usage needs two samples with a gap between them, because a
 /// percentage is a change over time and a single reading has nothing to compare to.
-/// `workspace` is where Slingshot keeps project copies, measured separately from `/`.
+/// `workspace` is where Ally keeps project copies, measured separately from `/`.
 pub fn health(workspace: Option<&Path>) -> Health {
     let mut sys = System::new_all();
     sys.refresh_cpu_usage();

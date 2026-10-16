@@ -1,4 +1,4 @@
-//! Puts the commit Slingshot was built from into `slingshot --version`, so an old build is
+//! Puts the commit Ally was built from into `ally --version`, so an old build is
 //! easy to spot. Without git, such as a build from a published package, only the version
 //! shows.
 
@@ -10,7 +10,7 @@ fn main() {
         Some(commit) => format!("{version} ({commit})"),
         None => version,
     };
-    println!("cargo:rustc-env=SLINGSHOT_VERSION={shown}");
+    println!("cargo:rustc-env=ALLY_VERSION={shown}");
     if let Some(dir) = git(&["rev-parse", "--absolute-git-dir"]) {
         println!("cargo:rerun-if-changed={dir}/HEAD");
         println!("cargo:rerun-if-changed={dir}/logs/HEAD");

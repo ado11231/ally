@@ -1,4 +1,4 @@
-//! `slingshot run <cmd>`: sync the project, then run a command in the Agent copy.
+//! `ally run <cmd>`: sync the project, then run a command in the Agent copy.
 
 use crate::client::{self, Refused};
 use crate::project::{self, Local};
@@ -13,10 +13,10 @@ use ally_core::step;
 use std::time::{Duration, Instant};
 
 /// Run `cmd` on the Agent and return its exit code. A non zero code is not an
-/// error: slingshot did its job, and the command it ran happened to fail.
+/// error: ally did its job, and the command it ran happened to fail.
 pub async fn run(agent: Option<String>, cmd: Vec<String>) -> anyhow::Result<i32> {
     if cmd.is_empty() {
-        anyhow::bail!("No command given. Try slingshot run echo hello");
+        anyhow::bail!("No command given. Try ally run echo hello");
     }
 
     let started = Instant::now();
@@ -68,7 +68,7 @@ pub async fn run(agent: Option<String>, cmd: Vec<String>) -> anyhow::Result<i32>
 }
 
 /// The last line of a run: how long it took and how the command exited. Exit 130 means
-/// the command ended on Ctrl C or `slingshot stop`, which someone chose, so it is not a failure.
+/// the command ended on Ctrl C or `ally stop`, which someone chose, so it is not a failure.
 fn finished(code: i32, took: Duration, style: Style) -> String {
     let took = step::elapsed(took);
     match code {
@@ -78,7 +78,7 @@ fn finished(code: i32, took: Duration, style: Style) -> String {
     }
 }
 
-/// 128 plus SIGINT, the exit code of a command ended by Ctrl C or `slingshot stop`.
+/// 128 plus SIGINT, the exit code of a command ended by Ctrl C or `ally stop`.
 const STOPPED: i32 = 130;
 
 /// Run an interactive remote command, replacing SSH's messages about a dropped connection
@@ -111,10 +111,10 @@ async fn settle(target: &Agent, result: anyhow::Result<i32>, lost: String) -> an
 fn lost_connection(name: &str) -> String {
     format!(
         "Lost connection to {name}\n  The Agent stops the run once it notices, unless it finishes first.\n{}{}",
-        presentation::row("See how", "slingshot ps --all"),
+        presentation::row("See how", "ally ps --all"),
         presentation::row(
             "Next time",
-            "slingshot attach keeps work running through a disconnect"
+            "ally attach keeps work running through a disconnect"
         )
         .trim_end()
     )
@@ -222,7 +222,7 @@ mod tests {
             message.starts_with("Lost connection to archbox\n"),
             "{message}"
         );
-        assert!(message.contains("slingshot ps --all"), "{message}");
+        assert!(message.contains("ally ps --all"), "{message}");
     }
 
     #[test]

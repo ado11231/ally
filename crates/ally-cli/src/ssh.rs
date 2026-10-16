@@ -447,10 +447,8 @@ impl SshLog {
     fn create() -> anyhow::Result<SshLog> {
         use std::os::unix::fs::OpenOptionsExt;
 
-        let path = std::env::temp_dir().join(format!(
-            "slingshot-ssh-{}.log",
-            ally_core::storage::new_id()
-        ));
+        let path =
+            std::env::temp_dir().join(format!("ally-ssh-{}.log", ally_core::storage::new_id()));
         std::fs::OpenOptions::new()
             .write(true)
             .create_new(true)
@@ -473,8 +471,8 @@ impl Drop for SshLog {
     }
 }
 
-/// The `-e` helper rsync starts: SSH with Slingshot's saved options for one Agent. Running
-/// through Slingshot avoids passing file paths inside rsync's own option parsing.
+/// The `-e` helper rsync starts: SSH with Ally's saved options for one Agent. Running
+/// through Ally avoids passing file paths inside rsync's own option parsing.
 pub fn exec_for_rsync(agent: &config::Agent, args: Vec<String>) -> anyhow::Error {
     use std::os::unix::process::CommandExt;
 
@@ -555,10 +553,10 @@ mod tests {
     #[test]
     fn a_program_path_with_a_space_stays_one_word() {
         let mut command = remote(&["internal-control"]);
-        command.program = "/Users/me/Application Support/slingshot".to_string();
+        command.program = "/Users/me/Application Support/ally".to_string();
         assert_eq!(
             command.command_line(),
-            "'/Users/me/Application Support/slingshot' internal-control"
+            "'/Users/me/Application Support/ally' internal-control"
         );
     }
 
@@ -575,7 +573,7 @@ mod tests {
         let mut command = remote(&["hi"]);
         command.user = Some("me".to_string());
         command.port = Some(2222);
-        command.identity_file = Some(PathBuf::from("/keys/slingshot"));
+        command.identity_file = Some(PathBuf::from("/keys/ally"));
         command.known_hosts = Some(PathBuf::from("/keys/known_hosts"));
 
         let argv = command.to_ssh_args();
@@ -589,7 +587,7 @@ mod tests {
             "argv was: {argv:?}"
         );
         assert!(
-            argv.windows(2).any(|w| w == ["-i", "/keys/slingshot"]),
+            argv.windows(2).any(|w| w == ["-i", "/keys/ally"]),
             "argv was: {argv:?}"
         );
         assert!(
@@ -685,7 +683,7 @@ mod tests {
     #[test]
     fn the_share_check_uses_only_the_existing_connection_and_never_a_terminal() {
         let mut command = remote(&["hi"]);
-        command.shared = Some(PathBuf::from("/tmp/slingshot-me/ab.sock"));
+        command.shared = Some(PathBuf::from("/tmp/ally-me/ab.sock"));
         command.tty = true;
         let check = command.share_check_args();
         assert_eq!(&check[..4], ["-o", "ControlMaster=no", "-W", "127.0.0.1:9"]);
@@ -723,12 +721,12 @@ mod tests {
         );
 
         let mut command = remote(&["hi"]);
-        command.shared = Some(PathBuf::from("/tmp/slingshot-me/ab.sock"));
+        command.shared = Some(PathBuf::from("/tmp/ally-me/ab.sock"));
         let argv = command.to_ssh_args();
 
         assert!(argv.contains(&"ControlMaster=auto".to_string()), "{argv:?}");
         assert!(
-            argv.contains(&"ControlPath=\"/tmp/slingshot-me/ab.sock\"".to_string()),
+            argv.contains(&"ControlPath=\"/tmp/ally-me/ab.sock\"".to_string()),
             "{argv:?}"
         );
         assert!(argv.contains(&"ControlPersist=30".to_string()), "{argv:?}");

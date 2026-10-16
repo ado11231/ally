@@ -1,4 +1,4 @@
-//! Keeps the Agent from sleeping on its own while `slingshot start` runs, because a sleeping
+//! Keeps the Agent from sleeping on its own while `ally start` runs, because a sleeping
 //! Agent cannot be reached from anywhere. Wraps the system's own tool, and ties its lock to
 //! this process so the lock ends with `start`, even when `start` is killed outright.
 
@@ -38,7 +38,7 @@ fn masked(stdout: &[u8]) -> bool {
 /// The polkit rule that lets this account hold the sleep lock with nobody logged in, as a
 /// boot service must. Without it, polkit asks for an admin password outside a session at
 /// the machine, so the lock is refused and an idle login screen can suspend the Agent.
-pub const SLEEP_RULE: &str = "/etc/polkit-1/rules.d/50-slingshot.rules";
+pub const SLEEP_RULE: &str = "/etc/polkit-1/rules.d/50-ally.rules";
 
 /// Saved in the Agent's folder once the rule is written, since the rules folder is
 /// readable only by root.
@@ -68,8 +68,8 @@ pub fn sleep_rule(user: &str) -> Option<String> {
             .all(|c| c.is_ascii_alphanumeric() || "_.-".contains(c));
     plain.then(|| {
         format!(
-            "// Written by Slingshot: lets {user} keep this machine awake while Slingshot runs,\n\
-             // even with nobody logged in. slingshot start --remove deletes it.\n\
+            "// Written by Ally: lets {user} keep this machine awake while Ally runs,\n\
+             // even with nobody logged in. ally start --remove deletes it.\n\
              polkit.addRule(function(action, subject) {{\n\
              \x20   if ((action.id == \"org.freedesktop.login1.inhibit-block-sleep\" ||\n\
              \x20        action.id == \"org.freedesktop.login1.inhibit-block-idle\") &&\n\
@@ -104,7 +104,7 @@ fn systemd_inhibit() -> Tool {
     command.args([
         "--no-ask-password",
         "--what=idle:sleep",
-        "--who=Slingshot",
+        "--who=Ally",
         "--why=Reachable by paired Clients",
         "--mode=block",
         "cat",

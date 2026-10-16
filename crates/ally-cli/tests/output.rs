@@ -1,7 +1,7 @@
 use std::process::{Command, Output};
 
 fn invoke(args: &[&str], no_color: bool, term: &str) -> Output {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_slingshot"));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_ally"));
     command.args(args).env_remove("NO_COLOR").env("TERM", term);
     if no_color {
         command.env("NO_COLOR", "1");

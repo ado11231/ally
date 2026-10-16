@@ -12,8 +12,8 @@ use std::path::PathBuf;
 /// Shown whenever there is no Agent to talk to. Names the two commands that fix it,
 /// because a stranger has no config file to look at yet.
 const NO_AGENTS: &str = "No Agent configured yet\n\n\
-                         On the Agent:   slingshot start\n\
-                         On the Client:  slingshot link <code>";
+                         On the Agent:   ally start\n\
+                         On the Client:  ally link <code>";
 
 /// The whole config file. `agents` is a list so it renders as readable `[[agents]]`
 /// blocks for anyone who opens the file and edits it by hand.
@@ -42,7 +42,7 @@ pub struct Agent {
     pub identity_file: Option<PathBuf>,
     /// The file holding this Agent's ssh host keys, learned at pairing.
     pub known_hosts: Option<PathBuf>,
-    /// Where the Slingshot program lives on the Agent, reported at pairing.
+    /// Where the Ally program lives on the Agent, reported at pairing.
     #[serde(default)]
     pub program: Option<String>,
     /// Other addresses the Agent reported at pairing. Configs saved before this have none.
@@ -71,10 +71,10 @@ impl Agent {
         self.client.clone().unwrap_or_else(keys::client_name)
     }
 
-    /// The Slingshot program to start over SSH. Pairing records the Agent's own path, so a
-    /// login shell without Slingshot on its PATH still works.
+    /// The Ally program to start over SSH. Pairing records the Agent's own path, so a
+    /// login shell without Ally on its PATH still works.
     pub fn program(&self) -> &str {
-        self.program.as_deref().unwrap_or("slingshot")
+        self.program.as_deref().unwrap_or("ally")
     }
 
     /// Every address to try, best first: this machine, the local network, anything else,
@@ -91,10 +91,10 @@ impl Agent {
     }
 }
 
-/// The platform's config directory for slingshot. The only place that knows this
+/// The platform's config directory for ally. The only place that knows this
 /// path, so no OS specific path appears anywhere else.
 pub fn dir() -> anyhow::Result<PathBuf> {
-    let Some(dirs) = ProjectDirs::from("", "", "slingshot") else {
+    let Some(dirs) = ProjectDirs::from("", "", "ally") else {
         anyhow::bail!("Could not determine home directory");
     };
     Ok(dirs.config_dir().to_path_buf())
@@ -104,8 +104,8 @@ fn path() -> anyhow::Result<PathBuf> {
     Ok(dir()?.join("config.toml"))
 }
 
-/// Where slingshot keeps the host keys of the Agents it has paired with. Kept apart
-/// from your own `~/.ssh/known_hosts` so slingshot only ever edits its own files.
+/// Where ally keeps the host keys of the Agents it has paired with. Kept apart
+/// from your own `~/.ssh/known_hosts` so ally only ever edits its own files.
 pub fn known_hosts_path() -> anyhow::Result<PathBuf> {
     Ok(dir()?.join("known_hosts"))
 }
@@ -353,7 +353,7 @@ mod tests {
     fn no_agents_points_at_pairing() {
         let err = config("").resolve(None).unwrap_err().to_string();
 
-        assert!(err.contains("slingshot link"), "message was: {err}");
+        assert!(err.contains("ally link"), "message was: {err}");
     }
 
     fn agent(name: &str) -> Agent {
@@ -493,6 +493,6 @@ mod tests {
 
     #[test]
     fn an_agent_with_no_recorded_program_falls_back_to_the_path() {
-        assert_eq!(agent("archbox").program(), "slingshot");
+        assert_eq!(agent("archbox").program(), "ally");
     }
 }

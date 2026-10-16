@@ -1,4 +1,4 @@
-//! `slingshot unlink`: clean up this Client's Slingshot data on an Agent, then forget it.
+//! `ally unlink`: clean up this Client's Ally data on an Agent, then forget it.
 
 use crate::client::Refused;
 use crate::project;
@@ -43,7 +43,7 @@ pub async fn unlink(agent: Option<String>) -> anyhow::Result<i32> {
             complete = false;
             cleaning.clear();
             presentation::warning(format!(
-                "{error:#}. Remote cleanup is incomplete: environment files for this machine's projects remain in Slingshot storage on {}",
+                "{error:#}. Remote cleanup is incomplete: environment files for this machine's projects remain in Ally storage on {}",
                 target.name
             ));
         }

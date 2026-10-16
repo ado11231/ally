@@ -37,7 +37,7 @@ impl Drop for Screen {
 pub fn require_terminal() -> anyhow::Result<()> {
     anyhow::ensure!(
         std::io::stdin().is_terminal() && std::io::stdout().is_terminal(),
-        "Live views need an interactive terminal. Use slingshot health for a single snapshot"
+        "Live views need an interactive terminal. Use ally health for a single snapshot"
     );
     Ok(())
 }

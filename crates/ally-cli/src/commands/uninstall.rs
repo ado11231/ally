@@ -1,4 +1,4 @@
-//! `slingshot uninstall`: list everything Slingshot keeps on this machine, ask once, and
+//! `ally uninstall`: list everything Ally keeps on this machine, ask once, and
 //! remove it. The program itself is removed afterwards with `cargo uninstall`, because a
 //! running program cannot safely delete itself.
 
@@ -60,17 +60,17 @@ fn existing(paths: impl IntoIterator<Item = PathBuf>) -> Vec<PathBuf> {
 pub async fn uninstall() -> anyhow::Result<i32> {
     let found = Found::look()?;
     if found.is_empty() {
-        presentation::success("Slingshot keeps nothing on this machine");
+        presentation::success("Ally keeps nothing on this machine");
         presentation::detail("Program", format!("remove it with {REMOVE_PROGRAM}"));
         return Ok(0);
     }
-    eprintln!("\n  This removes Slingshot from this machine:\n");
+    eprintln!("\n  This removes Ally from this machine:\n");
     for line in listing(&found) {
         eprintln!("{line}");
     }
     anyhow::ensure!(
         crate::ssh::wants_terminal(),
-        "Run slingshot uninstall in a terminal to confirm, since it deletes files"
+        "Run ally uninstall in a terminal to confirm, since it deletes files"
     );
     if !presentation::confirm_deleting("Remove all of this?".to_string()).await? {
         presentation::success("Nothing was removed");
@@ -96,7 +96,7 @@ pub async fn uninstall() -> anyhow::Result<i32> {
         let _ = fs::remove_dir(folder);
     }
     presentation::success(format!(
-        "Slingshot's files are gone. Remove the program with: {REMOVE_PROGRAM}"
+        "Ally's files are gone. Remove the program with: {REMOVE_PROGRAM}"
     ));
     if was_service && cfg!(target_os = "linux") {
         presentation::detail(
@@ -170,7 +170,7 @@ mod tests {
             },
             agents: vec!["archbox".into(), "devbox".into()],
             menubar: None,
-            files: vec![PathBuf::from("/x/slingshot/config.toml")],
+            files: vec![PathBuf::from("/x/ally/config.toml")],
             keys: vec![PathBuf::from("/x/k"), PathBuf::from("/x/k.pub")],
         };
         let lines: Vec<String> = listing(&found)
@@ -183,7 +183,7 @@ mod tests {
                 "  Links        archbox: this machine's key and environment files there",
                 "               devbox: this machine's key and environment files there",
                 "  Access       2 linked machines lose access (their lines in ~/.ssh/authorized_keys)",
-                "  Settings     /x/slingshot/config.toml",
+                "  Settings     /x/ally/config.toml",
                 "  Key          /x/k",
                 "               /x/k.pub",
             ]
@@ -193,7 +193,7 @@ mod tests {
     #[test]
     fn only_paths_that_exist_are_kept_once() {
         let here = std::env::temp_dir();
-        let missing = here.join("slingshot-no-such-file");
+        let missing = here.join("ally-no-such-file");
         assert_eq!(existing([here.clone(), missing, here.clone()]), [here]);
     }
 }

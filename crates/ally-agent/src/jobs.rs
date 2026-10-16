@@ -1,4 +1,4 @@
-//! Slingshot runs and sessions on the Agent: persistent records, reconciliation after a
+//! Ally runs and sessions on the Agent: persistent records, reconciliation after a
 //! restart, persistent tmux sessions, and stopping work without trusting stale PIDs.
 
 use crate::projects;
@@ -15,7 +15,7 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
 
-/// Completed records kept for `slingshot ps --all`.
+/// Completed records kept for `ally ps --all`.
 const HISTORY: usize = 100;
 
 /// How long stopped work gets to exit on its own before it is killed.
@@ -160,7 +160,7 @@ fn reconcile(root: &Path, job: &Job) -> Option<JobState> {
 fn find_active(root: &Path, query: &str) -> anyhow::Result<Job> {
     ensure!(
         query.len() >= 4 && query.bytes().all(|b| b.is_ascii_hexdigit()),
-        "Pass the job ID shown by slingshot ps"
+        "Pass the job ID shown by ally ps"
     );
     let query = query.to_ascii_lowercase();
     let matches: Vec<Job> = list(root, false)?
@@ -168,7 +168,7 @@ fn find_active(root: &Path, query: &str) -> anyhow::Result<Job> {
         .filter(|job| job.id.starts_with(&query))
         .collect();
     match matches.len() {
-        0 => bail!("No running Slingshot job matches {query}. See slingshot ps"),
+        0 => bail!("No running Ally job matches {query}. See ally ps"),
         1 => Ok(matches
             .into_iter()
             .next()
@@ -191,7 +191,7 @@ fn tmux_program() -> Option<String> {
     (out.status.success() && path.starts_with('/')).then_some(path)
 }
 
-/// tmux on Slingshot's own private socket, so personal tmux sessions are never touched.
+/// tmux on Ally's own private socket, so personal tmux sessions are never touched.
 fn tmux(root: &Path) -> Command {
     let mut command = Command::new("tmux");
     command.arg("-S").arg(tmux_socket(root));
@@ -205,7 +205,7 @@ fn session_exists(root: &Path, id: &str) -> bool {
         .is_ok_and(|out| out.status.success())
 }
 
-/// The shell, terminal, and input settings every Slingshot session gets. Sessions start
+/// The shell, terminal, and input settings every Ally session gets. Sessions start
 /// from the daemon, so nothing here may depend on the daemon's own environment.
 /// The wheel goes to a program only when it asked for the mouse. Otherwise it scrolls the
 /// session's history, because tmux would turn it into arrow keys for a full screen program,
@@ -234,7 +234,7 @@ fn tmux_config(shell: &str, terminal: &str) -> String {
         "bind k send-keys -R \\; clear-history \\; send-keys C-l".to_string(),
         "set -g status-style \"bg=default,fg=colour245\"".to_string(),
         "set -g status-left-length 80".to_string(),
-        "set -g status-left \"#{@slingshot} \"".to_string(),
+        "set -g status-left \"#{@ally} \"".to_string(),
         "set -g status-right \"#[fg=default,bold]Ctrl B, D#[default] to detach \"".to_string(),
         "set -g window-status-format \"\"".to_string(),
         "set -g window-status-current-format \"\"".to_string(),
@@ -244,7 +244,7 @@ fn tmux_config(shell: &str, terminal: &str) -> String {
 }
 
 /// The account's login shell from the user database, so a session loads the same startup
-/// files as a normal login even when `slingshot start` ran without `SHELL` set.
+/// files as a normal login even when `ally start` ran without `SHELL` set.
 pub fn login_shell(root: &Path) -> String {
     let from_database = fs::metadata(root).ok().and_then(|meta| {
         let out = Command::new("getent")
@@ -321,12 +321,12 @@ fn prepare_server(root: &Path) -> anyhow::Result<PathBuf> {
     Ok(config)
 }
 
-/// Where a session or run starts: `~/Slingshot/<project>`, a link to the project copy, so
-/// the prompt shows the project rather than Slingshot's storage path, and Docker Compose
+/// Where a session or run starts: `~/Ally/<project>`, a link to the project copy, so
+/// the prompt shows the project rather than Ally's storage path, and Docker Compose
 /// names the project after it instead of after the copy's `source` folder. An existing
 /// file, or a link to another copy, is never replaced; the short ID is added instead.
 pub fn project_link(home: &Path, name: &str, id: &str, target: &Path) -> anyhow::Result<PathBuf> {
-    let folder = home.join("Slingshot");
+    let folder = home.join("Ally");
     fs::create_dir_all(&folder)?;
     let clean: String = name
         .chars()
@@ -442,7 +442,7 @@ pub fn session(root: &Path, agent: &str, project: Option<&str>) -> anyhow::Resul
     let created = command.output();
     let place = owner.map(|(_, name)| name).unwrap_or("home");
     let _ = tmux(root)
-        .args(["set-option", "-t", &job.id, "@slingshot"])
+        .args(["set-option", "-t", &job.id, "@ally"])
         .arg(session_label(agent, place))
         .output();
     let failure = match &created {
@@ -646,7 +646,7 @@ mod tests {
         let copy = home.0.join("copy");
         fs::create_dir(&copy).unwrap();
         let link = project_link(&home.0, "my app", "abcdef0123456789", &copy).unwrap();
-        assert_eq!(link, home.0.join("Slingshot").join("my_app"));
+        assert_eq!(link, home.0.join("Ally").join("my_app"));
         assert_eq!(fs::read_link(&link).unwrap(), copy);
         assert_eq!(
             project_link(&home.0, "my app", "abcdef0123456789", &copy).unwrap(),
@@ -659,17 +659,17 @@ mod tests {
         assert_ne!(second, link);
         assert_eq!(fs::read_link(&second).unwrap(), other);
 
-        fs::write(home.0.join("Slingshot").join("notes"), "mine").unwrap();
+        fs::write(home.0.join("Ally").join("notes"), "mine").unwrap();
         let beside = project_link(&home.0, "notes", "fedcba9876543210", &copy).unwrap();
-        assert_ne!(beside, home.0.join("Slingshot").join("notes"));
+        assert_ne!(beside, home.0.join("Ally").join("notes"));
         assert_eq!(
-            fs::read_to_string(home.0.join("Slingshot").join("notes")).unwrap(),
+            fs::read_to_string(home.0.join("Ally").join("notes")).unwrap(),
             "mine"
         );
         assert!(
             project_link(&home.0, "../..", "0011223344556677", &copy)
                 .unwrap()
-                .starts_with(home.0.join("Slingshot"))
+                .starts_with(home.0.join("Ally"))
         );
     }
 

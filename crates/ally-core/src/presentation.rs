@@ -1,4 +1,4 @@
-//! Shared formatting for Slingshot output. Stream detection keeps redirected output plain.
+//! Shared formatting for Ally output. Stream detection keeps redirected output plain.
 
 use anyhow::Context;
 use std::io::{IsTerminal, stderr, stdout};
@@ -223,14 +223,14 @@ mod tests {
 
     #[test]
     fn only_the_first_line_of_a_status_stands_out() {
-        let text = "Lost connection to archbox\n  See how      slingshot ps --all";
+        let text = "Lost connection to archbox\n  See how      ally ps --all";
         assert_eq!(
             Style::new(false).status(text, Tone::Error),
-            "✗ Lost connection to archbox\n  See how      slingshot ps --all"
+            "✗ Lost connection to archbox\n  See how      ally ps --all"
         );
         assert_eq!(
             Style::new(true).status(text, Tone::Error),
-            "\x1b[31m✗\x1b[0m Lost connection to archbox\n\x1b[2m  See how      slingshot ps --all\x1b[0m"
+            "\x1b[31m✗\x1b[0m Lost connection to archbox\n\x1b[2m  See how      ally ps --all\x1b[0m"
         );
     }
 

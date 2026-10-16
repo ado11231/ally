@@ -1,7 +1,7 @@
-//! `slingshot internal-watch`: keeps one control connection to the Agent and prints what the
+//! `ally internal-watch`: keeps one control connection to the Agent and prints what the
 //! menu bar app shows and notifies, one JSON line at a time. The app starts it and closes
 //! its input to stop it, so it never outlives the app. A `retry` line on its input skips the
-//! wait before the next attempt, for the app's Try again button. When Slingshot is updated,
+//! wait before the next attempt, for the app's Try again button. When Ally is updated,
 //! the helper exits cleanly and the app starts the new program in its place.
 
 pub mod event;
@@ -198,7 +198,7 @@ fn emit(event: &Event) {
 }
 
 /// This program's file and when it was last written. An update such as `cargo install`
-/// writes a new file, so a different time means a newer Slingshot is waiting.
+/// writes a new file, so a different time means a newer Ally is waiting.
 struct Program {
     path: std::path::PathBuf,
     modified: std::time::SystemTime,
@@ -227,7 +227,7 @@ mod tests {
     #[test]
     fn a_rewritten_program_file_counts_as_replaced() {
         let path =
-            std::env::temp_dir().join(format!("slingshot-watch-{}", ally_core::storage::new_id()));
+            std::env::temp_dir().join(format!("ally-watch-{}", ally_core::storage::new_id()));
         std::fs::write(&path, "old").unwrap();
         let program = Program::at(path.clone()).unwrap();
         assert!(!program.replaced());

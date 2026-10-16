@@ -27,8 +27,8 @@ pub async fn pair(
 ) -> anyhow::Result<protocol::Paired> {
     let stream = tokio::time::timeout(Duration::from_secs(10), TcpStream::connect((host, port)))
         .await
-        .with_context(|| format!("Timed out reaching the Agent at {host}:{port}. Check that slingshot start is running there"))?
-        .with_context(|| format!("Could not reach the Agent at {host}:{port}. Check that slingshot start is running there"))?;
+        .with_context(|| format!("Timed out reaching the Agent at {host}:{port}. Check that ally start is running there"))?
+        .with_context(|| format!("Could not reach the Agent at {host}:{port}. Check that ally start is running there"))?;
     let (reader, mut writer) = stream.into_split();
     let mut reader = BufReader::new(reader.take(1024 * 1024));
 
@@ -38,7 +38,7 @@ pub async fn pair(
         protocol::Response::Start { spake } => spake,
         protocol::Response::Error { message } if message.starts_with("Could not understand") => {
             anyhow::bail!(
-                "The Agent at {host} runs an older Slingshot. Update Slingshot there, restart slingshot start, then link again"
+                "The Agent at {host} runs an older Ally. Update Ally there, restart ally start, then link again"
             )
         }
         other => return Err(unexpected_pairing(other)),
@@ -82,7 +82,7 @@ async fn answer(
         .context("The Agent did not answer the pairing request")?
         .context("The Agent closed the connection without answering")?;
     serde_json::from_str(reply.trim())
-        .context("Could not understand the Agent's answer. Update Slingshot on both machines")
+        .context("Could not understand the Agent's answer. Update Ally on both machines")
 }
 
 /// An Agent error passes through as written. Anything else means the two sides disagree
@@ -91,7 +91,7 @@ fn unexpected_pairing(response: protocol::Response) -> anyhow::Error {
     match response {
         protocol::Response::Error { message } => anyhow::anyhow!("{message}"),
         _ => anyhow::anyhow!(
-            "The Agent answered pairing out of order. Update Slingshot on both machines, then link again"
+            "The Agent answered pairing out of order. Update Ally on both machines, then link again"
         ),
     }
 }
@@ -191,7 +191,7 @@ impl Control {
             }
             Ok(Err(error)) if matches!(self.child.try_wait(), Ok(None)) => {
                 return Err(error.context(format!(
-                    "Could not understand {}. Update Slingshot on both machines",
+                    "Could not understand {}. Update Ally on both machines",
                     self.name
                 )));
             }
@@ -230,10 +230,10 @@ impl Control {
             .unwrap_or("the SSH connection closed");
         let hint = match detail {
             d if d.contains("command not found") || d.contains("No such file") => {
-                ". Slingshot was not found on the Agent. Run slingshot link again after installing it there"
+                ". Ally was not found on the Agent. Run ally link again after installing it there"
             }
             d if d.contains("unrecognized subcommand") => {
-                ". Slingshot versions differ between the machines. Update Slingshot on both machines"
+                ". Ally versions differ between the machines. Update Ally on both machines"
             }
             _ => "",
         };
@@ -250,9 +250,9 @@ impl Control {
     }
 }
 
-/// The command that installs or updates Slingshot. It builds from GitHub until Slingshot is
+/// The command that installs or updates Ally. It builds from GitHub until Ally is
 /// published to crates.io (#17).
-const INSTALL: &str = "cargo install --locked --git https://github.com/ado11231/ss ally-cli";
+const INSTALL: &str = "cargo install --locked --git https://github.com/ado11231/ally ally-cli";
 
 /// How to update after a protocol mismatch, naming the machine that runs the older build.
 fn update_advice(name: &str, mismatch: &control::Mismatch) -> String {
@@ -263,11 +263,11 @@ fn update_advice(name: &str, mismatch: &control::Mismatch) -> String {
         .unwrap_or_default();
     match mismatch.other_is_older() {
         true => format!(
-            "{name} runs an older Slingshot{theirs} than this machine ({}). Update it there with: {INSTALL}, then restart slingshot start",
+            "{name} runs an older Ally{theirs} than this machine ({}). Update it there with: {INSTALL}, then restart ally start",
             control::RELEASE
         ),
         false => format!(
-            "This machine runs an older Slingshot ({}) than {name}{theirs}. Update it with: {INSTALL}",
+            "This machine runs an older Ally ({}) than {name}{theirs}. Update it with: {INSTALL}",
             control::RELEASE
         ),
     }
@@ -278,7 +278,7 @@ fn update_advice(name: &str, mismatch: &control::Mismatch) -> String {
 fn release_differs(name: &str, theirs: Option<&str>) -> Option<String> {
     let theirs = theirs.filter(|theirs| *theirs != control::RELEASE)?;
     Some(format!(
-        "{name} runs Slingshot {theirs} and this machine runs {}. Update the older one with: {INSTALL}",
+        "{name} runs Ally {theirs} and this machine runs {}. Update the older one with: {INSTALL}",
         control::RELEASE
     ))
 }
@@ -311,7 +311,7 @@ pub async fn request(agent: &Agent, request: Request) -> anyhow::Result<Response
 }
 
 pub fn unexpected() -> anyhow::Error {
-    anyhow::anyhow!("The Agent returned an unexpected response. Update Slingshot on both machines")
+    anyhow::anyhow!("The Agent returned an unexpected response. Update Ally on both machines")
 }
 
 #[cfg(test)]
@@ -326,10 +326,10 @@ mod tests {
         };
         let advice = update_advice("archbox", &older);
         assert!(
-            advice.starts_with("archbox runs an older Slingshot 0.0.9 than this machine"),
+            advice.starts_with("archbox runs an older Ally 0.0.9 than this machine"),
             "{advice}"
         );
-        assert!(advice.contains("restart slingshot start"));
+        assert!(advice.contains("restart ally start"));
 
         let newer = control::Mismatch {
             theirs: control::VERSION + 1,
@@ -337,7 +337,7 @@ mod tests {
         };
         let advice = update_advice("archbox", &newer);
         assert!(
-            advice.starts_with("This machine runs an older Slingshot"),
+            advice.starts_with("This machine runs an older Ally"),
             "{advice}"
         );
         assert!(
@@ -351,6 +351,6 @@ mod tests {
         assert_eq!(release_differs("archbox", Some(control::RELEASE)), None);
         assert_eq!(release_differs("archbox", None), None);
         let warning = release_differs("archbox", Some("0.0.1")).unwrap();
-        assert!(warning.starts_with("archbox runs Slingshot 0.0.1 and this machine runs"));
+        assert!(warning.starts_with("archbox runs Ally 0.0.1 and this machine runs"));
     }
 }

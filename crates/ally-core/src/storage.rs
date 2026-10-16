@@ -1,4 +1,4 @@
-//! Private Slingshot storage: directories, identifiers, atomic writes, and locks.
+//! Private Ally storage: directories, identifiers, atomic writes, and locks.
 
 use anyhow::{Context, ensure};
 use serde::{Serialize, de::DeserializeOwned};
@@ -8,11 +8,11 @@ use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Component, Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-/// Slingshot's platform data directory. The Client and Agent each use their own subfolder,
+/// Ally's platform data directory. The Client and Agent each use their own subfolder,
 /// so one machine can safely play both roles.
 pub fn data_dir() -> anyhow::Result<PathBuf> {
-    let dirs = directories::ProjectDirs::from("", "", "slingshot")
-        .context("Could not determine the home directory for Slingshot storage")?;
+    let dirs = directories::ProjectDirs::from("", "", "ally")
+        .context("Could not determine the home directory for Ally storage")?;
     Ok(dirs.data_local_dir().to_path_buf())
 }
 
@@ -31,14 +31,14 @@ pub fn private_dir(path: &Path) -> anyhow::Result<()> {
 
 /// Names the temporary file an atomic write renames into place. Source scanning skips
 /// anything starting with it, so a write in flight is never picked up as project content.
-pub const PARTIAL_PREFIX: &str = ".slingshot-partial-";
+pub const PARTIAL_PREFIX: &str = ".ally-partial-";
 
 /// A random 128 bit identifier written as 32 lowercase hex characters.
 pub fn new_id() -> String {
     format!("{:032x}", rand::random::<u128>())
 }
 
-/// The leading part of an identifier, which is what job listings show and `slingshot stop`
+/// The leading part of an identifier, which is what job listings show and `ally stop`
 /// accepts. Both sides shorten the same way so a copied prefix always matches.
 pub fn short_id(id: &str) -> &str {
     &id[..id.len().min(8)]
@@ -50,7 +50,7 @@ pub fn check_id(value: &str) -> anyhow::Result<()> {
             && value
                 .bytes()
                 .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c)),
-        "Invalid Slingshot identifier"
+        "Invalid Ally identifier"
     );
     Ok(())
 }
@@ -198,7 +198,7 @@ pub(crate) mod testing {
 
     impl TempDir {
         pub fn new(label: &str) -> TempDir {
-            let path = std::env::temp_dir().join(format!("slingshot-{label}-{}", super::new_id()));
+            let path = std::env::temp_dir().join(format!("ally-{label}-{}", super::new_id()));
             std::fs::create_dir_all(&path).unwrap();
             TempDir(path.canonicalize().unwrap())
         }

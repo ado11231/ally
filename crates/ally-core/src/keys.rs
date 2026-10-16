@@ -1,15 +1,15 @@
-//! How slingshot labels the key it installs, and how a machine publishes its identity.
+//! How ally labels the key it installs, and how a machine publishes its identity.
 
 use crate::{config, storage};
 use anyhow::Context;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// The comment written into slingshot's public key, and the marker `unlink` looks for
+/// The comment written into ally's public key, and the marker `unlink` looks for
 /// when taking that key back off an Agent. Both sides have to agree on it, which is
 /// why it lives here rather than on either side.
 pub fn marker(client_name: &str) -> String {
-    format!("slingshot:{client_name}")
+    format!("ally:{client_name}")
 }
 
 /// This machine's hostname, which Clients linked before unique names still go by.
@@ -120,14 +120,14 @@ fn write_lines(file: &Path, lines: &[String]) -> anyhow::Result<()> {
     storage::write_bytes(file, body.as_bytes())
 }
 
-/// How many Clients Slingshot gave access to this account, by its marker on their lines.
+/// How many Clients Ally gave access to this account, by its marker on their lines.
 pub fn authorized_clients() -> anyhow::Result<usize> {
     let file = ssh_dir()?.join("authorized_keys");
     let existing = fs::read_to_string(file).unwrap_or_default();
-    Ok(existing.lines().filter(|line| from_slingshot(line)).count())
+    Ok(existing.lines().filter(|line| from_ally(line)).count())
 }
 
-/// Remove every line Slingshot installed for a Client, keeping all other keys.
+/// Remove every line Ally installed for a Client, keeping all other keys.
 pub fn revoke_clients() -> anyhow::Result<usize> {
     let file = ssh_dir()?.join("authorized_keys");
     let Ok(existing) = fs::read_to_string(&file) else {
@@ -135,7 +135,7 @@ pub fn revoke_clients() -> anyhow::Result<usize> {
     };
     let kept: Vec<String> = existing
         .lines()
-        .filter(|line| !from_slingshot(line))
+        .filter(|line| !from_ally(line))
         .map(str::to_string)
         .collect();
     let removed = existing.lines().count() - kept.len();
@@ -145,8 +145,8 @@ pub fn revoke_clients() -> anyhow::Result<usize> {
     Ok(removed)
 }
 
-/// A line whose comment is Slingshot's marker, as `authorized_line` writes it.
-fn from_slingshot(line: &str) -> bool {
+/// A line whose comment is Ally's marker, as `authorized_line` writes it.
+fn from_ally(line: &str) -> bool {
     line.split_whitespace()
         .last()
         .is_some_and(|comment| comment.starts_with(&marker("")))
@@ -217,11 +217,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn only_lines_slingshot_installed_count_as_its_clients() {
-        assert!(from_slingshot("ssh-ed25519 AAAA slingshot:laptop-1a2b3c"));
-        assert!(!from_slingshot("ssh-ed25519 AAAA me@laptop"));
-        assert!(!from_slingshot("ssh-ed25519 AAAA slingshot-fan"));
-        assert!(!from_slingshot(""));
+    fn only_lines_ally_installed_count_as_its_clients() {
+        assert!(from_ally("ssh-ed25519 AAAA ally:laptop-1a2b3c"));
+        assert!(!from_ally("ssh-ed25519 AAAA me@laptop"));
+        assert!(!from_ally("ssh-ed25519 AAAA ally-fan"));
+        assert!(!from_ally(""));
     }
 
     #[test]
@@ -237,7 +237,7 @@ mod tests {
 
     #[test]
     fn the_marker_names_the_client() {
-        assert_eq!(marker("laptop"), "slingshot:laptop");
+        assert_eq!(marker("laptop"), "ally:laptop");
     }
 
     #[test]
@@ -254,7 +254,7 @@ mod tests {
     /// and then cannot ever be removed.
     #[test]
     fn an_authorized_line_ends_with_the_marker_used_to_revoke_it() {
-        let key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5 slingshot:mount";
+        let key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5 ally:mount";
 
         let line = authorized_line("archbox", key).unwrap();
 
@@ -269,7 +269,7 @@ mod tests {
     fn a_key_with_no_comment_still_gets_one() {
         let line = authorized_line("archbox", "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5").unwrap();
 
-        assert_eq!(line, "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5 slingshot:archbox");
+        assert_eq!(line, "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5 ally:archbox");
     }
 
     #[test]
@@ -286,10 +286,10 @@ mod tests {
         let dir = crate::storage::testing::TempDir::new("keys");
         let file = dir.path().join("authorized_keys");
 
-        write_lines(&file, &["ssh-ed25519 AAAA slingshot:laptop".to_string()]).unwrap();
+        write_lines(&file, &["ssh-ed25519 AAAA ally:laptop".to_string()]).unwrap();
         assert_eq!(
             fs::read_to_string(&file).unwrap(),
-            "ssh-ed25519 AAAA slingshot:laptop\n"
+            "ssh-ed25519 AAAA ally:laptop\n"
         );
         assert_eq!(
             fs::metadata(&file).unwrap().permissions().mode() & 0o777,

@@ -7,8 +7,8 @@ use anyhow::Context;
 use iroh::{PublicKey, SecretKey};
 use std::path::Path;
 
-/// Names what flows over a Slingshot iroh connection: a raw stream to the Agent's sshd.
-pub const ALPN: &[u8] = b"slingshot/ssh/1";
+/// Names what flows over an Ally iroh connection: a raw stream to the Agent's sshd.
+pub const ALPN: &[u8] = b"ally/ssh/1";
 
 /// Why the Agent closes a connection from a key that never paired. The Client looks for it
 /// to tell a refusal apart from an Agent that is simply off.

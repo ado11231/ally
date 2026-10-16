@@ -1,4 +1,4 @@
-//! `slingshot projects`: the project copies on the Agent, and freeing their space.
+//! `ally projects`: the project copies on the Agent, and freeing their space.
 
 use super::ps::ago;
 use crate::client::{self, unexpected};
@@ -62,7 +62,7 @@ pub async fn remove(agent: Option<String>, project: Option<String>) -> anyhow::R
     }
     anyhow::ensure!(
         crate::ssh::wants_terminal(),
-        "Run slingshot projects remove in a terminal to confirm, since it deletes files"
+        "Run ally projects remove in a terminal to confirm, since it deletes files"
     );
     if !presentation::confirm_deleting("Remove it?".to_string()).await? {
         presentation::success("Nothing was removed");
@@ -103,7 +103,7 @@ fn choose<'a>(
             .map(|p| &p.id);
         return projects.iter().find(|p| Some(&p.id) == id).ok_or_else(|| {
             anyhow::anyhow!(
-                "{} has no copy on {agent}. See every project with slingshot projects",
+                "{} has no copy on {agent}. See every project with ally projects",
                 local.name
             )
         });
@@ -119,7 +119,7 @@ fn choose<'a>(
     match matches.as_slice() {
         [found] => Ok(found),
         [] => anyhow::bail!(
-            "No project named {query} on {agent}. See every project with slingshot projects"
+            "No project named {query} on {agent}. See every project with ally projects"
         ),
         several => anyhow::bail!(
             "{} projects are named {query} on {agent}. Use the ID of the one you mean: {}",
@@ -154,7 +154,7 @@ fn listing(project: &ProjectSummary, style: Style) -> Vec<String> {
     if project.waiting > 0 {
         lines.push(style.dim(presentation::row(
             "Keep edits",
-            "run slingshot sync --pull in the project first",
+            "run ally sync --pull in the project first",
         )));
     }
     lines
@@ -169,7 +169,7 @@ pub fn render(agent: &str, projects: &[ProjectSummary], now: u64, style: Style) 
     if projects.is_empty() {
         output.push_str(&format!(
             "  None yet. {} in a project copies it\n",
-            style.paint("slingshot sync", Tone::Info)
+            style.paint("ally sync", Tone::Info)
         ));
         return output;
     }
@@ -228,7 +228,7 @@ pub fn render(agent: &str, projects: &[ProjectSummary], now: u64, style: Style) 
             "  {}\n",
             style.dim(format!(
                 "Free build output with {}",
-                style.paint("slingshot projects clean <project>", Tone::Info)
+                style.paint("ally projects clean <project>", Tone::Info)
             ))
         ));
     }
@@ -288,7 +288,7 @@ mod tests {
         assert!(text.contains("  api      MacBook-Pro-3f9c2a     2 MiB            2h ago     4\n"));
         assert!(text.contains("  notes    archlaptop-a1b2c3      2 MiB   1.5 GiB  never\n"));
         assert!(text.contains("\n  3 projects, 3.0 GiB\n"));
-        assert!(text.contains("Free build output with slingshot projects clean <project>"));
+        assert!(text.contains("Free build output with ally projects clean <project>"));
         assert!(!text.contains('\x1b'));
     }
 
@@ -310,7 +310,7 @@ mod tests {
     #[test]
     fn an_empty_agent_says_how_to_add_a_project() {
         let text = render("archbox", &[], 0, Style::new(false));
-        assert!(text.contains("None yet. slingshot sync in a project copies it"));
+        assert!(text.contains("None yet. ally sync in a project copies it"));
     }
 
     #[test]
@@ -353,7 +353,7 @@ mod tests {
         project.waiting = 4;
         let lines = listing(&project, Style::new(false)).concat();
         assert!(lines.contains("2 MiB, including 4 edits not brought back"));
-        assert!(lines.contains("run slingshot sync --pull in the project first"));
+        assert!(lines.contains("run ally sync --pull in the project first"));
         project.waiting = 0;
         assert!(
             !listing(&project, Style::new(false))

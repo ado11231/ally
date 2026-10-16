@@ -1,4 +1,4 @@
-//! Project discovery from Rust, Node, Python, and Slingshot marker files.
+//! Project discovery from Rust, Node, Python, and Ally marker files.
 
 use std::path::{Path, PathBuf};
 
@@ -10,9 +10,9 @@ pub enum Stack {
     Python,
 }
 
-/// Project markers. A slingshot.toml file also marks a project without a known stack.
+/// Project markers. An ally.toml file also marks a project without a known stack.
 const MARKERS: &[(&str, Option<Stack>)] = &[
-    ("slingshot.toml", None),
+    ("ally.toml", None),
     ("Cargo.toml", Some(Stack::Rust)),
     ("package.json", Some(Stack::Node)),
     ("pyproject.toml", Some(Stack::Python)),
@@ -83,7 +83,7 @@ mod tests {
 
     impl Sandbox {
         fn new(name: &str) -> Sandbox {
-            let root = std::env::temp_dir().join(format!("slingshot-stack-{name}"));
+            let root = std::env::temp_dir().join(format!("ally-stack-{name}"));
             let _ = fs::remove_dir_all(&root);
             fs::create_dir_all(&root).expect("sandbox should be creatable");
 
@@ -200,14 +200,14 @@ mod tests {
         assert_eq!(project.root, sandbox.root.join("crates/inner"));
     }
 
-    /// A slingshot.toml marks a project even when nothing else does, so an override
-    /// can name a stack slingshot would not have detected.
+    /// An ally.toml marks a project even when nothing else does, so an override
+    /// can name a stack ally would not have detected.
     #[test]
-    fn a_slingshot_toml_alone_marks_a_project() {
+    fn an_ally_toml_alone_marks_a_project() {
         let sandbox = Sandbox::new("override");
-        sandbox.file("slingshot.toml");
+        sandbox.file("ally.toml");
 
-        let project = find(&sandbox.root).expect("slingshot.toml should mark a root");
+        let project = find(&sandbox.root).expect("ally.toml should mark a root");
 
         assert_eq!(project.root, sandbox.root);
         assert!(project.stacks.is_empty());

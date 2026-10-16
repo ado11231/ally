@@ -1,6 +1,6 @@
 [package]
 name = "ally-core"
-description = "Shared rules and types for Slingshot, which runs heavy work on a powerful machine from a light one"
+description = "Shared rules and types for Ally, which runs heavy work on a powerful machine from a light one"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -1,4 +1,4 @@
-//! `slingshot sync [--pull] [--check] [path]`: move eligible source between machines.
+//! `ally sync [--pull] [--check] [path]`: move eligible source between machines.
 
 use crate::project::{self, Local};
 use crate::transfer::{self, Direction, ProjectSession};
@@ -24,7 +24,7 @@ pub async fn sync(
     let result = match check {
         true if !opened.project.initialized => {
             presentation::progress(format!(
-                "{} has no copy on {} yet. slingshot sync will copy it",
+                "{} has no copy on {} yet. ally sync will copy it",
                 local.name, target.name
             ));
             Ok(())
@@ -123,8 +123,8 @@ pub fn report_kept(kept: usize, agent: &str, direction: Direction) {
         return;
     }
     let (place, hint) = match direction {
-        Direction::Push => (agent, "slingshot sync --pull --check"),
-        Direction::Pull => ("this machine", "slingshot sync --check"),
+        Direction::Push => (agent, "ally sync --pull --check"),
+        Direction::Pull => ("this machine", "ally sync --check"),
     };
     presentation::warning(format!(
         "Kept {} changed only on {place}. Review with {hint}",

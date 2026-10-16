@@ -1,6 +1,6 @@
 //! Starting the Agent at boot. Wraps the system's own service manager: a systemd user
 //! service on Linux, with linger so it starts before anyone logs in, and a launchd agent on
-//! macOS, which starts at login. Either one runs `slingshot internal-daemon`.
+//! macOS, which starts at login. Either one runs `ally internal-daemon`.
 
 use crate::{awake, service};
 use ally_core::presentation::{self, home_path};
@@ -10,10 +10,10 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-const UNIT: &str = "slingshot.service";
-const LABEL: &str = "dev.slingshot.agent";
+const UNIT: &str = "ally.service";
+const LABEL: &str = "dev.ally.agent";
 
-/// Saved when the person at `slingshot start` says no, so the question is asked only once.
+/// Saved when the person at `ally start` says no, so the question is asked only once.
 const DECLINED: &str = "boot-declined";
 
 /// What starting at boot writes and runs on this system.
@@ -58,10 +58,10 @@ pub fn decline(root: &Path) -> anyhow::Result<()> {
 /// Work out the file and commands for the Agent `name`. The service keeps this shell's PATH,
 /// because tools such as Homebrew's tmux are not on the short PATH a service starts with.
 pub fn plan(root: &Path, name: &str, user: &str) -> anyhow::Result<Plan> {
-    let program = std::env::current_exe().context("Could not find the slingshot program")?;
+    let program = std::env::current_exe().context("Could not find the ally program")?;
     let program = program
         .to_str()
-        .context("The slingshot program's path is not valid text. Move it to a plain path")?;
+        .context("The ally program's path is not valid text. Move it to a plain path")?;
     let path = std::env::var("PATH").unwrap_or_default();
     let file = file()?;
     if cfg!(target_os = "macos") {
@@ -82,7 +82,7 @@ pub fn plan(root: &Path, name: &str, user: &str) -> anyhow::Result<Plan> {
         });
     }
     if !cfg!(target_os = "linux") {
-        bail!("Starting at boot works on Linux and macOS. Run slingshot start by hand here");
+        bail!("Starting at boot works on Linux and macOS. Run ally start by hand here");
     }
     Ok(Plan {
         contents: systemd(program, name, &path)?,
@@ -143,13 +143,13 @@ pub fn install(plan: &Plan) -> anyhow::Result<()> {
     for command in &plan.commands {
         run(command)?;
     }
-    presentation::success(format!("Slingshot starts {}", plan.when));
+    presentation::success(format!("Ally starts {}", plan.when));
     presentation::detail("Logs", &plan.logs);
     if let Some(linger) = &plan.linger
         && run(linger).is_err()
     {
         presentation::warning(format!(
-            "Slingshot starts when you log in, not at boot. To start it at boot, run sudo {}",
+            "Ally starts when you log in, not at boot. To start it at boot, run sudo {}",
             shell_words::join(linger)
         ));
     }
@@ -160,7 +160,7 @@ pub fn install(plan: &Plan) -> anyhow::Result<()> {
                 presentation::success("This machine stays awake with nobody logged in");
             }
             Err(error) => presentation::warning(format!(
-                "{error:#}. This machine may sleep with nobody logged in. Run slingshot start --boot in a terminal to try again"
+                "{error:#}. This machine may sleep with nobody logged in. Run ally start --boot in a terminal to try again"
             )),
         }
     }
@@ -188,7 +188,7 @@ fn write_sleep_rule(rule: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Delete the polkit rule, if Slingshot wrote one. A failure leaves the exact command.
+/// Delete the polkit rule, if Ally wrote one. A failure leaves the exact command.
 fn remove_sleep_rule() -> anyhow::Result<()> {
     let root = service::root()?;
     if !awake::rule_written(&root) {
@@ -211,16 +211,16 @@ fn remove_sleep_rule() -> anyhow::Result<()> {
     }
 }
 
-/// `slingshot start --remove`: show what will happen, ask, then stop the service and delete
+/// `ally start --remove`: show what will happen, ask, then stop the service and delete
 /// its file. Linger stays on, because other services of this account may rely on it.
 pub async fn remove() -> anyhow::Result<i32> {
     let file = file()?;
     if !file.exists() {
-        presentation::success("Slingshot does not start by itself");
+        presentation::success("Ally does not start by itself");
         return Ok(0);
     }
     let command = removal();
-    eprintln!("\n  This stops Slingshot and stops it starting by itself:");
+    eprintln!("\n  This stops Ally and stops it starting by itself:");
     presentation::detail("Runs", shell_words::join(&command));
     presentation::detail("Deletes", home_path(&file));
     if awake::rule_written(&service::root()?) {
@@ -228,13 +228,13 @@ pub async fn remove() -> anyhow::Result<i32> {
     }
     anyhow::ensure!(
         crate::interactive(),
-        "Run slingshot start --remove in a terminal to confirm"
+        "Run ally start --remove in a terminal to confirm"
     );
     if !presentation::confirm("Remove the boot service?".to_string()).await? {
         return Ok(0);
     }
     remove_service()?;
-    presentation::success("Slingshot no longer starts by itself");
+    presentation::success("Ally no longer starts by itself");
     Ok(0)
 }
 
@@ -257,7 +257,7 @@ fn run(command: &[String]) -> anyhow::Result<()> {
         .with_context(|| format!("Could not start {}", command[0]))?;
     if !output.status.success() {
         bail!(
-            "{shown} failed: {}. Fix that, then run slingshot start --boot",
+            "{shown} failed: {}. Fix that, then run ally start --boot",
             String::from_utf8_lossy(&output.stderr).trim()
         );
     }
@@ -283,7 +283,7 @@ fn words(parts: &[&str]) -> Vec<String> {
 fn systemd(program: &str, name: &str, path: &str) -> anyhow::Result<String> {
     Ok(format!(
         "[Unit]\n\
-         Description=Slingshot Agent\n\
+         Description=Ally Agent\n\
          \n\
          [Service]\n\
          ExecStart={} internal-daemon --name {}\n\
@@ -303,7 +303,7 @@ fn systemd(program: &str, name: &str, path: &str) -> anyhow::Result<String> {
 /// variable only in command lines.
 fn systemd_word(value: &str, command: bool) -> anyhow::Result<String> {
     if value.contains(['\n', '\r']) {
-        bail!("A line break cannot go in a systemd unit. Rename the Agent or move slingshot");
+        bail!("A line break cannot go in a systemd unit. Rename the Agent or move ally");
     }
     let mut quoted = value
         .replace('\\', "\\\\")
@@ -369,8 +369,8 @@ mod tests {
     #[test]
     fn unit_values_are_quoted_so_systemd_reads_them_back_unchanged() {
         assert_eq!(
-            systemd_word(r#"/opt/my "tools"\slingshot"#, true).unwrap(),
-            r#""/opt/my \"tools\"\\slingshot""#
+            systemd_word(r#"/opt/my "tools"\ally"#, true).unwrap(),
+            r#""/opt/my \"tools\"\\ally""#
         );
         assert_eq!(
             systemd_word("box%h$HOME", true).unwrap(),
@@ -382,10 +382,8 @@ mod tests {
 
     #[test]
     fn the_unit_runs_the_daemon_under_the_chosen_name_and_restarts_it() {
-        let unit = systemd("/usr/bin/slingshot", "archbox", "/usr/bin:/bin").unwrap();
-        assert!(
-            unit.contains(r#"ExecStart="/usr/bin/slingshot" internal-daemon --name "archbox""#)
-        );
+        let unit = systemd("/usr/bin/ally", "archbox", "/usr/bin:/bin").unwrap();
+        assert!(unit.contains(r#"ExecStart="/usr/bin/ally" internal-daemon --name "archbox""#));
         assert!(unit.contains(r#"Environment="PATH=/usr/bin:/bin""#));
         assert!(unit.contains("Restart=on-failure"));
         assert!(unit.contains("WantedBy=default.target"));
@@ -393,8 +391,8 @@ mod tests {
 
     #[test]
     fn the_launch_agent_escapes_its_values_and_restarts_only_after_a_failure() {
-        let plist = launchd("/opt/a&b/slingshot", "<box>", "/usr/bin", "/tmp/daemon.log");
-        assert!(plist.contains("<string>/opt/a&amp;b/slingshot</string>"));
+        let plist = launchd("/opt/a&b/ally", "<box>", "/usr/bin", "/tmp/daemon.log");
+        assert!(plist.contains("<string>/opt/a&amp;b/ally</string>"));
         assert!(plist.contains("<string>&lt;box&gt;</string>"));
         assert!(plist.contains("<key>SuccessfulExit</key>\n        <false/>"));
         assert!(plist.contains("<string>/tmp/daemon.log</string>"));

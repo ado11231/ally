@@ -2,7 +2,7 @@
 //!
 //! Git ignore rules, version control internals, generated folders, and environment
 //! files never enter a manifest, so they are never copied, pulled, previewed, or
-//! backed up. Environment files are handled separately by `slingshot env`.
+//! backed up. Environment files are handled separately by `ally env`.
 
 use crate::storage;
 use anyhow::{Context, bail, ensure};
@@ -56,7 +56,7 @@ fn is_environment_name(name: &str) -> bool {
     name == ".env" || name.starts_with(".env.") || name.ends_with(".env") || name == ".envrc"
 }
 
-/// Where `slingshot env add` may place a file inside the Agent's copy. Both machines check
+/// Where `ally env add` may place a file inside the Agent's copy. Both machines check
 /// this, so the Client can refuse a bad target before reading a secret off disk.
 pub fn environment_target(target: &str) -> anyhow::Result<()> {
     let path = storage::relative(target)?;
@@ -105,7 +105,7 @@ fn always_excluded(path: &str, has_file: impl Fn(&str) -> bool) -> bool {
 
 /// Extra exclusion patterns for a project, gathered on the Client and sent to the Agent
 /// so both machines apply exactly the same rules. Repository and global git excludes
-/// come first and `slingshot.toml` patterns last. Every pattern is anchored at the root.
+/// come first and `ally.toml` patterns last. Every pattern is anchored at the root.
 pub fn client_excludes(root: &Path) -> anyhow::Result<Vec<String>> {
     let mut patterns = Vec::new();
     patterns.extend(pattern_lines(&root.join(".git/info/exclude")));
@@ -116,7 +116,7 @@ pub fn client_excludes(root: &Path) -> anyhow::Result<Vec<String>> {
     for pattern in &own {
         ensure!(
             !pattern.trim_start().starts_with('!'),
-            "sync.exclude in slingshot.toml cannot contain negated patterns: {pattern}"
+            "sync.exclude in ally.toml cannot contain negated patterns: {pattern}"
         );
     }
     patterns.extend(own);
@@ -171,9 +171,9 @@ struct SyncSettings {
     exclude: Vec<String>,
 }
 
-/// Read `sync.exclude` from `slingshot.toml`.
+/// Read `sync.exclude` from `ally.toml`.
 fn project_excludes(root: &Path) -> anyhow::Result<Vec<String>> {
-    let file = root.join("slingshot.toml");
+    let file = root.join("ally.toml");
     let text = match fs::read_to_string(&file) {
         Ok(text) => text,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
@@ -572,7 +572,7 @@ mod tests {
         assert!(!always_excluded("src/target/mod.rs", |f| f == "Cargo.toml"));
         assert!(always_excluded("web/node_modules/x/index.js", |_| false));
         assert!(always_excluded(".git/config", |_| false));
-        assert!(always_excluded("a/.slingshot-partial-123", |_| false));
+        assert!(always_excluded("a/.ally-partial-123", |_| false));
     }
 
     #[test]
@@ -625,14 +625,14 @@ mod tests {
         dir.write("data/big.bin", "");
         dir.write("data/small.txt", "");
         dir.write("keep.txt", "");
-        dir.write("slingshot.toml", "[sync]\nexclude = [\"data/*.bin\"]\n");
+        dir.write("ally.toml", "[sync]\nexclude = [\"data/*.bin\"]\n");
         let patterns = client_excludes(dir.path()).unwrap();
         assert!(patterns.contains(&"private.txt".to_string()));
         let rules = Rules::new(dir.path(), &patterns).unwrap();
         let manifest = scan(dir.path(), &rules, &Manifest::new(), None).unwrap();
         assert_eq!(
             names(&manifest),
-            ["data/small.txt", "keep.txt", "slingshot.toml"]
+            ["ally.toml", "data/small.txt", "keep.txt"]
         );
         assert!(rules.excluded("data/big.bin", |_| false));
         assert!(!rules.excluded("data/small.txt", |_| false));
@@ -641,9 +641,9 @@ mod tests {
     #[test]
     fn negated_project_patterns_are_refused() {
         let dir = TempDir::new("negated");
-        dir.write("slingshot.toml", "[sync]\nexclude = [\"!.env\"]\n");
+        dir.write("ally.toml", "[sync]\nexclude = [\"!.env\"]\n");
         assert!(client_excludes(dir.path()).is_err());
-        dir.write("slingshot.toml", "[sync]\nexclude = [\"*.bin\"]\n");
+        dir.write("ally.toml", "[sync]\nexclude = [\"*.bin\"]\n");
         assert!(
             client_excludes(dir.path())
                 .unwrap()

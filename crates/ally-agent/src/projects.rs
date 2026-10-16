@@ -124,7 +124,7 @@ pub fn load(root: &Path, id: &str) -> anyhow::Result<(Paths, Metadata)> {
     let paths = Paths::new(root, id)?;
     let metadata: Option<Metadata> = storage::read_json(&paths.metadata())?;
     let metadata =
-        metadata.context("This project has no copy on the Agent yet. Run slingshot sync first")?;
+        metadata.context("This project has no copy on the Agent yet. Run ally sync first")?;
     Ok((paths, metadata))
 }
 
@@ -158,7 +158,7 @@ pub fn acquire(
     };
     if let Some(job) = blocker(&active, blocking) {
         bail!(
-            "{} has {} in progress (job {}). Stop it with slingshot stop {} or wait for it to finish",
+            "{} has {} in progress (job {}). Stop it with ally stop {} or wait for it to finish",
             metadata.name,
             describe(job.kind),
             storage::short_id(&job.id),
@@ -184,12 +184,12 @@ pub fn ensure_ready(paths: &Paths, metadata: &Metadata) -> anyhow::Result<()> {
     let state = paths.sync_state();
     ensure!(
         !state.interrupted(),
-        "An interrupted sync of {} needs recovery. Run slingshot sync to recover it",
+        "An interrupted sync of {} needs recovery. Run ally sync to recover it",
         metadata.name
     );
     ensure!(
         state.baseline_file().exists(),
-        "{} has not been copied to the Agent yet. Run slingshot sync first",
+        "{} has not been copied to the Agent yet. Run ally sync first",
         metadata.name
     );
     Ok(())
@@ -264,7 +264,7 @@ pub fn inspect(root: &Path, id: &str, excludes: &[String]) -> anyhow::Result<Sna
     let state = paths.sync_state();
     ensure!(
         !state.interrupted(),
-        "An interrupted sync of {} needs recovery. Run slingshot sync to recover it",
+        "An interrupted sync of {} needs recovery. Run ally sync to recover it",
         metadata.name
     );
     storage::write_json(&paths.excludes(), &excludes)?;
@@ -411,7 +411,7 @@ pub fn env_add(
         Ok(meta) => {
             ensure!(
                 meta.file_type().is_symlink() && fs::read_link(&link)? == stored,
-                "A file Slingshot does not manage already exists at {target} on the Agent"
+                "A file Ally does not manage already exists at {target} on the Agent"
             );
             true
         }
@@ -447,7 +447,7 @@ pub fn env_remove(root: &Path, id: &str, target: &str) -> anyhow::Result<()> {
     remove_environment(&paths, target)
 }
 
-/// Remove the link only when it is still Slingshot's own, then the stored copy.
+/// Remove the link only when it is still Ally's own, then the stored copy.
 fn remove_environment(paths: &Paths, target: &str) -> anyhow::Result<()> {
     let stored = paths.environment.join(stored_name(target));
     if let Ok(link) = storage::safe_path(&paths.source, target)
@@ -569,11 +569,11 @@ pub fn clean(root: &Path, id: &str) -> anyhow::Result<u64> {
     Ok(bytes)
 }
 
-/// Delete a project from the Agent, with its `~/Slingshot` link. Waits for every job.
+/// Delete a project from the Agent, with its `~/Ally` link. Waits for every job.
 pub fn remove(root: &Path, home: Option<&Path>, id: &str) -> anyhow::Result<()> {
     let (paths, metadata) = load(root, id)?;
     let _lock = acquire(root, &paths, &metadata, Blocking::AllJobs)?;
-    if let Some(Ok(items)) = home.map(|home| fs::read_dir(home.join("Slingshot"))) {
+    if let Some(Ok(items)) = home.map(|home| fs::read_dir(home.join("Ally"))) {
         for item in items.flatten() {
             if fs::read_link(item.path()).is_ok_and(|target| target == paths.source) {
                 fs::remove_file(item.path())?;
@@ -891,7 +891,7 @@ mod tests {
         let home = Root::new();
         let id = project(&root.0);
         let paths = initialize(&root.0, &id);
-        let folder = home.0.join("Slingshot");
+        let folder = home.0.join("Ally");
         fs::create_dir(&folder).unwrap();
         std::os::unix::fs::symlink(&paths.source, folder.join("app")).unwrap();
         std::os::unix::fs::symlink(&home.0, folder.join("other")).unwrap();
@@ -917,7 +917,7 @@ mod tests {
 
     impl TempDirLike {
         fn with(files: &[(&str, &str)]) -> TempDirLike {
-            let path = std::env::temp_dir().join(format!("slingshot-client-{}", storage::new_id()));
+            let path = std::env::temp_dir().join(format!("ally-client-{}", storage::new_id()));
             for (name, body) in files {
                 let file = path.join(name);
                 fs::create_dir_all(file.parent().unwrap()).unwrap();

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use spake2::{Ed25519Group, Identity, Password, Spake2};
 
-/// The pairing port `slingshot start` tries first.
+/// The pairing port `ally start` tries first.
 pub const DEFAULT_PORT: u16 = 7433;
 
 /// What the Client sends. A pairing is `Start`, then `Join`, on one connection.
@@ -73,8 +73,8 @@ pub enum Side {
 impl Side {
     fn label(self) -> &'static [u8] {
         match self {
-            Side::Client => b"slingshot client",
-            Side::Agent => b"slingshot agent",
+            Side::Client => b"ally client",
+            Side::Agent => b"ally agent",
         }
     }
 }
@@ -147,7 +147,7 @@ pub struct Paired {
     /// The Agent's ssh host keys, so the Client can recognize it later without
     /// anybody being asked to eyeball a fingerprint.
     pub host_keys: Vec<String>,
-    /// The Agent's Slingshot program path, so the Client can start helpers over SSH.
+    /// The Agent's Ally program path, so the Client can start helpers over SSH.
     pub program: Option<String>,
     /// Every address the Agent answers on, so the Client can switch to another one when the
     /// address it paired on stops answering.
@@ -188,7 +188,7 @@ pub struct Health {
     pub memory_total_mib: u64,
     pub swap_total_mib: u64,
     pub disk_free_mib: u64,
-    /// Free space where Slingshot keeps project copies and build output.
+    /// Free space where Ally keeps project copies and build output.
     #[serde(default)]
     pub workspace_free_mib: Option<u64>,
     pub gpus: Vec<GpuHealth>,

@@ -190,7 +190,7 @@ fn resource(title: String, body: String) -> Notice {
 }
 
 /// What a finished job is worth saying. The command is the subtitle, so the title can stay
-/// short and plain. Stopping is something the person just did, whether with `slingshot stop`
+/// short and plain. Stopping is something the person just did, whether with `ally stop`
 /// or with Ctrl C, which ends a run with exit code 130. A session usually ends because
 /// someone left it. So only surprises about those are told.
 fn notice(name: &str, job: &Job) -> Option<Notice> {
@@ -421,7 +421,7 @@ mod tests {
 
     #[test]
     fn unreachable_needs_two_failures_and_is_told_once_then_back() {
-        let refused = "Could not reach archbox: Slingshot is not running on the Agent. Run slingshot start there: Connection refused (os error 111)";
+        let refused = "Could not reach archbox: Ally is not running on the Agent. Run ally start there: Connection refused (os error 111)";
         let mut watch = Watch::new("archbox");
         assert!(watch.reached("local network").is_empty());
         assert!(watch.failed(refused).is_empty());
@@ -430,9 +430,9 @@ mod tests {
         assert_eq!(notices[0].title, "archbox went offline");
         assert_eq!(
             notices[0].subtitle.as_deref(),
-            Some("Slingshot isn't running on archbox")
+            Some("Ally isn't running on archbox")
         );
-        assert_eq!(notices[0].body, "Run slingshot start on archbox.");
+        assert_eq!(notices[0].body, "Run ally start on archbox.");
         assert!(watch.failed(refused).is_empty());
         let notices = watch.reached("tailnet");
         assert_eq!(notices[0].kind, NoticeKind::Back);

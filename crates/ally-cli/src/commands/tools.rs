@@ -1,4 +1,4 @@
-//! `slingshot tools`: install the developer tools this machine uses on the Agent, after
+//! `ally tools`: install the developer tools this machine uses on the Agent, after
 //! showing every command and asking once. `link` runs the same step when it finishes.
 
 use crate::client::{self, unexpected};
@@ -66,7 +66,7 @@ pub async fn offer(target: &Agent) -> anyhow::Result<()> {
         return Ok(());
     }
     if !ssh::wants_terminal() {
-        presentation::warning("Run slingshot tools in a terminal to install them");
+        presentation::warning("Run ally tools in a terminal to install them");
         return Ok(());
     }
     let them = match offered.len() {
@@ -76,13 +76,13 @@ pub async fn offer(target: &Agent) -> anyhow::Result<()> {
     if !presentation::confirm(format!("Install {them} on {} now?", target.name)).await? {
         eprintln!(
             "  {}",
-            Style::stderr().dim("Run slingshot tools any time to do this later")
+            Style::stderr().dim("Run ally tools any time to do this later")
         );
         return Ok(());
     }
 
     let lost = format!(
-        "Lost connection to {} while installing. Run slingshot tools again to see what finished",
+        "Lost connection to {} while installing. Run ally tools again to see what finished",
         target.name
     );
     let (with_sudo, without_sudo) = by_sudo(&offered, manager, before.npm_writable, admin);
@@ -114,7 +114,7 @@ pub async fn offer(target: &Agent) -> anyhow::Result<()> {
         match after.installed.contains(tool) {
             true => presentation::success(format!("{} installed", tool.name())),
             false => presentation::warning(format!(
-                "{} is still missing. Check the output above, then run slingshot tools again",
+                "{} is still missing. Check the output above, then run ally tools again",
                 tool.name()
             )),
         }
@@ -199,13 +199,13 @@ async fn offer_sign_in(
         target.name
     ));
     if !ssh::wants_terminal() {
-        presentation::warning("Run slingshot tools in a terminal to sign in");
+        presentation::warning("Run ally tools in a terminal to sign in");
         return Ok(());
     }
     if !presentation::confirm(format!("Sign in on {} now?", target.name)).await? {
         eprintln!(
             "  {}",
-            Style::stderr().dim("Run slingshot tools any time to do this later")
+            Style::stderr().dim("Run ally tools any time to do this later")
         );
         return Ok(());
     }
@@ -243,14 +243,14 @@ async fn sign_in(target: &Agent, shell: &str, tool: Tool) -> anyhow::Result<()> 
     );
     remote.forward = sign_in.forward;
     let lost = format!(
-        "Lost connection to {} while signing in. Try again in slingshot attach with: {command}",
+        "Lost connection to {} while signing in. Try again in ally attach with: {command}",
         target.name
     );
     let code = crate::commands::run::interact(target, &remote, lost).await?;
     match code {
         0 => presentation::success(format!("Signed in to {}", tool.name())),
         _ => presentation::warning(format!(
-            "Sign in to {} did not finish. Try again in slingshot attach with: {command}",
+            "Sign in to {} did not finish. Try again in ally attach with: {command}",
             tool.name()
         )),
     }
@@ -280,7 +280,7 @@ fn announce(action: &str, target: &Agent) {
     );
 }
 
-/// Each missing tool with the exact commands that will run, or a warning when Slingshot has
+/// Each missing tool with the exact commands that will run, or a warning when Ally has
 /// none it trusts on that Agent. Without `admin`, commands that need `sudo` are listed apart,
 /// for someone who can run them.
 fn plan(

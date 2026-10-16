@@ -1,6 +1,6 @@
 //! The private Agent control socket.
 //!
-//! SSH authenticates every caller. A hidden `slingshot internal-control` helper, started
+//! SSH authenticates every caller. A hidden `ally internal-control` helper, started
 //! through that SSH login, relays bytes between the connection and a Unix socket that
 //! only the Agent account can open. The Agent OS account is the trust boundary.
 
@@ -36,12 +36,12 @@ pub fn socket(root: &Path) -> PathBuf {
     root.join("control.sock")
 }
 
-/// Keeps the daemon lock for as long as `slingshot start` runs.
+/// Keeps the daemon lock for as long as `ally start` runs.
 pub struct Service {
     _guard: File,
 }
 
-/// Whether the daemon is already running for this account, held by another `slingshot start`.
+/// Whether the daemon is already running for this account, held by another `ally start`.
 pub fn running(root: &Path) -> anyhow::Result<bool> {
     storage::private_dir(root)?;
     Ok(storage::try_lock(&root.join("daemon.lock"))?.is_none())
@@ -52,11 +52,11 @@ pub fn start(name: String, online: Arc<AtomicBool>) -> anyhow::Result<Service> {
     let root = root()?;
     storage::private_dir(&root)?;
     let guard = storage::try_lock(&root.join("daemon.lock"))?
-        .context("Another slingshot start is already running for this account")?;
+        .context("Another ally start is already running for this account")?;
     let path = socket(&root);
     if path.as_os_str().len() >= 100 {
         bail!(
-            "The Slingshot storage path is too long for a control socket: {}. Use an account with a shorter home directory",
+            "The Ally storage path is too long for a control socket: {}. Use an account with a shorter home directory",
             path.display()
         );
     }
@@ -285,7 +285,7 @@ fn respond(root: &Path, name: &str, request: Request) -> anyhow::Result<Response
 
 /// The tools a session on this account would find. The probe runs in the login shell,
 /// because tools such as rustup and Claude Code add themselves to PATH in startup files
-/// that `slingshot start` may never have read.
+/// that `ally start` may never have read.
 fn agent_tools(root: &Path) -> anyhow::Result<AgentTools> {
     let shell = jobs::login_shell(root);
     let output = std::process::Command::new(&shell)
@@ -305,9 +305,9 @@ fn agent_tools(root: &Path) -> anyhow::Result<AgentTools> {
     })
 }
 
-/// Ask the daemon another `slingshot start` runs what it calls itself, for pairing beside it.
+/// Ask the daemon another `ally start` runs what it calls itself, for pairing beside it.
 pub async fn status(root: &Path) -> anyhow::Result<AgentStatus> {
-    const NO_ANSWER: &str = "Slingshot is running for this account but did not answer. Stop the other slingshot start, then run slingshot start again";
+    const NO_ANSWER: &str = "Ally is running for this account but did not answer. Stop the other ally start, then run ally start again";
     let mut stream = UnixStream::connect(socket(root)).await.context(NO_ANSWER)?;
     let asked = async {
         control::write_frame(&mut stream, &Request::Status).await?;
@@ -319,7 +319,7 @@ pub async fn status(root: &Path) -> anyhow::Result<AgentStatus> {
     {
         Ok(Some(Response::Status(status))) => Ok(status),
         Err(error) if error.downcast_ref::<control::Mismatch>().is_some() => bail!(
-            "A different version of Slingshot is already running for this account. Stop the other slingshot start, then run slingshot start again"
+            "A different version of Ally is already running for this account. Stop the other ally start, then run ally start again"
         ),
         _ => bail!(NO_ANSWER),
     }
@@ -331,7 +331,7 @@ pub async fn bridge() -> anyhow::Result<i32> {
     let path = socket(&root()?);
     let stream = UnixStream::connect(&path)
         .await
-        .context("Slingshot is not running on the Agent. Run slingshot start there")?;
+        .context("Ally is not running on the Agent. Run ally start there")?;
     let (mut from_agent, mut to_agent) = stream.into_split();
     let upload = async {
         let mut stdin = tokio::io::stdin();
@@ -365,7 +365,7 @@ mod tests {
 
     /// Socket paths have a small length limit, so tests use a short name under /tmp.
     fn serve(root: &Root) -> PathBuf {
-        let path = PathBuf::from(format!("/tmp/slingshot-{}.sock", &storage::new_id()[..12]));
+        let path = PathBuf::from(format!("/tmp/ally-{}.sock", &storage::new_id()[..12]));
         let listener = UnixListener::bind(&path).unwrap();
         tokio::spawn(accept(
             listener,
@@ -462,7 +462,7 @@ mod tests {
         stream.write_u32(body.len() as u32).await.unwrap();
         stream.write_all(&body).await.unwrap();
         let reply: Response = control::read_frame(&mut stream).await.unwrap().unwrap();
-        assert!(matches!(reply, Response::Error(message) if message.contains("Update Slingshot")));
+        assert!(matches!(reply, Response::Error(message) if message.contains("Update Ally")));
     }
 
     #[tokio::test]

@@ -1,4 +1,4 @@
-//! Slingshot uses a dedicated SSH key so unlink can revoke its access.
+//! Ally uses a dedicated SSH key so unlink can revoke its access.
 
 use ally_core::keys::{marker, ssh_dir};
 use anyhow::Context;
@@ -7,20 +7,20 @@ use std::path::PathBuf;
 use std::process::Command;
 
 /// The private key file. The public one is the same path with .pub on the end.
-const KEY_NAME: &str = "slingshot_ed25519";
+const KEY_NAME: &str = "ally_ed25519";
 
 fn private_key_path() -> anyhow::Result<PathBuf> {
     Ok(ssh_dir()?.join(KEY_NAME))
 }
 
-/// Slingshot's private and public key files, whether or not they exist.
+/// Ally's private and public key files, whether or not they exist.
 pub fn files() -> anyhow::Result<[PathBuf; 2]> {
     let private = private_key_path()?;
     let public = private.with_extension("pub");
     Ok([private, public])
 }
 
-/// Find slingshot's key, creating it the first time. Also says whether it was just made, so
+/// Find ally's key, creating it the first time. Also says whether it was just made, so
 /// `link` can announce a new key with its path, because a tool that quietly makes keys cannot
 /// be audited.
 pub fn ensure(client_name: &str) -> anyhow::Result<(PathBuf, String, bool)> {
@@ -45,11 +45,11 @@ pub fn ensure(client_name: &str) -> anyhow::Result<(PathBuf, String, bool)> {
             ])
             .arg(&private)
             .status()
-            .context("Could not run ssh-keygen. Install OpenSSH, then run slingshot link again")?;
+            .context("Could not run ssh-keygen. Install OpenSSH, then run ally link again")?;
 
         if !status.success() {
             anyhow::bail!(
-                "Could not create the SSH key {}. Check that the folder is writable, then run slingshot link again",
+                "Could not create the SSH key {}. Check that the folder is writable, then run ally link again",
                 private.display()
             );
         }

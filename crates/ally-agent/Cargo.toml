@@ -1,6 +1,6 @@
 [package]
 name = "ally-agent"
-description = "The Agent side of Slingshot: the daemon on the powerful machine"
+description = "The Agent side of Ally: the daemon on the powerful machine"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -1,6 +1,6 @@
-//! Foreground runs started over SSH by `slingshot run`.
+//! Foreground runs started over SSH by `ally run`.
 //!
-//! The command runs in its own process group so Slingshot can stop all of it. When SSH
+//! The command runs in its own process group so Ally can stop all of it. When SSH
 //! provides a terminal, that group becomes the terminal's foreground group, so Ctrl C,
 //! resizing, and interactive input reach the command exactly as they would locally.
 
@@ -50,7 +50,7 @@ pub async fn run(
             )?;
             if !directory.is_dir() {
                 bail!(
-                    "{} does not exist in the Agent copy. Run slingshot sync if it was just created",
+                    "{} does not exist in the Agent copy. Run ally sync if it was just created",
                     cwd.unwrap_or_default()
                 );
             }
@@ -154,7 +154,7 @@ pub async fn run(
 
 /// A command that could not start exits the way a shell reports it: 127 when it does not
 /// exist, 126 when it cannot be run, so scripts see the same codes as locally.
-/// Where a run in a project starts: the same `~/Slingshot/<project>` link a session uses,
+/// Where a run in a project starts: the same `~/Ally/<project>` link a session uses,
 /// so tools that name things after the folder, such as Docker Compose, see the project
 /// rather than the copy's `source` folder. The copy itself is the fallback.
 fn start_folder(
@@ -282,7 +282,7 @@ mod tests {
         std::fs::create_dir_all(source.join("api")).unwrap();
         let start = |cwd| start_folder(Some(&home.0), "web app", "abcdef0123456789", &source, cwd);
 
-        let folder = home.0.join("Slingshot").join("web_app");
+        let folder = home.0.join("Ally").join("web_app");
         assert_eq!(start(None).unwrap(), folder);
         assert_eq!(start(Some("api")).unwrap(), folder.join("api"));
         assert!(start(Some("../outside")).is_err());

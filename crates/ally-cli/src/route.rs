@@ -14,7 +14,7 @@ const PROBE_TIMEOUT: Duration = Duration::from_millis(800);
 const SSH_PORT: u16 = 22;
 
 /// Set by the Client for the rsync helper it starts, so that process skips probing.
-pub const ROUTE_ENV: &str = "SLINGSHOT_RSH_HOST";
+pub const ROUTE_ENV: &str = "ALLY_RSH_HOST";
 
 const IROH: &str = "iroh";
 

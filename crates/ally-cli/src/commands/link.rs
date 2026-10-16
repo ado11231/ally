@@ -1,4 +1,4 @@
-//! `slingshot link <code>`: pair with an Agent and remember it.
+//! `ally link <code>`: pair with an Agent and remember it.
 
 use crate::client;
 use crate::keys;
@@ -99,16 +99,16 @@ pub async fn link(code: String, name: Option<String>) -> anyhow::Result<i32> {
 
     if let Err(error) = super::tools::offer(config.resolve(Some(&name))?).await {
         presentation::warning(format!(
-            "Could not set up tools on {name}: {error:#}. Run slingshot tools to try again"
+            "Could not set up tools on {name}: {error:#}. Run ally tools to try again"
         ));
     }
     if let Err(error) = super::menubar::offer(&name).await {
         presentation::warning(format!(
-            "Could not add {name} to the menu bar: {error:#}. Run slingshot menubar to try again"
+            "Could not add {name} to the menu bar: {error:#}. Run ally menubar to try again"
         ));
     }
     presentation::section("Ready");
-    presentation::detail("Try it", "slingshot run uname -n");
+    presentation::detail("Try it", "ally run uname -n");
     eprintln!();
 
     Ok(0)
@@ -118,7 +118,7 @@ pub async fn link(code: String, name: Option<String>) -> anyhow::Result<i32> {
 /// because pairing only works where the Agent can be reached directly.
 fn unreachable(host: &str, port: u16) -> String {
     format!(
-        "Could not reach {host}:{port}. Check that slingshot start is running there, and that this machine is on the same network or tailnet"
+        "Could not reach {host}:{port}. Check that ally start is running there, and that this machine is on the same network or tailnet"
     )
 }
 
@@ -165,9 +165,7 @@ mod tests {
     fn an_unreachable_agent_is_one_line_with_its_fix() {
         let message = unreachable("192.168.1.9", 7433);
 
-        assert!(
-            message.starts_with("Could not reach 192.168.1.9:7433. Check that slingshot start")
-        );
+        assert!(message.starts_with("Could not reach 192.168.1.9:7433. Check that ally start"));
         assert!(!message.contains('\n'));
     }
 

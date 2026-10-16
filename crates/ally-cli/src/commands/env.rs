@@ -1,4 +1,4 @@
-//! `slingshot env`: environment files kept on the Agent, outside source copies.
+//! `ally env`: environment files kept on the Agent, outside source copies.
 
 use crate::client::{fetch, unexpected};
 use crate::project::{self, Local};
@@ -61,7 +61,7 @@ pub async fn add(
 }
 
 /// Where a file lands when no target is given: its own place in the project, so
-/// `slingshot env add api/.env` fills `api/.env` on the Agent. A file from outside the
+/// `ally env add api/.env` fills `api/.env` on the Agent. A file from outside the
 /// project keeps only its name.
 fn default_target(file: &Path, root: &Path) -> anyhow::Result<String> {
     let full = std::fs::canonicalize(file)
@@ -95,7 +95,7 @@ pub async fn list(agent: Option<String>) -> anyhow::Result<i32> {
     if names.is_empty() {
         println!(
             "  None set. Add one with {}",
-            style.paint("slingshot env add .env", Tone::Info)
+            style.paint("ally env add .env", Tone::Info)
         );
     }
     for name in names {

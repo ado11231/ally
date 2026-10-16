@@ -1,4 +1,4 @@
-//! The developer tools Slingshot can set up on the Agent. The Agent reports which it has,
+//! The developer tools Ally can set up on the Agent. The Agent reports which it has,
 //! and the Client decides what to offer and shows every command before anything runs.
 
 use crate::preflight::install_command;
@@ -109,7 +109,7 @@ impl Tool {
     }
 
     /// The commands that install this tool on an Agent using `manager`, where `npm_writable`
-    /// says whether npm's global folder needs `sudo`. `None` means Slingshot has no command it
+    /// says whether npm's global folder needs `sudo`. `None` means Ally has no command it
     /// trusts there, so the person installs it themselves.
     pub fn install(self, manager: Option<&str>, npm_writable: Option<bool>) -> Option<Vec<String>> {
         match self {
@@ -194,7 +194,7 @@ pub fn installed_here() -> Vec<Tool> {
 
 /// Folders in the home folder where installers put programs for one user, such as Claude
 /// Code in `~/.local/bin`. Login shells that are not interactive often leave them off PATH,
-/// so Slingshot adds them to everything it starts on the Agent instead of editing any file.
+/// so Ally adds them to everything it starts on the Agent instead of editing any file.
 const USER_FOLDERS: [&str; 3] = [".local/bin", ".cargo/bin", ".opencode/bin"];
 
 /// A shell line that puts `USER_FOLDERS` at the front of PATH.

@@ -1,5 +1,5 @@
-//! What `slingshot uninstall` removes when this machine is an Agent: the boot service, its
-//! running work, the access it gave Clients, the `~/Slingshot` links, and its data.
+//! What `ally uninstall` removes when this machine is an Agent: the boot service, its
+//! running work, the access it gave Clients, the `~/Ally` links, and its data.
 
 use crate::projects::size;
 use crate::{boot, jobs, service};
@@ -10,7 +10,7 @@ use anyhow::Context;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Everything Slingshot keeps on this machine as an Agent.
+/// Everything Ally keeps on this machine as an Agent.
 pub struct Found {
     pub service: Option<PathBuf>,
     pub active: Vec<Job>,
@@ -28,7 +28,7 @@ impl Found {
         let service = Some(boot::file()?).filter(|file| file.exists());
         anyhow::ensure!(
             service.is_some() || !root.exists() || !service::running(&root)?,
-            "Slingshot is running in a terminal on this machine. Stop it with Ctrl C there, then run slingshot uninstall again"
+            "Ally is running in a terminal on this machine. Stop it with Ctrl C there, then run ally uninstall again"
         );
         let data = root.exists().then(|| {
             let projects = fs::read_dir(root.join("projects"))
@@ -37,7 +37,7 @@ impl Found {
             (root.clone(), projects, size(&root))
         });
         let links = directories::BaseDirs::new()
-            .map(|dirs| dirs.home_dir().join("Slingshot"))
+            .map(|dirs| dirs.home_dir().join("Ally"))
             .filter(|folder| folder.exists());
         Ok(Found {
             service,
@@ -104,7 +104,7 @@ impl Found {
     pub fn remove(&self) -> anyhow::Result<()> {
         if self.service.is_some() {
             boot::remove_service()?;
-            presentation::success("Stopped Slingshot and its boot service");
+            presentation::success("Stopped Ally and its boot service");
         }
         if let Some((root, _, _)) = &self.data {
             for job in &self.active {
@@ -176,7 +176,7 @@ fn running(active: &[Job]) -> String {
     }
 }
 
-/// Remove Slingshot's own links, then the folder if nothing else is in it. A file the owner
+/// Remove Ally's own links, then the folder if nothing else is in it. A file the owner
 /// put there is kept and named.
 fn remove_links(folder: &Path) -> anyhow::Result<()> {
     for item in fs::read_dir(folder)?.flatten() {
@@ -238,9 +238,9 @@ mod tests {
     }
 
     #[test]
-    fn only_slingshots_links_are_removed_from_the_folder() {
+    fn only_ally_links_are_removed_from_the_folder() {
         let home = Root::new();
-        let folder = home.0.join("Slingshot");
+        let folder = home.0.join("Ally");
         fs::create_dir(&folder).unwrap();
         std::os::unix::fs::symlink(&home.0, folder.join("app")).unwrap();
         remove_links(&folder).unwrap();

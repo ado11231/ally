@@ -19,7 +19,7 @@ pub const VERSION: u32 = 14;
 /// Largest frame in either direction. Manifests for very large projects are the limit.
 pub const MAX_FRAME: u32 = 16 * 1024 * 1024;
 
-/// Largest environment file accepted by `slingshot env add`.
+/// Largest environment file accepted by `ally env add`.
 pub const MAX_ENVIRONMENT_FILE: usize = 1024 * 1024;
 
 /// This build's release, such as `0.1.0`, sent beside the protocol so a mismatch can name
@@ -35,7 +35,7 @@ pub struct Envelope<T> {
 }
 
 /// The other machine speaks a different control protocol. A higher protocol is a newer
-/// Slingshot, so this says which machine needs updating.
+/// Ally, so this says which machine needs updating.
 #[derive(Debug)]
 pub struct Mismatch {
     pub theirs: u32,
@@ -52,7 +52,7 @@ impl std::fmt::Display for Mismatch {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Slingshot versions differ between the machines (protocol {} and {VERSION}). Update Slingshot on both machines",
+            "Ally versions differ between the machines (protocol {} and {VERSION}). Update Ally on both machines",
             self.theirs
         )
     }
@@ -124,7 +124,7 @@ pub enum Request {
     /// Which developer tools a session on the Agent would find.
     Tools,
     /// What the running daemon calls itself and whether iroh reaches it, for a second
-    /// `slingshot start` on the same account.
+    /// `ally start` on the same account.
     Status,
     /// Every project copy on the Agent, from any Client.
     Projects,
@@ -160,7 +160,7 @@ pub enum Response {
     Cleaned { bytes: u64 },
 }
 
-/// One project copy on the Agent, as `slingshot projects` lists it.
+/// One project copy on the Agent, as `ally projects` lists it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectSummary {
     pub id: String,
@@ -176,7 +176,7 @@ pub struct ProjectSummary {
     pub waiting: usize,
 }
 
-/// The running daemon, as a second `slingshot start` on the same account shows it.
+/// The running daemon, as a second `ally start` on the same account shows it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentStatus {
     pub name: String,
@@ -275,7 +275,7 @@ impl JobState {
     }
 }
 
-/// One Slingshot run or session on the Agent.
+/// One Ally run or session on the Agent.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Job {
     pub id: String,
@@ -288,7 +288,7 @@ pub struct Job {
     pub ended: Option<u64>,
     pub exit_code: Option<i32>,
     /// The process group leader of a run, with its start time. Both must match before
-    /// Slingshot signals anything, so a reused process ID is never touched.
+    /// Ally signals anything, so a reused process ID is never touched.
     pub pid: Option<u32>,
     pub process_start: Option<u64>,
     /// Boot time when the job started, to tell a reboot apart from a normal exit.
@@ -388,7 +388,7 @@ mod tests {
             .await
             .unwrap_err()
             .to_string();
-        assert!(error.contains("Update Slingshot"), "{error}");
+        assert!(error.contains("Update Ally"), "{error}");
 
         a.write_u32(MAX_FRAME + 1).await.unwrap();
         assert!(read_frame::<_, Request>(&mut b).await.is_err());

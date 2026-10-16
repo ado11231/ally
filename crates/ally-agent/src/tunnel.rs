@@ -13,7 +13,7 @@ use std::time::Duration;
 use tokio::net::TcpStream;
 use tracing::{debug, info, warn};
 
-/// The Agent's own sshd. Slingshot already requires it on the usual port.
+/// The Agent's own sshd. Ally already requires it on the usual port.
 const SSHD: SocketAddr = SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::LOCALHOST), 22);
 
 /// How long `start` waits to hear from a relay before saying other networks cannot reach

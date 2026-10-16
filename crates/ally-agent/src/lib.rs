@@ -48,7 +48,8 @@ const PAIRING_TIMEOUT: Duration = Duration::from_secs(10);
 const WRONG_CODE_LIMIT: u32 = 3;
 
 /// What an older Client sees, since it cannot take part in the handshake.
-const UPDATE_CLIENT: &str = "This Agent needs a newer Slingshot. Update Slingshot on this machine, then run slingshot link again";
+const UPDATE_CLIENT: &str =
+    "This Agent needs a newer Ally. Update Ally on this machine, then run ally link again";
 
 /// The one time token that lets a Client install its key. Single use: pairing
 /// consumes it, and there is no way to ask the daemon what it was.
@@ -81,8 +82,8 @@ struct Agent {
     exchanging: AtomicBool,
 }
 
-/// What Ctrl C does where `slingshot start` runs: stop the daemon this process runs, or
-/// only leave, when the daemon belongs to another `slingshot start` on this account.
+/// What Ctrl C does where `ally start` runs: stop the daemon this process runs, or
+/// only leave, when the daemon belongs to another `ally start` on this account.
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Mode {
     Daemon,
@@ -93,17 +94,17 @@ impl Mode {
     fn ctrl_c(self) -> &'static str {
         match self {
             Mode::Daemon => "Ctrl C to stop",
-            Mode::Beside => "Ctrl C to leave while Slingshot keeps running",
+            Mode::Beside => "Ctrl C to leave while Ally keeps running",
         }
     }
 }
 
 const REACHABLE: &str = "Reachable from other networks through iroh";
 
-/// What `slingshot start` does about starting at boot.
+/// What `ally start` does about starting at boot.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AtBoot {
-    /// Ask once, the first time `slingshot start` runs in a terminal.
+    /// Ask once, the first time `ally start` runs in a terminal.
     Ask,
     /// `--boot`: set it up without asking, even after an earlier no.
     Install,
@@ -129,7 +130,7 @@ pub async fn start(name: Option<String>, port: u16, at_boot: AtBoot) -> anyhow::
             .and_then(|user| preflight::docker_check(&user)),
     );
     if preflight::report(&checks) {
-        anyhow::bail!("Fix the reported errors, then run slingshot start again");
+        anyhow::bail!("Fix the reported errors, then run ally start again");
     }
 
     let root = service::root()?;
@@ -137,7 +138,7 @@ pub async fn start(name: Option<String>, port: u16, at_boot: AtBoot) -> anyhow::
     if service::running(&root)? {
         if at_boot == AtBoot::Install && !installed {
             anyhow::bail!(
-                "Slingshot is already running for this account. Stop the other slingshot start, then run slingshot start --boot again"
+                "Ally is already running for this account. Stop the other ally start, then run ally start --boot again"
             );
         }
         return beside(name, port, root).await;
@@ -146,7 +147,7 @@ pub async fn start(name: Option<String>, port: u16, at_boot: AtBoot) -> anyhow::
     let name = agent_name(name);
     if installed {
         presentation::warning(format!(
-            "Slingshot is set to start by itself but is not running. Its file is {}. Run slingshot start --remove, then slingshot start --boot",
+            "Ally is set to start by itself but is not running. Its file is {}. Run ally start --remove, then ally start --boot",
             presentation::home_path(&boot::file()?)
         ));
     } else if wants_boot(&root, &name, at_boot).await? {
@@ -188,7 +189,7 @@ pub async fn start(name: Option<String>, port: u16, at_boot: AtBoot) -> anyhow::
     endpoint.close().await;
     if stop != Stop::TerminalClosed {
         eprintln!();
-        presentation::success(format!("Stopped Slingshot on {name}"));
+        presentation::success(format!("Stopped Ally on {name}"));
     }
 
     Ok(0)
@@ -196,7 +197,7 @@ pub async fn start(name: Option<String>, port: u16, at_boot: AtBoot) -> anyhow::
 
 /// What a boot service runs: the control socket, iroh, and the lock that keeps the machine
 /// awake. It never opens the pairing port, so no code exists until someone runs
-/// `slingshot start`, which pairs beside it. The checks are left to that command, because
+/// `ally start`, which pairs beside it. The checks are left to that command, because
 /// nobody is here to read them, and at boot sshd may not be up yet.
 pub async fn daemon(name: Option<String>) -> anyhow::Result<i32> {
     let root = service::root()?;
@@ -207,7 +208,7 @@ pub async fn daemon(name: Option<String>) -> anyhow::Result<i32> {
     let endpoint = tunnel::start(identity, root).await?;
     tokio::spawn(mark_online(endpoint.clone(), online));
     let _awake = keep_awake();
-    presentation::success(format!("Slingshot is running on {name}"));
+    presentation::success(format!("Ally is running on {name}"));
 
     stopped().await?;
     endpoint.close().await;
@@ -221,17 +222,17 @@ async fn wants_boot(root: &std::path::Path, name: &str, at_boot: AtBoot) -> anyh
     if ask && (!interactive() || boot::declined(root)) {
         return Ok(false);
     }
-    let user = whoami().context("Could not work out which user is running Slingshot")?;
+    let user = whoami().context("Could not work out which user is running Ally")?;
     let plan = boot::plan(root, name, &user)?;
     if ask {
         eprintln!(
-            "\n  Slingshot can start {} by itself, so linked Clients reach this machine without anyone here:",
+            "\n  Ally can start {} by itself, so linked Clients reach this machine without anyone here:",
             plan.when
         );
         boot::show(&plan);
-        if !presentation::confirm(format!("Start Slingshot {}?", plan.when)).await? {
+        if !presentation::confirm(format!("Start Ally {}?", plan.when)).await? {
             boot::decline(root)?;
-            presentation::detail("Later", "slingshot start --boot");
+            presentation::detail("Later", "ally start --boot");
             return Ok(false);
         }
     } else {
@@ -239,7 +240,7 @@ async fn wants_boot(root: &std::path::Path, name: &str, at_boot: AtBoot) -> anyh
     }
     boot::install(&plan)?;
 
-    let step = step::start("Starting Slingshot");
+    let step = step::start("Starting Ally");
     let started = Instant::now();
     let mut answered = false;
     loop {
@@ -254,14 +255,14 @@ async fn wants_boot(root: &std::path::Path, name: &str, at_boot: AtBoot) -> anyh
             }
             step.clear();
             anyhow::bail!(
-                "Slingshot was set up to start {} but did not start. Its file is {}",
+                "Ally was set up to start {} but did not start. Its file is {}",
                 plan.when,
                 presentation::home_path(&plan.file)
             );
         }
         tokio::time::sleep(Duration::from_millis(250)).await;
     }
-    step.done("Slingshot started");
+    step.done("Ally started");
     Ok(true)
 }
 
@@ -286,19 +287,19 @@ fn keep_awake() -> Option<awake::Awake> {
     }
     let held = awake::hold();
     match held {
-        Some(_) => presentation::success("Keeping this machine awake while Slingshot runs"),
+        Some(_) => presentation::success("Keeping this machine awake while Ally runs"),
         None => presentation::warning(sleep_warning(std::env::var_os("SSH_CONNECTION").is_some())),
     }
     held
 }
 
-/// Pair beside a daemon another `slingshot start` runs, such as one started at boot. Pairing
+/// Pair beside a daemon another `ally start` runs, such as one started at boot. Pairing
 /// only writes files the daemon reads fresh, so the code never has to reach the daemon.
 async fn beside(name: Option<String>, port: u16, root: PathBuf) -> anyhow::Result<i32> {
     let status = service::status(&root).await?;
     if let Some(asked) = name.filter(|asked| *asked != status.name) {
         anyhow::bail!(
-            "Slingshot is already running here as {}, not {asked}. Run slingshot start without --name",
+            "Ally is already running here as {}, not {asked}. Run ally start without --name",
             status.name
         );
     }
@@ -328,7 +329,7 @@ async fn beside(name: Option<String>, port: u16, root: PathBuf) -> anyhow::Resul
 
     if stopped().await? != Stop::TerminalClosed {
         eprintln!();
-        presentation::success(format!("Slingshot keeps running on {}", status.name));
+        presentation::success(format!("Ally keeps running on {}", status.name));
     }
     Ok(0)
 }
@@ -351,7 +352,7 @@ async fn pairing(
     let (chosen, listeners) = listen(port).await?;
     if chosen != port {
         presentation::warning(format!(
-            "Port {port} is in use, perhaps by another slingshot start, so this one uses {chosen}"
+            "Port {port} is in use, perhaps by another ally start, so this one uses {chosen}"
         ));
     }
     let addresses: Vec<SocketAddr> = listeners
@@ -408,11 +409,11 @@ async fn stopped() -> anyhow::Result<Stop> {
 }
 
 /// Why the machine may sleep. Over ssh the system only allows the lock with a password,
-/// which Slingshot never asks for, so the fix is to start it at the machine.
+/// which Ally never asks for, so the fix is to start it at the machine.
 fn sleep_warning(over_ssh: bool) -> &'static str {
     match over_ssh {
         true => {
-            "Started over ssh, so this machine may still sleep. Run slingshot start at the machine to keep it awake"
+            "Started over ssh, so this machine may still sleep. Run ally start at the machine to keep it awake"
         }
         false => {
             "Could not stop this machine from sleeping. If it sleeps, other machines cannot reach it until it wakes"
@@ -429,7 +430,7 @@ async fn report_reach(endpoint: &iroh::Endpoint) {
         false => {
             step.clear();
             presentation::warning(
-                "No iroh relay answered, so other networks cannot reach this machine yet. The same network still works, and Slingshot keeps trying",
+                "No iroh relay answered, so other networks cannot reach this machine yet. The same network still works, and Ally keeps trying",
             );
         }
     }
@@ -484,7 +485,7 @@ async fn handle(stream: TcpStream, peer: SocketAddr, agent: Arc<Agent>) -> anyho
         },
         Ok(Request::Info | Request::Health | Request::Pair {}) => error(UPDATE_CLIENT),
         Ok(Request::Join { .. }) => {
-            error("Pairing must begin with a handshake. Run slingshot link again")
+            error("Pairing must begin with a handshake. Run ally link again")
         }
     };
 
@@ -546,7 +547,7 @@ fn open(agent: &Arc<Agent>) -> Result<(String, Handshake, Vec<u8>, Exchange), St
     Ok((token, handshake, ours, exchange))
 }
 
-const EXPIRED: &str = "That pairing code has expired or was already used. Press Enter where slingshot start is running for a new one";
+const EXPIRED: &str = "That pairing code has expired or was already used. Press Enter where ally start is running for a new one";
 
 /// Check the Client's proof, then use up the code and install the Client's keys. A wrong
 /// proof counts against the code, and the last allowed one burns it.
@@ -559,11 +560,11 @@ fn join(
     peer: SocketAddr,
 ) -> Response {
     let Request::Join { details, proof } = request else {
-        return error("Pairing stopped halfway. Run slingshot link again");
+        return error("Pairing stopped halfway. Run ally link again");
     };
     let key = match handshake.finish(theirs) {
         Ok(key) => key,
-        Err(e) => return error(format!("{e:#}. Run slingshot link again")),
+        Err(e) => return error(format!("{e:#}. Run ally link again")),
     };
 
     let right = key.check(Side::Client, &details, &proof);
@@ -658,7 +659,7 @@ fn whoami() -> anyhow::Result<String> {
 }
 
 /// How many ports after the requested one to try, so several accounts on one machine can
-/// each run slingshot start.
+/// each run ally start.
 const PORTS_TO_TRY: u16 = 10;
 
 /// Listen on every pairing address at the first port where none is taken. An address that
@@ -686,7 +687,7 @@ async fn listen(port: u16) -> anyhow::Result<(u16, Vec<TcpListener>)> {
         }
     }
     anyhow::bail!(
-        "Ports {port} to {} are all in use. Choose another with: slingshot start --port <port>",
+        "Ports {port} to {} are all in use. Choose another with: ally start --port <port>",
         port.saturating_add(PORTS_TO_TRY - 1)
     )
 }
@@ -726,7 +727,7 @@ fn show(agent: &Agent, addresses: &[SocketAddr], release: &str, linked: &[String
     let style = Style::stderr();
     eprintln!();
     eprintln!(
-        "{} Slingshot {} is running on {}",
+        "{} Ally {} is running on {}",
         style.paint("▶", Tone::Info),
         style.dim(release),
         style.paint(&agent.name, Tone::Info)
@@ -789,7 +790,7 @@ fn announce(addresses: &[SocketAddr], token: &str, mode: Mode) {
         .iter()
         .map(|addr| {
             (
-                format!("slingshot link {}:{}:{token}", addr.ip(), addr.port()),
+                format!("ally link {}:{}:{token}", addr.ip(), addr.port()),
                 Network::of(&addr.ip().to_string()).name(),
             )
         })
@@ -887,12 +888,12 @@ mod tests {
     #[test]
     fn leaving_beside_the_daemon_says_it_keeps_running() {
         assert!(code_footer(Mode::Daemon).ends_with("Ctrl C to stop"));
-        assert!(ask_for_code(Mode::Beside).ends_with("Slingshot keeps running"));
+        assert!(ask_for_code(Mode::Beside).ends_with("Ally keeps running"));
     }
 
     #[test]
     fn the_sleep_warning_says_what_to_do_over_ssh() {
-        assert!(sleep_warning(true).contains("Run slingshot start at the machine"));
+        assert!(sleep_warning(true).contains("Run ally start at the machine"));
         assert!(sleep_warning(false).contains("Could not stop this machine from sleeping"));
     }
 

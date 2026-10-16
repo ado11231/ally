@@ -10,9 +10,9 @@ homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
-# The package is ally-cli, but the program it produces is called slingshot.
+# The package is ally-cli, but the program it produces is called ally.
 [[bin]]
-name = "slingshot"
+name = "ally"
 path = "src/main.rs"
 
 [dependencies]

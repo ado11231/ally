@@ -1,4 +1,4 @@
-//! The Client end of reaching an Agent over iroh. ssh starts `slingshot internal-tunnel` as
+//! The Client end of reaching an Agent over iroh. ssh starts `ally internal-tunnel` as
 //! its ProxyCommand and speaks to the Agent's sshd through this process's standard input
 //! and output, so ssh itself is unchanged whichever path carries it.
 
@@ -23,7 +23,7 @@ pub fn proxy_command(key: &str) -> String {
     let exe = std::env::current_exe()
         .ok()
         .and_then(|path| path.to_str().map(str::to_string))
-        .unwrap_or_else(|| "slingshot".to_string());
+        .unwrap_or_else(|| "ally".to_string());
     proxy_line(&exe, key)
 }
 
@@ -36,7 +36,7 @@ pub fn shared_socket(key: &str) -> Option<PathBuf> {
     let name = format!("{}.sock", &key[..key.len().min(12)]);
     [std::env::temp_dir(), PathBuf::from("/tmp")]
         .into_iter()
-        .map(|base| base.join(format!("slingshot-{user}")))
+        .map(|base| base.join(format!("ally-{user}")))
         .find(|dir| {
             dir.join(&name).as_os_str().len() + SOCKET_SUFFIX < SOCKET_LIMIT
                 && ally_core::storage::private_dir(dir).is_ok()
@@ -99,10 +99,10 @@ impl Diagnosis {
                 "Could not reach {name}, because this machine cannot reach iroh's relays. Check its internet connection"
             )),
             Diagnosis::Offline => Some(format!(
-                "{name} is not reachable. It may be off or asleep, or slingshot start is not running there"
+                "{name} is not reachable. It may be off or asleep, or ally start is not running there"
             )),
             Diagnosis::NotPaired => Some(format!(
-                "{name} no longer accepts this machine. Run slingshot link again from the same network as {name}"
+                "{name} no longer accepts this machine. Run ally link again from the same network as {name}"
             )),
             Diagnosis::Reachable => None,
         }
@@ -174,8 +174,8 @@ mod tests {
     #[test]
     fn nothing_in_the_command_can_become_shell_syntax_or_an_ssh_token() {
         assert_eq!(
-            proxy_line("/App 100%/slingshot", "k"),
-            "'/App 100%%/slingshot' internal-tunnel k"
+            proxy_line("/App 100%/ally", "k"),
+            "'/App 100%%/ally' internal-tunnel k"
         );
     }
 
@@ -225,10 +225,8 @@ mod tests {
     }
 
     fn agent_root() -> PathBuf {
-        let root = std::env::temp_dir().join(format!(
-            "slingshot-diagnose-{}",
-            ally_core::storage::new_id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("ally-diagnose-{}", ally_core::storage::new_id()));
         ally_core::storage::private_dir(&root).unwrap();
         root
     }

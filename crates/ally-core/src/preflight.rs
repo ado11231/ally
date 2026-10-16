@@ -71,7 +71,7 @@ pub fn report(checks: &[Check]) -> bool {
     checks.iter().any(|c| c.state == State::Fail)
 }
 
-/// Package managers Slingshot knows how to name in a fix, in the order they are looked for.
+/// Package managers Ally knows how to name in a fix, in the order they are looked for.
 const PACKAGE_MANAGERS: &[&str] = &["pacman", "apt", "dnf", "zypper", "apk", "brew"];
 
 /// The first known package manager on this machine.
@@ -82,7 +82,7 @@ pub fn package_manager() -> Option<&'static str> {
         .find(|manager| is_installed(manager))
 }
 
-/// The command that installs `packages` with `manager`, or `None` for a manager Slingshot
+/// The command that installs `packages` with `manager`, or `None` for a manager Ally
 /// does not know.
 pub fn install_command(manager: &str, packages: &str) -> Option<String> {
     Some(match manager {
@@ -173,13 +173,13 @@ fn docker_access(socket: &Path, user: &str) -> Option<Check> {
     }
 }
 
-/// The checks `slingshot start` runs before it listens. SSH carries all work and control,
+/// The checks `ally start` runs before it listens. SSH carries all work and control,
 /// rsync copies project source, and tmux is only needed once someone uses attach.
 pub fn start_checks() -> Vec<Check> {
     vec![
         ssh_server_check(),
         tool_check("rsync", None),
-        tool_check("tmux", Some("slingshot attach")),
+        tool_check("tmux", Some("ally attach")),
         match is_installed("nvidia-smi") {
             true => Check::pass("GPU reporting available"),
             false => Check::warn(

@@ -190,8 +190,9 @@ fn resource(title: String, body: String) -> Notice {
 }
 
 /// What a finished job is worth saying. The command is the subtitle, so the title can stay
-/// short and plain. Stopping is something the person just did, and a session usually ends
-/// because someone left it, so only surprises about those are told.
+/// short and plain. Stopping is something the person just did, whether with `slingshot stop`
+/// or with Ctrl C, which ends a run with exit code 130. A session usually ends because
+/// someone left it. So only surprises about those are told.
 fn notice(name: &str, job: &Job) -> Option<Notice> {
     let took = job.ended?.saturating_sub(job.started);
     let place = job
@@ -204,6 +205,7 @@ fn notice(name: &str, job: &Job) -> Option<Notice> {
         JobKind::Session => "Session".to_string(),
     };
     let (kind, title, body) = match (job.kind, job.state) {
+        (JobKind::Run, JobState::Interrupted) if job.exit_code == Some(130) => return None,
         (_, JobState::Interrupted) => (
             NoticeKind::JobInterrupted,
             format!("Interrupted on {name}"),
@@ -386,6 +388,18 @@ mod tests {
             notices[1].body,
             "Stopped after 1 second in app. The connection dropped or archbox restarted."
         );
+    }
+
+    #[test]
+    fn ctrl_c_is_not_told_but_a_lost_connection_is() {
+        let mut watch = Watch::new("archbox");
+        watch.jobs(&[]);
+        let mut ctrl_c = run("a", JobState::Interrupted, 30);
+        ctrl_c.exit_code = Some(130);
+        let lost = run("b", JobState::Interrupted, 30);
+        let notices = watch.jobs(&[ctrl_c, lost]);
+        assert_eq!(notices.len(), 1);
+        assert!(notices[0].body.contains("The connection dropped"));
     }
 
     #[test]

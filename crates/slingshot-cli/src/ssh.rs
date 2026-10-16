@@ -8,6 +8,8 @@ use slingshot_core::config;
 use slingshot_core::presentation::Style;
 use std::path::PathBuf;
 use std::process::Stdio;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Duration, Instant};
 use tokio::process::Command;
 
 /// The exit code reported when SSH ends without a remote exit status.
@@ -21,6 +23,28 @@ const SSH_OPTIONS: &[&str] = &[
     "ServerAliveCountMax=6",
     "LogLevel=ERROR",
 ];
+
+/// How long a call through the shared iroh connection may take before the connection is
+/// treated as dead. A live one answers in well under a second.
+const SHARE_CHECK: Duration = Duration::from_secs(3);
+
+/// The shared connection is checked once per process, before its first reuse.
+static SHARE_CHECKED: AtomicBool = AtomicBool::new(false);
+
+/// Whether `child` exits within `limit`, however it ends. One that does not is stopped.
+fn exits_within(mut child: std::process::Child, limit: Duration) -> bool {
+    let started = Instant::now();
+    while started.elapsed() < limit {
+        match child.try_wait() {
+            Ok(Some(_)) => return true,
+            Ok(None) => std::thread::sleep(Duration::from_millis(20)),
+            Err(_) => break,
+        }
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+    false
+}
 
 /// Request a terminal only for interactive use.
 /// A terminal lets Ctrl C reach remote work but merges stdout and stderr.
@@ -69,7 +93,7 @@ impl RemoteCommand {
                 tunnel::shared_socket(&key),
             ),
         };
-        RemoteCommand {
+        let command = RemoteCommand {
             host,
             proxy,
             shared,
@@ -83,7 +107,66 @@ impl RemoteCommand {
             quiet: false,
             program,
             args,
+        };
+        if std::env::var_os(route::ROUTE_ENV).is_none() {
+            command.drop_stale_share();
         }
+        command
+    }
+
+    /// A shared iroh connection to an Agent that crashed stays open until iroh gives up on
+    /// it, about 30 seconds, and every call through it waits that long. So before the first
+    /// reuse, one quick call goes through it, and a connection that does not answer is
+    /// closed so ssh opens a new one. The rsync helper skips this, since its parent checked.
+    fn drop_stale_share(&self) {
+        let Some(socket) = self.shared.as_ref().filter(|socket| socket.exists()) else {
+            return;
+        };
+        if SHARE_CHECKED.swap(true, Ordering::SeqCst) {
+            return;
+        }
+        let answered = route::off_runtime(|| {
+            let child = std::process::Command::new("ssh")
+                .args(self.share_check_args())
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn();
+            child.is_ok_and(|child| exits_within(child, SHARE_CHECK))
+        });
+        if answered {
+            return;
+        }
+        let _ = std::process::Command::new("ssh")
+            .args(self.share_exit_args())
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+        let _ = std::fs::remove_file(socket);
+    }
+
+    /// A forward to a closed port on the Agent, through the shared connection. The Agent
+    /// refuses it at once without starting a shell, so any quick exit means the connection
+    /// is alive. The first value ssh reads for an option wins, so `ControlMaster=no` placed
+    /// first keeps this call from starting a new shared connection.
+    fn share_check_args(&self) -> Vec<String> {
+        let mut argv = vec![
+            "-o".to_string(),
+            "ControlMaster=no".to_string(),
+            "-W".to_string(),
+            "127.0.0.1:9".to_string(),
+        ];
+        argv.extend(self.connection_args().into_iter().filter(|arg| arg != "-t"));
+        argv
+    }
+
+    /// Ask the process holding the shared connection to end it.
+    fn share_exit_args(&self) -> Vec<String> {
+        let mut argv = self.connection_args();
+        let destination = argv.pop().unwrap_or_default();
+        argv.extend(["-O".to_string(), "exit".to_string(), destination]);
+        argv
     }
 
     /// Who to log in as and where, in the form ssh expects.
@@ -597,6 +680,37 @@ mod tests {
             "argv was: {argv:?}"
         );
         assert_eq!(argv[argv.len() - 2], "100.67.90.119");
+    }
+
+    #[test]
+    fn the_share_check_uses_only_the_existing_connection_and_never_a_terminal() {
+        let mut command = remote(&["hi"]);
+        command.shared = Some(PathBuf::from("/tmp/slingshot-me/ab.sock"));
+        command.tty = true;
+        let check = command.share_check_args();
+        assert_eq!(&check[..4], ["-o", "ControlMaster=no", "-W", "127.0.0.1:9"]);
+        assert!(!check.contains(&"-t".to_string()), "{check:?}");
+        assert_eq!(check.last(), Some(&command.destination()));
+        let exit = command.share_exit_args();
+        assert_eq!(
+            exit[exit.len() - 3..],
+            ["-O".to_string(), "exit".to_string(), command.destination()]
+        );
+    }
+
+    #[test]
+    fn any_quick_exit_is_an_answer_and_a_hang_is_not() {
+        let quick = std::process::Command::new("true").spawn().unwrap();
+        assert!(exits_within(quick, Duration::from_secs(2)));
+        let refused = std::process::Command::new("false").spawn().unwrap();
+        assert!(exits_within(refused, Duration::from_secs(2)));
+        let hung = std::process::Command::new("sleep")
+            .arg("5")
+            .spawn()
+            .unwrap();
+        let started = Instant::now();
+        assert!(!exits_within(hung, Duration::from_millis(200)));
+        assert!(started.elapsed() < Duration::from_secs(2));
     }
 
     #[test]

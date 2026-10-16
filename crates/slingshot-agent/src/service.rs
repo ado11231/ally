@@ -264,6 +264,7 @@ fn respond(root: &Path, name: &str, request: Request) -> anyhow::Result<Response
             Response::Unlinked { environment_files }
         }
         Request::Tools => Response::Tools(agent_tools(root)?),
+        Request::Projects => Response::Projects(projects::list(root)?),
         Request::Ping
         | Request::Status
         | Request::Begin { .. }

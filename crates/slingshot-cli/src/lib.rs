@@ -149,6 +149,9 @@ enum Commands {
         action: EnvAction,
     },
 
+    #[command(about = "List the projects copied to the Agent")]
+    Projects,
+
     #[command(about = "List Slingshot runs and sessions on the Agent")]
     Ps {
         /// Include the most recent 100 finished jobs.
@@ -284,6 +287,7 @@ pub async fn run() {
             EnvAction::List => commands::env::list(cli.agent).await,
             EnvAction::Remove { target } => commands::env::remove(cli.agent, target).await,
         },
+        Commands::Projects => commands::projects::list(cli.agent).await,
         Commands::Ps { all } => commands::ps::ps(cli.agent, all).await,
         Commands::Stop { id } => commands::ps::stop(cli.agent, id).await,
         Commands::Health { watch } => commands::health::health(cli.agent, watch).await,

@@ -12,7 +12,7 @@
 
 ## Docs
 
-- [ ] [USAGE.md](https://github.com/ado11231/ss/blob/master/docs/USAGE.md) for a new or changed command or option.
-- [ ] [TROUBLESHOOTING.md](https://github.com/ado11231/ss/blob/master/docs/TROUBLESHOOTING.md) for a new or changed message.
-- [ ] The [file reference](https://github.com/ado11231/ss/blob/master/docs/ARCHITECTURE.md#file-reference) for a new or moved file.
-- [ ] [ROADMAP.md](https://github.com/ado11231/ss/blob/master/docs/ROADMAP.md) for what now works, with the date.
+- [ ] [USAGE.md](https://github.com/ado11231/ally/blob/master/docs/USAGE.md) for a new or changed command or option.
+- [ ] [TROUBLESHOOTING.md](https://github.com/ado11231/ally/blob/master/docs/TROUBLESHOOTING.md) for a new or changed message.
+- [ ] The [file reference](https://github.com/ado11231/ally/blob/master/docs/ARCHITECTURE.md#file-reference) for a new or moved file.
+- [ ] [ROADMAP.md](https://github.com/ado11231/ally/blob/master/docs/ROADMAP.md) for what now works, with the date.

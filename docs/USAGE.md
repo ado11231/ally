@@ -209,7 +209,7 @@ slingshot env remove .env
 
 * Shows the Agent, connection, CPU, RAM, GPU, VRAM, and project space.
 * When the Agent is unreachable, shows why and the fix.
-* Notifies when a run of 10 seconds or more ends, a job is interrupted, the Agent goes offline or returns, or memory, disk, or GPU heat needs attention.
+* Notifies when a run of 10 seconds or more ends, a job is cut off by a lost connection or restart, the Agent goes offline or returns, or memory, disk, or GPU heat needs attention.
 * No notifications? Turn them on in System Settings, Notifications, Slingshot.
 
 ## More Than One Agent

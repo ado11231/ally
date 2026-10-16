@@ -63,9 +63,18 @@ impl Found {
     pub fn listing(&self) -> Vec<(&'static str, String)> {
         let mut lines = Vec::new();
         if let Some(file) = &self.service {
+            let rule = match &self.data {
+                Some((root, _, _)) if crate::awake::rule_written(root) => {
+                    format!(" and {}, with sudo", crate::awake::SLEEP_RULE)
+                }
+                _ => String::new(),
+            };
             lines.push((
                 "Service",
-                format!("stops it, and removes {}", presentation::home_path(file)),
+                format!(
+                    "stops it, and removes {}{rule}",
+                    presentation::home_path(file)
+                ),
             ));
         }
         if !self.active.is_empty() {

@@ -87,7 +87,7 @@
 
 * On Linux, a boot service with nobody logged in cannot block sleep, so an Agent that can sleep may suspend after about 15 minutes idle ([#68](https://github.com/ado11231/ss/issues/68)).
 * Starting by itself on a macOS Agent is untested.
-* After the Agent loses power or crashes, the first iroh connection can wait about 20 seconds for the old one to time out.
+* After a power loss, the first iroh connection is untested. A crash is tested below.
 * Edits in a session whose connection dropped stay on the Agent until `slingshot sync --pull`.
 * The tools step installs Docker only with `pacman`, `apt`, `dnf`, and `zypper`, and Git, Node, and Python only with package managers it knows.
 * Untested: file watchers in sessions, two Clients on one Agent account at once, and large Node and Python projects.
@@ -186,3 +186,8 @@
 1. `slingshot projects` listed three projects on archbox with their sizes, last sync, and edits waiting.
 2. `clean` on Slingshot itself freed 3.9 GiB, and the next `cargo build` made it again in 28 seconds.
 3. A throwaway project showed 2 edits waiting. `remove` listed them, kept everything on Enter, and on `y` deleted the copy and its `~/Slingshot` link.
+
+### Agent Crash Over iroh: October 16, 2026
+
+1. With archbox's service killed by `kill -9` while a shared iroh connection was open, the next `run` took 29.4 seconds before the fix and 3.8 seconds after.
+2. Commands back to back over iroh went from 0.30 to 0.44 seconds on average. Runs over the local network and tailnet are unchanged.

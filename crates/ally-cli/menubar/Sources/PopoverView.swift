@@ -71,7 +71,7 @@ struct PopoverView: View {
             Circle()
                 .fill(watcher.status?.online == true ? Color.green : Color.secondary)
                 .frame(width: 8, height: 8)
-            Text(watcher.status?.agent.nonEmpty ?? "Slingshot")
+            Text(watcher.status?.agent.nonEmpty ?? "Ally")
                 .font(.headline)
             Spacer()
             if watcher.status?.online == true, let path = watcher.status?.path {
@@ -169,20 +169,20 @@ struct PopoverView: View {
     private var offline: some View {
         if let missing = watcher.missingProgram {
             ProblemView(
-                title: "Can't find the slingshot program",
+                title: "Can't find the ally program",
                 detail: missing.isEmpty
-                    ? "The app has not been told where slingshot is yet."
+                    ? "The app has not been told where ally is yet."
                     : "It was at \(missing), which no longer exists.",
-                fix: Fix(machine: "client", command: "slingshot menubar"),
+                fix: Fix(machine: "client", command: "ally menubar"),
                 agent: nil,
                 retrying: false,
                 retry: nil
             )
         } else if let problem = watcher.problem {
             ProblemView(
-                title: "Slingshot could not start",
+                title: "Ally could not start",
                 detail: problem,
-                fix: Fix(machine: "client", command: "slingshot menubar"),
+                fix: Fix(machine: "client", command: "ally menubar"),
                 agent: nil,
                 retrying: watcher.retrying,
                 retry: watcher.retry
@@ -208,7 +208,7 @@ struct PopoverView: View {
 
     private var footer: some View {
         VStack(spacing: 2) {
-            MenuRow(icon: "power", title: "Quit Slingshot") {
+            MenuRow(icon: "power", title: "Quit Ally") {
                 NSApplication.shared.terminate(nil)
             } trailing: {
                 Text("⌘Q")

@@ -1,14 +1,14 @@
-//! `slingshot menubar`: build the Slingshot menu bar app if needed, open it, and tell it
-//! where this program is. The app starts `slingshot internal-watch` for its numbers, and an
+//! `ally menubar`: build the Ally menu bar app if needed, open it, and tell it
+//! where this program is. The app starts `ally internal-watch` for its numbers, and an
 //! app opened from Finder or at login does not get the shell's PATH, so it cannot find the
 //! program alone.
 
 /// The app's bundle identifier, which is also where its settings live.
 #[cfg(target_os = "macos")]
-const BUNDLE_ID: &str = "dev.slingshot.menubar";
+const BUNDLE_ID: &str = "dev.ally.menubar";
 
-/// The app's source, logo, and icon, built into this program so `slingshot menubar` can build the
-/// app even after the Slingshot source folder is gone.
+/// The app's source, logo, and icon, built into this program so `ally menubar` can build the
+/// app even after the Ally source folder is gone.
 #[cfg(target_os = "macos")]
 const SOURCES: &[(&str, &[u8])] = &[
     (
@@ -50,7 +50,7 @@ const SOURCES: &[(&str, &[u8])] = &[
 
 /// Where an installed app records which source it was built from.
 #[cfg(target_os = "macos")]
-const STAMP: &str = "Contents/Resources/slingshot-source";
+const STAMP: &str = "Contents/Resources/ally-source";
 
 /// What `link` does about the menu bar app when it finishes.
 #[cfg(target_os = "macos")]
@@ -69,9 +69,9 @@ fn offer_for(installed: bool, swift: bool, terminal: bool) -> Offer {
     match (installed, swift, terminal) {
         (true, _, _) => Offer::Restart,
         (false, false, _) => Offer::Later(
-            "Install the Xcode command line tools with xcode-select --install, then run slingshot menubar",
+            "Install the Xcode command line tools with xcode-select --install, then run ally menubar",
         ),
-        (false, true, false) => Offer::Later("Run slingshot menubar in a terminal to add it"),
+        (false, true, false) => Offer::Later("Run ally menubar in a terminal to add it"),
         (false, true, true) => Offer::Ask,
     }
 }
@@ -110,7 +110,7 @@ pub async fn offer(name: &str) -> anyhow::Result<()> {
             eprintln!(
                 "  {}",
                 style.dim(
-                    "It is built with Swift into ~/Applications/Slingshot.app and starts at login."
+                    "It is built with Swift into ~/Applications/Ally.app and starts at login."
                 )
             );
             if ally_core::presentation::confirm("Add it to your menu bar now?".to_string()).await? {
@@ -118,7 +118,7 @@ pub async fn offer(name: &str) -> anyhow::Result<()> {
             } else {
                 eprintln!(
                     "  {}",
-                    style.dim("Run slingshot menubar any time to do this later")
+                    style.dim("Run ally menubar any time to do this later")
                 );
             }
         }
@@ -129,7 +129,7 @@ pub async fn offer(name: &str) -> anyhow::Result<()> {
 #[cfg(not(target_os = "macos"))]
 pub async fn menubar(_agent: Option<String>, _remove: bool) -> anyhow::Result<i32> {
     anyhow::bail!(
-        "The menu bar app is macOS only for now. slingshot health --watch shows the same numbers in a terminal"
+        "The menu bar app is macOS only for now. ally health --watch shows the same numbers in a terminal"
     )
 }
 
@@ -145,12 +145,12 @@ pub async fn menubar(agent: Option<String>, remove: bool) -> anyhow::Result<i32>
     let target = config.resolve(agent.as_deref())?;
     let app = show(&target.name, agent.as_deref()).await?;
     presentation::detail("App", home_path(&app));
-    presentation::detail("Starts", "at login, remove with slingshot menubar --remove");
+    presentation::detail("Starts", "at login, remove with ally menubar --remove");
     Ok(0)
 }
 
 /// Build the app if its source changed, tell it where this program is, and start it again,
-/// so it always runs the helper from the Slingshot that is installed now.
+/// so it always runs the helper from the Ally that is installed now.
 #[cfg(target_os = "macos")]
 async fn show(name: &str, agent: Option<&str>) -> anyhow::Result<std::path::PathBuf> {
     use ally_core::presentation::{self, home_path};
@@ -167,17 +167,12 @@ async fn show(name: &str, agent: Option<&str>) -> anyhow::Result<std::path::Path
         .context("Could not find this program's own path")?;
     if cargo_build(&program) {
         presentation::warning(format!(
-            "The app will run {}, which cargo clean deletes. Install Slingshot with cargo install --path crates/ally-cli, then run slingshot menubar again",
+            "The app will run {}, which cargo clean deletes. Install Ally with cargo install --path crates/ally-cli, then run ally menubar again",
             home_path(&program)
         ));
     }
 
-    defaults(&[
-        "write",
-        BUNDLE_ID,
-        "slingshotPath",
-        &program.to_string_lossy(),
-    ])?;
+    defaults(&["write", BUNDLE_ID, "allyPath", &program.to_string_lossy()])?;
     match agent {
         Some(agent) => defaults(&["write", BUNDLE_ID, "agent", agent])?,
         None => {
@@ -227,7 +222,7 @@ async fn uninstall() -> anyhow::Result<i32> {
     presentation::detail("Settings", BUNDLE_ID);
     anyhow::ensure!(
         crate::ssh::wants_terminal(),
-        "Run slingshot menubar --remove in a terminal to confirm"
+        "Run ally menubar --remove in a terminal to confirm"
     );
     if !ally_core::presentation::confirm("Remove the menu bar app?".to_string()).await? {
         return Ok(0);
@@ -237,7 +232,7 @@ async fn uninstall() -> anyhow::Result<i32> {
     Ok(0)
 }
 
-/// The installed app, if there is one, for `slingshot uninstall` to list.
+/// The installed app, if there is one, for `ally uninstall` to list.
 #[cfg(target_os = "macos")]
 pub fn installed() -> Option<std::path::PathBuf> {
     find_app()
@@ -273,7 +268,7 @@ pub async fn remove_app(app: &std::path::Path) -> anyhow::Result<()> {
         .context("Could not start open")?;
     anyhow::ensure!(
         left.success(),
-        "Could not take the app out of login items. Remove Slingshot in System Settings, then General, then Login Items"
+        "Could not take the app out of login items. Remove Ally in System Settings, then General, then Login Items"
     );
     fs::remove_dir_all(app).with_context(|| {
         format!(
@@ -294,7 +289,7 @@ fn find_app() -> Option<std::path::PathBuf> {
     let home = directories::BaseDirs::new().map(|dirs| dirs.home_dir().join("Applications"));
     home.into_iter()
         .chain(Some(std::path::PathBuf::from("/Applications")))
-        .map(|folder| folder.join("Slingshot.app"))
+        .map(|folder| folder.join("Ally.app"))
         .find(|app| app.is_dir())
 }
 
@@ -368,7 +363,7 @@ fn install() -> anyhow::Result<std::path::PathBuf> {
         .join("Applications");
     fs::create_dir_all(&applications)
         .with_context(|| format!("Could not create {}", applications.display()))?;
-    let app = applications.join("Slingshot.app");
+    let app = applications.join("Ally.app");
     if app.exists() {
         fs::remove_dir_all(&app)
             .with_context(|| format!("Could not replace the old {}", app.display()))?;
@@ -414,18 +409,15 @@ fn assemble(
     use anyhow::Context;
     use std::fs;
 
-    let app = package.join(".build").join("Slingshot.app");
+    let app = package.join(".build").join("Ally.app");
     if app.exists() {
         fs::remove_dir_all(&app).with_context(|| format!("Could not clear {}", app.display()))?;
     }
     let contents = app.join("Contents");
     fs::create_dir_all(contents.join("MacOS"))?;
     fs::create_dir_all(contents.join("Resources"))?;
-    fs::copy(
-        bin.join("SlingshotMenuBar"),
-        contents.join("MacOS").join("Slingshot"),
-    )
-    .context("Swift finished but the app program was not where it said")?;
+    fs::copy(bin.join("AllyMenuBar"), contents.join("MacOS").join("Ally"))
+        .context("Swift finished but the app program was not where it said")?;
     fs::copy(package.join("Info.plist"), contents.join("Info.plist"))?;
     for resource in ["Logo.png", "AppIcon.icns"] {
         fs::copy(
@@ -470,7 +462,7 @@ fn quit_running_app() {
 #[cfg(target_os = "macos")]
 fn app_running() -> bool {
     std::process::Command::new("pgrep")
-        .args(["-f", "Slingshot.app/Contents/MacOS/Slingshot"])
+        .args(["-f", "Ally.app/Contents/MacOS/Ally"])
         .stdout(std::process::Stdio::null())
         .status()
         .is_ok_and(|status| status.success())
@@ -514,21 +506,17 @@ mod tests {
             matches!(offer_for(false, false, true), Offer::Later(how) if how.contains("xcode-select --install"))
         );
         assert!(
-            matches!(offer_for(false, true, false), Offer::Later(how) if how.contains("slingshot menubar"))
+            matches!(offer_for(false, true, false), Offer::Later(how) if how.contains("ally menubar"))
         );
     }
 
     #[test]
     fn a_cargo_build_is_told_apart_from_an_installed_program() {
         use std::path::Path;
-        assert!(cargo_build(Path::new(
-            "/src/slingshot/target/debug/slingshot"
-        )));
-        assert!(cargo_build(Path::new(
-            "/src/slingshot/target/release/slingshot"
-        )));
-        assert!(!cargo_build(Path::new("/home/me/.cargo/bin/slingshot")));
-        assert!(!cargo_build(Path::new("/opt/target/slingshot")));
+        assert!(cargo_build(Path::new("/src/ally/target/debug/ally")));
+        assert!(cargo_build(Path::new("/src/ally/target/release/ally")));
+        assert!(!cargo_build(Path::new("/home/me/.cargo/bin/ally")));
+        assert!(!cargo_build(Path::new("/opt/target/ally")));
     }
 
     #[test]

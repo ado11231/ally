@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// Runs `slingshot internal-watch` and keeps what it reports. Closing the helper's input is what stops it, so it never outlives the app.
+/// Runs `ally internal-watch` and keeps what it reports. Closing the helper's input is what stops it, so it never outlives the app.
 @MainActor
 @Observable
 final class Watcher {
@@ -11,7 +11,7 @@ final class Watcher {
     private(set) var retrying = false
     /// Why there is nothing to show, such as a helper that keeps failing.
     private(set) var problem: String?
-    /// Set when the app cannot find the slingshot program: the saved path that is gone, or an
+    /// Set when the app cannot find the ally program: the saved path that is gone, or an
     /// empty string when no path was ever saved. Trying again cannot fix this.
     private(set) var missingProgram: String?
 
@@ -27,10 +27,10 @@ final class Watcher {
 
     private static let backoff: [TimeInterval] = [2, 5, 15, 30]
 
-    /// Start the helper, or restart it when `slingshot menubar` saved a new program or Agent.
+    /// Start the helper, or restart it when `ally menubar` saved a new program or Agent.
     func start() {
         let defaults = UserDefaults.standard
-        let saved = defaults.string(forKey: "slingshotPath")
+        let saved = defaults.string(forKey: "allyPath")
         guard let program = saved, FileManager.default.isExecutableFile(atPath: program) else {
             missingProgram = saved ?? ""
             return
@@ -93,7 +93,7 @@ final class Watcher {
         do {
             try process.run()
         } catch {
-            problem = "Could not start Slingshot at \(program): \(error.localizedDescription)"
+            problem = "Could not start Ally at \(program): \(error.localizedDescription)"
             return
         }
         self.process = process
@@ -111,7 +111,7 @@ final class Watcher {
             case .status(let status): apply(status)
             case .notice(let notice): onNotice?(notice)
             case .unsupported(let version):
-                problem = "Slingshot speaks format \(version), and this app speaks format \(supportedVersion)."
+                problem = "Ally speaks format \(version), and this app speaks format \(supportedVersion)."
             }
         }
     }
@@ -129,7 +129,7 @@ final class Watcher {
         }
     }
 
-    /// The helper exits cleanly when Slingshot was updated, so the new program takes over at
+    /// The helper exits cleanly when Ally was updated, so the new program takes over at
     /// once. Any other exit means something is wrong, so show why and try again.
     private func ended(_ ended: Process) {
         guard ended === process, !stopping else { return }
@@ -142,7 +142,7 @@ final class Watcher {
             .split(separator: "\n")
             .last
             .map { $0.replacingOccurrences(of: "✗ ", with: "") }
-        problem = message ?? "Slingshot stopped unexpectedly."
+        problem = message ?? "Ally stopped unexpectedly."
         process = nil
         let wait = Self.backoff[min(restarts, Self.backoff.count - 1)]
         restarts += 1

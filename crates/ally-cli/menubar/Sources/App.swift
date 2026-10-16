@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 @main
-struct SlingshotApp: App {
+struct AllyApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
     var body: some Scene {
@@ -32,7 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         LoginItem.enable()
     }
 
-    /// `slingshot menubar` opens the app again after saving a new program path or Agent.
+    /// `ally menubar` opens the app again after saving a new program path or Agent.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         watcher.start()
         return false
@@ -57,7 +57,7 @@ struct MenuBarLabel: View {
     /// A bundle without the logo falls back to a system symbol rather than an empty space.
     private static let logo: NSImage = {
         guard let source = Bundle.main.image(forResource: "Logo") else {
-            return NSImage(systemSymbolName: "server.rack", accessibilityDescription: "Slingshot") ?? NSImage()
+            return NSImage(systemSymbolName: "server.rack", accessibilityDescription: "Ally") ?? NSImage()
         }
         let logo = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { rect in
             NSGraphicsContext.current?.imageInterpolation = .none

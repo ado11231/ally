@@ -61,7 +61,7 @@
 | Menu bar app | CPU, RAM, GPU, VRAM, and workspace space; an offline screen with the cause, fix, and Try again; always a login item; follows a new `slingshot` by itself; moves to a better connection within a minute. `slingshot menubar` builds, signs, installs, and removes it. |
 | Notifications | Finished, failed, and interrupted runs; the Agent going offline or returning; low memory, low disk, or a hot GPU. Shown with the Slingshot icon. |
 | Sessions | `attach` from anywhere. Syncs first, and pulls edits back on leaving. Login shell, full color, `UTF-8`, mouse scrolling, a colored bar, `~/Slingshot/<project>`, and the user folders on PATH. Works from terminals the Agent may not know, such as Kitty. |
-| Tools | `link` ends by offering the Client's tools on the Agent, then signs in to Claude Code and Codex. `slingshot tools` repeats it, offers sign in when signed out, and lists `sudo` steps for an admin on accounts without it. |
+| Tools | `link` ends by offering the Client's tools on the Agent, including OpenCode, and Ollama when the Agent has a GPU, then signs in to Claude Code and Codex. `slingshot tools` repeats it, offers sign in when signed out, and lists `sudo` steps for an admin on accounts without it. |
 | Starting | A systemd user service with linger, or a launchd agent, offered on the first `slingshot start`. `--boot` and `--remove` manage it. Moves to the next free port when the pairing port is taken. Warns when Docker is unusable, and says when sleep is off. |
 | Sync | `--overwrite` keeps one side of a conflict, with a backup. Pulls refuse names that differ only in case. A Python `.venv` works on the Agent. |
 | Output | Problems on one line with dimmed fixes. `link` and `tools` in sections. Stopped runs are not failed, and `ps --all` shows `Lost connection`. Version errors name the older machine. |
@@ -96,6 +96,7 @@
 * The back online notification and resource warnings have not been seen on real machines.
 * A dev server or container on the Agent cannot open in the Client's browser yet ([#9](https://github.com/ado11231/ss/issues/9)).
 * The tools step on an account without `sudo` is checked only by unit tests.
+* Installing Ollama and OpenCode through the tools step is checked only by unit tests. On archbox, the step found both already installed.
 
 ## Test Record
 

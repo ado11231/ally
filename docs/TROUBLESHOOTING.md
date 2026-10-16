@@ -12,9 +12,10 @@
 6. [Running Commands](#running-commands)
 7. [Syncing Files](#syncing-files)
 8. [Jobs And GPU](#jobs-and-gpu)
-9. [The Menu Bar App](#the-menu-bar-app)
-10. [Removing Slingshot](#removing-slingshot)
-11. [Getting Help](#getting-help)
+9. [Projects](#projects)
+10. [The Menu Bar App](#the-menu-bar-app)
+11. [Removing Slingshot](#removing-slingshot)
+12. [Getting Help](#getting-help)
 
 ## Starting The Agent
 
@@ -123,6 +124,16 @@
 | `GPU reporting unavailable, because nvidia-smi is not installed` | A warning. GPU use is read with `nvidia-smi`, which comes with the NVIDIA driver. | Nothing without an NVIDIA GPU. With one, install the driver and `slingshot start` again. |
 | `NVIDIA driver and library versions differ` | The driver was updated, but the old one is still loaded. | Restart the Agent. |
 | `No GPU data available` | No NVIDIA card, or no `nvidia-smi`. | Nothing. Slingshot works without a GPU. |
+
+## Projects
+
+| Message | Meaning | Fix |
+| --- | --- | --- |
+| `No project named web on archbox` | No copy on the Agent has that name. | Check the name with `slingshot projects`. |
+| `2 projects are named app on archbox. Use the ID of the one you mean` | Two Clients each have a project with this name. | Run the command again with the ID from the message. |
+| `app has no copy on archbox` | The current project was never synced to this Agent. | Nothing to clean or remove. `slingshot sync` copies it. |
+| `app has a run in progress`, or `a session in progress` | The project is in use. | Stop it with the `slingshot stop` command in the message, or wait. |
+| `Run slingshot projects remove in a terminal to confirm, since it deletes files` | It asks first, and a script cannot answer. | Run it in a terminal. |
 
 ## The Menu Bar App
 

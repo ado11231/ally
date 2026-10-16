@@ -302,12 +302,12 @@ slingshot/
 | --- | --- | --- | --- |
 | `lib.rs` | `slingshot start`: setup checks, the start screen, pairing, and starting the other parts. `slingshot internal-daemon`: the same without pairing, for the boot service. | `awake`, `clients`, `service`, `tunnel` | Client `lib` |
 | `service.rs` | The private control socket, the `internal-control` helper that reaches it, and the tools probe run in the login shell. | `clients`, `jobs`, `projects` | `lib`, `runner`, Client `lib` |
-| `projects.rs` | Project storage: source copies, sync locks, build output, and environment files. | `jobs` | `service`, `jobs`, `runner` |
+| `projects.rs` | Project storage: source copies, sync locks, build output, and environment files. Lists, cleans, and removes copies. | `jobs` | `service`, `jobs`, `runner`, `uninstall` |
 | `jobs.rs` | Job records, `tmux` sessions, and safe stopping. | `projects` | `service`, `projects`, `runner` |
 | `runner.rs` | `slingshot internal-run`: runs one command in the project copy with a real terminal. | `jobs`, `projects`, `service` | Client `lib` |
 | `clients.rs` | The Clients allowed over iroh, and their names for the start screen. | none | `lib`, `service`, `tunnel` |
 | `tunnel.rs` | The iroh endpoint, which passes paired Clients to the local ssh server. | `clients` | `lib` |
-| `uninstall.rs` | What `slingshot uninstall` removes on an Agent: the boot service, running work, Client access, the `~/Slingshot` links, and the data. | `boot`, `jobs`, `service` | Client `uninstall` |
+| `uninstall.rs` | What `slingshot uninstall` removes on an Agent: the boot service, running work, Client access, the `~/Slingshot` links, and the data. | `boot`, `jobs`, `projects`, `service` | Client `uninstall` |
 | `awake.rs` | Keeps the Agent awake while the daemon runs, and checks whether sleep is off. | none | `lib` |
 | `boot.rs` | Starting by itself: writes and removes the systemd user service or launchd agent. | none | `lib` |
 
@@ -347,6 +347,7 @@ slingshot/
 | `attach.rs` | `slingshot attach` | `client`, `project`, `route`, `ssh`, `transfer`, `run` |
 | `sync.rs` | `slingshot sync` | `project`, `transfer` |
 | `env.rs` | `slingshot env` | `client`, `project` |
+| `projects.rs` | `slingshot projects`, `clean`, and `remove` | `client`, `project`, `ps` |
 | `ps.rs` | `slingshot ps` and `slingshot stop` | `client` |
 | `health.rs` | `slingshot health`, jobs in `--watch`, and the thresholds `watch` shares | `client`, `live`, `ps` |
 | `menubar.rs` | `slingshot menubar`, and the offer at the end of `link` | `project`, `ssh`, `tools` |

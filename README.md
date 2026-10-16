@@ -210,6 +210,7 @@ Any command works, such as `npm run dev` or `python main.py`.
 | `slingshot sync --pull` | Brings edits made on the Agent back to the Client. |
 | `slingshot health` | Shows the Agent's hardware and use. Add `--watch` to keep it live. |
 | `slingshot ps` | Lists running jobs. `slingshot stop <id>` stops one. |
+| `slingshot projects` | Lists the projects on the Agent and their size. `clean` frees build output. |
 
 Every command and option is in [USAGE.md](docs/USAGE.md).
 

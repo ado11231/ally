@@ -12,11 +12,12 @@
 6. [Environment Files](#environment-files)
 7. [Check On The Agent](#check-on-the-agent)
 8. [Manage Jobs](#manage-jobs)
-9. [The Menu Bar App](#the-menu-bar-app)
-10. [More Than One Agent](#more-than-one-agent)
-11. [Project Settings](#project-settings)
-12. [What Slingshot Copies](#what-slingshot-copies)
-13. [Remove Slingshot](#remove-slingshot)
+9. [Manage Projects](#manage-projects)
+10. [The Menu Bar App](#the-menu-bar-app)
+11. [More Than One Agent](#more-than-one-agent)
+12. [Project Settings](#project-settings)
+13. [What Slingshot Copies](#what-slingshot-copies)
+14. [Remove Slingshot](#remove-slingshot)
 
 ## Words Used Here
 
@@ -182,6 +183,20 @@ slingshot env remove .env
 | `slingshot stop <id>` | Stops a job, forced after five seconds. A short ID works. |
 
 * Finished runs show `Completed`, `Failed`, `Stopped`, `Interrupted`, or `Lost connection`.
+
+## Manage Projects
+
+| Command | Effect |
+| --- | --- |
+| `slingshot projects` | Lists each project on the Agent: its Client, copy size, build output size, last sync, and edits waiting. |
+| `slingshot projects clean [project]` | Removes the project's build output, including a Python `.venv`. The next build or install makes it again. |
+| `slingshot projects remove [project]` | Deletes the project from the Agent, after listing it and asking. Default is No. |
+
+* Name a project as the list shows it, or leave it out for the current project.
+* If two Clients have a project with the same name, use its ID from the error message.
+* Edits waiting are files changed on the Agent that `slingshot sync --pull` has not brought back. Pull them before `remove` to keep them.
+* `clean` and `remove` wait until the project has no run or session.
+* The project on the Client is never touched.
 
 ## The Menu Bar App
 

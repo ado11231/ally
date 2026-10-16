@@ -6,7 +6,7 @@ use anyhow::{Context, bail, ensure};
 use serde::{Deserialize, Serialize};
 use slingshot_core::artifacts::{self, Layout};
 use slingshot_core::control::{
-    Job, JobKind, MAX_ENVIRONMENT_FILE, ProjectInfo, ProjectRef, Snapshot,
+    Job, JobKind, MAX_ENVIRONMENT_FILE, ProjectInfo, ProjectRef, ProjectSummary, Snapshot,
 };
 use slingshot_core::source::{self, Manifest, Rules};
 use slingshot_core::sync::{self, StateDir};
@@ -53,6 +53,16 @@ impl Paths {
 
     fn names(&self) -> PathBuf {
         self.environment.join("names.json")
+    }
+
+    /// The exclude patterns the Client sent with its last sync, so the Agent can count
+    /// waiting edits by the same rules without the Client.
+    fn excludes(&self) -> PathBuf {
+        self.state.join("excludes.json")
+    }
+
+    fn venv(&self) -> PathBuf {
+        self.source.join(".venv")
     }
 
     fn sync_state(&self) -> StateDir {
@@ -213,6 +223,7 @@ pub fn begin(
     let lock = acquire(root, &paths, &metadata, Blocking::Runs)?;
     let state = paths.sync_state();
     sync::recover(&paths.source, &state)?;
+    storage::write_json(&paths.excludes(), &excludes)?;
     let rules = Rules::new(&paths.source, &excludes)?;
     let baseline = state.baseline()?;
     let before = source::scan(&paths.source, &rules, &baseline, Some(&paths.hashes()))?;
@@ -256,6 +267,7 @@ pub fn inspect(root: &Path, id: &str, excludes: &[String]) -> anyhow::Result<Sna
         "An interrupted sync of {} needs recovery. Run slingshot sync to recover it",
         metadata.name
     );
+    storage::write_json(&paths.excludes(), &excludes)?;
     let rules = Rules::new(&paths.source, excludes)?;
     let baseline = state.baseline()?;
     let manifest = source::scan(&paths.source, &rules, &baseline, Some(&paths.hashes()))?;
@@ -476,6 +488,113 @@ pub fn unlink(root: &Path, ids: &[String]) -> anyhow::Result<usize> {
         }
     }
     Ok(removed)
+}
+
+/// Every project copy on the Agent. A project that cannot be read is left out rather than
+/// failing the whole list.
+pub fn list(root: &Path) -> anyhow::Result<Vec<ProjectSummary>> {
+    let Ok(items) = fs::read_dir(root.join("projects")) else {
+        return Ok(Vec::new());
+    };
+    let mut summaries: Vec<ProjectSummary> = items
+        .flatten()
+        .filter_map(|item| load(root, item.file_name().to_str()?).ok())
+        .map(|(paths, metadata)| summary(&paths, metadata))
+        .collect();
+    summaries.sort_by(|a, b| a.name.cmp(&b.name).then(a.client.cmp(&b.client)));
+    Ok(summaries)
+}
+
+fn summary(paths: &Paths, metadata: Metadata) -> ProjectSummary {
+    let venv = size(&paths.venv());
+    let baseline = paths.sync_state().baseline_file();
+    let synced = fs::metadata(&baseline)
+        .and_then(|meta| meta.modified())
+        .ok()
+        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|age| age.as_secs());
+    ProjectSummary {
+        id: metadata.id,
+        name: metadata.name,
+        client: metadata.client,
+        copy: size(&paths.source).saturating_sub(venv),
+        build: size(&paths.artifacts) + venv,
+        waiting: match synced {
+            Some(_) => waiting(paths).unwrap_or(0),
+            None => 0,
+        },
+        synced,
+    }
+}
+
+fn waiting(paths: &Paths) -> anyhow::Result<usize> {
+    let state = paths.sync_state();
+    ensure!(!state.interrupted(), "An interrupted sync needs recovery");
+    let excludes: Vec<String> = storage::read_json(&paths.excludes())?;
+    let rules = Rules::new(&paths.source, &excludes)?;
+    let baseline = state.baseline()?;
+    let current = source::scan(&paths.source, &rules, &baseline, Some(&paths.hashes()))?;
+    Ok(changed(&baseline, &current))
+}
+
+/// Paths added, changed, or deleted since the baseline.
+fn changed(baseline: &Manifest, current: &Manifest) -> usize {
+    current
+        .iter()
+        .filter(|(name, entry)| baseline.get(*name) != Some(entry))
+        .count()
+        + baseline
+            .keys()
+            .filter(|name| !current.contains_key(*name))
+            .count()
+}
+
+/// Remove a project's build output, and return how many bytes it held. Waits for every job,
+/// since a session may be using the output.
+pub fn clean(root: &Path, id: &str) -> anyhow::Result<u64> {
+    let (paths, metadata) = load(root, id)?;
+    let _lock = acquire(root, &paths, &metadata, Blocking::AllJobs)?;
+    let bytes = size(&paths.artifacts) + size(&paths.venv());
+    fs::remove_dir_all(&paths.artifacts)
+        .or_else(|e| match e.kind() {
+            std::io::ErrorKind::NotFound => Ok(()),
+            _ => Err(e),
+        })
+        .with_context(|| format!("Could not remove the build output of {}", metadata.name))?;
+    storage::private_dir(&paths.artifacts)?;
+    if fs::symlink_metadata(paths.venv()).is_ok_and(|meta| meta.is_dir()) {
+        fs::remove_dir_all(paths.venv())
+            .with_context(|| format!("Could not remove .venv in {}", metadata.name))?;
+    }
+    Ok(bytes)
+}
+
+/// Delete a project from the Agent, with its `~/Slingshot` link. Waits for every job.
+pub fn remove(root: &Path, home: Option<&Path>, id: &str) -> anyhow::Result<()> {
+    let (paths, metadata) = load(root, id)?;
+    let _lock = acquire(root, &paths, &metadata, Blocking::AllJobs)?;
+    if let Some(Ok(items)) = home.map(|home| fs::read_dir(home.join("Slingshot"))) {
+        for item in items.flatten() {
+            if fs::read_link(item.path()).is_ok_and(|target| target == paths.source) {
+                fs::remove_file(item.path())?;
+            }
+        }
+    }
+    fs::remove_dir_all(&paths.dir)
+        .with_context(|| format!("Could not remove {} from the Agent", metadata.name))
+}
+
+/// The bytes under `path`, without following links, so a project link never counts twice.
+pub fn size(path: &Path) -> u64 {
+    let Ok(meta) = fs::symlink_metadata(path) else {
+        return 0;
+    };
+    match meta.is_dir() {
+        true => fs::read_dir(path)
+            .map(|items| items.flatten().map(|item| size(&item.path())).sum())
+            .unwrap_or(0),
+        false => meta.len(),
+    }
 }
 
 #[cfg(test)]
@@ -702,6 +821,96 @@ mod tests {
         assert!(paths.source.join("main.rs").exists());
         assert!(env_list(&root.0, &id).unwrap().is_empty());
         assert_eq!(env_list(&root.0, &other).unwrap(), [".env"]);
+    }
+
+    #[test]
+    fn size_counts_files_but_not_through_links() {
+        let root = Root::new();
+        fs::write(root.0.join("a"), "12345").unwrap();
+        fs::create_dir(root.0.join("d")).unwrap();
+        fs::write(root.0.join("d/b"), "123").unwrap();
+        std::os::unix::fs::symlink(root.0.join("d"), root.0.join("link")).unwrap();
+        let link_itself = fs::symlink_metadata(root.0.join("link")).unwrap().len();
+        assert_eq!(size(&root.0), 8 + link_itself);
+    }
+
+    #[test]
+    fn the_list_counts_copy_build_and_waiting_edits() {
+        let root = Root::new();
+        let id = project(&root.0);
+        let unsynced = project(&root.0);
+        let paths = initialize(&root.0, &id);
+        fs::write(paths.source.join("main.rs"), "12345").unwrap();
+        fs::create_dir(paths.venv()).unwrap();
+        fs::write(paths.venv().join("lib"), "123").unwrap();
+        fs::write(paths.artifacts.join("app"), "1234567").unwrap();
+        let list = list(&root.0).unwrap();
+        let synced = list.iter().find(|p| p.id == id).unwrap();
+        assert_eq!(synced.client, "laptop");
+        assert_eq!(synced.build, 7 + size(&paths.venv()));
+        assert_eq!(synced.copy, size(&paths.source) - size(&paths.venv()));
+        assert!(synced.synced.is_some());
+        assert_eq!(synced.waiting, 1);
+        let fresh = list.iter().find(|p| p.id == unsynced).unwrap();
+        assert_eq!((fresh.synced, fresh.waiting), (None, 0));
+    }
+
+    #[test]
+    fn waiting_edits_count_additions_changes_and_deletions() {
+        let entry = |hash: &str| source::Entry {
+            hash: hash.into(),
+            executable: false,
+            link: None,
+        };
+        let baseline = Manifest::from([("a".into(), entry("1")), ("b".into(), entry("2"))]);
+        let current = Manifest::from([("a".into(), entry("9")), ("c".into(), entry("3"))]);
+        assert_eq!(changed(&baseline, &current), 3);
+        assert_eq!(changed(&baseline, &baseline), 0);
+    }
+
+    #[test]
+    fn clean_removes_build_output_and_the_venv_but_keeps_source() {
+        let root = Root::new();
+        let id = project(&root.0);
+        let paths = initialize(&root.0, &id);
+        fs::write(paths.source.join("main.rs"), "code").unwrap();
+        fs::create_dir(paths.venv()).unwrap();
+        fs::write(paths.venv().join("lib"), "123").unwrap();
+        fs::write(paths.artifacts.join("app"), "1234567").unwrap();
+        let expected = 7 + size(&paths.venv());
+        assert_eq!(clean(&root.0, &id).unwrap(), expected);
+        assert!(paths.artifacts.is_dir());
+        assert_eq!(fs::read_dir(&paths.artifacts).unwrap().count(), 0);
+        assert!(!paths.venv().exists());
+        assert!(paths.source.join("main.rs").exists());
+    }
+
+    #[test]
+    fn remove_deletes_the_project_and_only_its_own_link() {
+        let root = Root::new();
+        let home = Root::new();
+        let id = project(&root.0);
+        let paths = initialize(&root.0, &id);
+        let folder = home.0.join("Slingshot");
+        fs::create_dir(&folder).unwrap();
+        std::os::unix::fs::symlink(&paths.source, folder.join("app")).unwrap();
+        std::os::unix::fs::symlink(&home.0, folder.join("other")).unwrap();
+        remove(&root.0, Some(&home.0), &id).unwrap();
+        assert!(!paths.dir.exists());
+        assert!(fs::symlink_metadata(folder.join("app")).is_err());
+        assert!(fs::symlink_metadata(folder.join("other")).is_ok());
+        assert!(list(&root.0).unwrap().is_empty());
+    }
+
+    #[test]
+    fn clean_and_remove_wait_for_running_work() {
+        let root = Root::new();
+        let id = project(&root.0);
+        initialize(&root.0, &id);
+        let run = crate::jobs::new_job(JobKind::Run, Some((&id, "app")), "cargo build".into());
+        crate::jobs::save(&root.0, &run).unwrap();
+        assert!(clean(&root.0, &id).is_err());
+        assert!(remove(&root.0, None, &id).is_err());
     }
 
     struct TempDirLike(PathBuf);

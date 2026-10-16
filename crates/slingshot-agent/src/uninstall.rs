@@ -1,6 +1,7 @@
 //! What `slingshot uninstall` removes when this machine is an Agent: the boot service, its
 //! running work, the access it gave Clients, the `~/Slingshot` links, and its data.
 
+use crate::projects::size;
 use crate::{boot, jobs, service};
 use anyhow::Context;
 use slingshot_core::control::{Job, JobKind};
@@ -184,19 +185,6 @@ fn remove_links(folder: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// The bytes under `path`, without following links, so a project link never counts twice.
-fn size(path: &Path) -> u64 {
-    let Ok(meta) = fs::symlink_metadata(path) else {
-        return 0;
-    };
-    match meta.is_dir() {
-        true => fs::read_dir(path)
-            .map(|items| items.flatten().map(|item| size(&item.path())).sum())
-            .unwrap_or(0),
-        false => meta.len(),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -258,16 +246,5 @@ mod tests {
             fs::read_to_string(folder.join("notes.txt")).unwrap(),
             "mine"
         );
-    }
-
-    #[test]
-    fn size_counts_files_but_not_through_links() {
-        let root = Root::new();
-        fs::write(root.0.join("a"), "12345").unwrap();
-        fs::create_dir(root.0.join("d")).unwrap();
-        fs::write(root.0.join("d/b"), "123").unwrap();
-        std::os::unix::fs::symlink(root.0.join("d"), root.0.join("link")).unwrap();
-        let link_itself = fs::symlink_metadata(root.0.join("link")).unwrap().len();
-        assert_eq!(size(&root.0), 8 + link_itself);
     }
 }

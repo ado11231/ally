@@ -14,7 +14,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 /// Wire version of this control protocol. Both machines must agree on it, so any change
 /// to a request or response shape has to raise it.
-pub const VERSION: u32 = 12;
+pub const VERSION: u32 = 13;
 
 /// Largest frame in either direction. Manifests for very large projects are the limit.
 pub const MAX_FRAME: u32 = 16 * 1024 * 1024;
@@ -126,6 +126,16 @@ pub enum Request {
     /// What the running daemon calls itself and whether iroh reaches it, for a second
     /// `slingshot start` on the same account.
     Status,
+    /// Every project copy on the Agent, from any Client.
+    Projects,
+    /// Remove a project's build output. The next build or install makes it again.
+    CleanProject {
+        project: String,
+    },
+    /// Delete a project's copy, build output, and environment files from the Agent.
+    RemoveProject {
+        project: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -146,6 +156,24 @@ pub enum Response {
     Unlinked { environment_files: usize },
     Tools(AgentTools),
     Status(AgentStatus),
+    Projects(Vec<ProjectSummary>),
+    Cleaned { bytes: u64 },
+}
+
+/// One project copy on the Agent, as `slingshot projects` lists it.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectSummary {
+    pub id: String,
+    pub name: String,
+    pub client: String,
+    /// Bytes in the source copy, without build output.
+    pub copy: u64,
+    /// Bytes of build output, including a Python `.venv`.
+    pub build: u64,
+    /// When the copy last matched the Client, or `None` before the first sync.
+    pub synced: Option<u64>,
+    /// Files changed on the Agent that no pull has brought back yet.
+    pub waiting: usize,
 }
 
 /// The running daemon, as a second `slingshot start` on the same account shows it.

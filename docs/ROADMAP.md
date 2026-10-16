@@ -66,6 +66,7 @@
 | Sync | `--overwrite` keeps one side of a conflict, with a backup. Pulls refuse names that differ only in case. A Python `.venv` works on the Agent. |
 | Output | Problems on one line with dimmed fixes. `link` and `tools` in sections. Stopped runs are not failed, and `ps --all` shows `Lost connection`. Version errors name the older machine. |
 | Removal | `slingshot uninstall` lists everything on a Client or Agent, asks once with No as the default, and keeps the owner's own files and keys. |
+| Projects | `slingshot projects` lists each copy on the Agent with its size, build output, last sync, and edits waiting. `clean` frees build output, and `remove` deletes a copy after asking. |
 
 ## Planned
 
@@ -73,7 +74,6 @@
 | --- | --- | --- |
 | 5 | Port forwarding, plus ready and waiting notifications | [#9](https://github.com/ado11231/ss/issues/9) |
 | 6 | Local AI models through Ollama | [#20](https://github.com/ado11231/ss/issues/20) |
-| 6 | `slingshot projects`: list, clean, and remove projects on the Agent | [#116](https://github.com/ado11231/ss/issues/116) |
 | 6 | Pairing across networks, keeping the code safe through a relay | [#19](https://github.com/ado11231/ss/issues/19) |
 | 6 | Watching several Agents from the menu bar | [#109](https://github.com/ado11231/ss/issues/109) |
 | 6 | A setting to use your own iroh relay, and stronger Linux Client support | |
@@ -179,3 +179,9 @@
 4. A pull with `NOTES.md` and `notes.md` printed `NOTES.md and notes.md differ only in case` and changed nothing.
 5. `sync --overwrite` and `sync --pull --overwrite` each kept a backup. Answering no changed nothing.
 6. The menu bar switched paths within 30 to 50 seconds when the Mac changed networks.
+
+### Projects: October 15, 2026
+
+1. `slingshot projects` listed three projects on archbox with their sizes, last sync, and edits waiting.
+2. `clean` on Slingshot itself freed 3.9 GiB, and the next `cargo build` made it again in 28 seconds.
+3. A throwaway project showed 2 edits waiting. `remove` listed them, kept everything on Enter, and on `y` deleted the copy and its `~/Slingshot` link.

@@ -17,10 +17,12 @@ pub enum Tool {
     Rust,
     ClaudeCode,
     Codex,
+    Ollama,
+    OpenCode,
 }
 
 /// Every tool, in install order. Codex installs with npm, so Node comes before it.
-const ALL: [Tool; 7] = [
+const ALL: [Tool; 9] = [
     Tool::Git,
     Tool::Docker,
     Tool::Node,
@@ -28,6 +30,8 @@ const ALL: [Tool; 7] = [
     Tool::Rust,
     Tool::ClaudeCode,
     Tool::Codex,
+    Tool::Ollama,
+    Tool::OpenCode,
 ];
 
 /// How to sign in to a tool on the Agent. Credentials are never copied from the Client,
@@ -51,6 +55,8 @@ impl Tool {
             Tool::Rust => "Rust",
             Tool::ClaudeCode => "Claude Code",
             Tool::Codex => "Codex",
+            Tool::Ollama => "Ollama",
+            Tool::OpenCode => "OpenCode",
         }
     }
 
@@ -64,6 +70,8 @@ impl Tool {
             Tool::Rust => "cargo",
             Tool::ClaudeCode => "claude",
             Tool::Codex => "codex",
+            Tool::Ollama => "ollama",
+            Tool::OpenCode => "opencode",
         }
     }
 
@@ -111,6 +119,16 @@ impl Tool {
             Tool::ClaudeCode => Some(vec![
                 "curl -fsSL https://claude.ai/install.sh | bash".into(),
             ]),
+            Tool::OpenCode => Some(vec![
+                "curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path".into(),
+            ]),
+            Tool::Ollama if manager == Some("brew") => Some(vec![
+                "brew install ollama".into(),
+                "brew services start ollama".into(),
+            ]),
+            Tool::Ollama => Some(vec![
+                "curl -fsSL https://ollama.com/install.sh | sudo sh".into(),
+            ]),
             Tool::Codex => {
                 let sudo = npm_writable.map_or(manager != Some("brew"), |writable| !writable);
                 let command = "npm install -g @openai/codex";
@@ -151,12 +169,14 @@ impl Tool {
 }
 
 /// What to offer the Agent: tools the Client has or the project needs, plus anything those
-/// need to install, minus what the Agent already has. Returned in install order.
-pub fn missing(client: &[Tool], agent: &[Tool], stacks: &[Stack]) -> Vec<Tool> {
+/// need to install, minus what the Agent already has. Returned in install order. Ollama runs
+/// models on the Agent's GPU, so an Agent with one is offered it even when the Client lacks it.
+pub fn missing(client: &[Tool], agent: &[Tool], stacks: &[Stack], gpu: bool) -> Vec<Tool> {
     let mut wanted: Vec<Tool> = client
         .iter()
         .copied()
         .chain(stacks.iter().map(|stack| Tool::for_stack(*stack)))
+        .chain(gpu.then_some(Tool::Ollama))
         .collect();
     let needed: Vec<Tool> = wanted.iter().filter_map(|tool| tool.needs()).collect();
     wanted.extend(needed);
@@ -175,7 +195,7 @@ pub fn installed_here() -> Vec<Tool> {
 /// Folders in the home folder where installers put programs for one user, such as Claude
 /// Code in `~/.local/bin`. Login shells that are not interactive often leave them off PATH,
 /// so Slingshot adds them to everything it starts on the Agent instead of editing any file.
-const USER_FOLDERS: [&str; 2] = [".local/bin", ".cargo/bin"];
+const USER_FOLDERS: [&str; 3] = [".local/bin", ".cargo/bin", ".opencode/bin"];
 
 /// A shell line that puts `USER_FOLDERS` at the front of PATH.
 pub fn user_path_line() -> String {
@@ -242,9 +262,9 @@ pub fn admin(output: &str) -> Option<bool> {
     })
 }
 
-/// Commands that only an admin account can run.
+/// Commands that only an admin account can run, including an installer piped to `sudo`.
 pub fn needs_admin(command: &str) -> bool {
-    command.starts_with("sudo ")
+    command.starts_with("sudo ") || command.contains("| sudo ")
 }
 
 const SIGNED_OUT: &str = "signed-out:";
@@ -333,14 +353,14 @@ mod tests {
 
     #[test]
     fn tools_the_client_has_and_the_agent_lacks_are_offered() {
-        let offered = missing(&[Tool::Git, Tool::Docker], &[Tool::Git], &[]);
+        let offered = missing(&[Tool::Git, Tool::Docker], &[Tool::Git], &[], false);
 
         assert_eq!(offered, vec![Tool::Docker]);
     }
 
     #[test]
     fn the_project_adds_its_own_tools() {
-        let offered = missing(&[], &[], &[Stack::Rust, Stack::Python]);
+        let offered = missing(&[], &[], &[Stack::Rust, Stack::Python], false);
 
         assert_eq!(offered, vec![Tool::Python, Tool::Rust]);
     }
@@ -348,25 +368,56 @@ mod tests {
     #[test]
     fn codex_brings_node_when_the_agent_has_none() {
         assert_eq!(
-            missing(&[Tool::Codex], &[], &[]),
+            missing(&[Tool::Codex], &[], &[], false),
             vec![Tool::Node, Tool::Codex]
         );
         assert_eq!(
-            missing(&[Tool::Codex], &[Tool::Node], &[]),
+            missing(&[Tool::Codex], &[Tool::Node], &[], false),
             vec![Tool::Codex]
         );
     }
 
     #[test]
     fn nothing_is_offered_when_the_agent_has_everything() {
-        assert!(missing(&ALL, &ALL, &[Stack::Node]).is_empty());
+        assert!(missing(&ALL, &ALL, &[Stack::Node], true).is_empty());
     }
 
     #[test]
     fn offers_come_in_install_order_without_repeats() {
-        let offered = missing(&[Tool::Codex, Tool::Git, Tool::Node], &[], &[Stack::Node]);
+        let offered = missing(
+            &[Tool::Codex, Tool::Git, Tool::Node],
+            &[],
+            &[Stack::Node],
+            false,
+        );
 
         assert_eq!(offered, vec![Tool::Git, Tool::Node, Tool::Codex]);
+    }
+
+    #[test]
+    fn an_agent_with_a_gpu_is_offered_ollama() {
+        assert_eq!(missing(&[], &[], &[], true), vec![Tool::Ollama]);
+        assert!(missing(&[], &[Tool::Ollama], &[], true).is_empty());
+        assert!(missing(&[], &[], &[], false).is_empty());
+        assert_eq!(
+            missing(&[Tool::Ollama], &[], &[], false),
+            vec![Tool::Ollama]
+        );
+    }
+
+    #[test]
+    fn ollama_needs_an_admin_and_opencode_never_edits_startup_files() {
+        let linux = Tool::Ollama.install(Some("pacman"), None).unwrap();
+        assert_eq!(
+            linux,
+            ["curl -fsSL https://ollama.com/install.sh | sudo sh"]
+        );
+        assert!(needs_admin(&linux[0]));
+        let mac = Tool::Ollama.install(Some("brew"), None).unwrap();
+        assert!(mac.iter().all(|command| !needs_admin(command)));
+        let opencode = Tool::OpenCode.install(None, None).unwrap();
+        assert!(opencode[0].ends_with("--no-modify-path"));
+        assert!(!needs_admin(&opencode[0]));
     }
 
     #[test]
@@ -395,7 +446,13 @@ mod tests {
 
     #[test]
     fn installers_that_need_no_package_manager_always_have_a_command() {
-        for tool in [Tool::Rust, Tool::ClaudeCode, Tool::Codex] {
+        for tool in [
+            Tool::Rust,
+            Tool::ClaudeCode,
+            Tool::Codex,
+            Tool::Ollama,
+            Tool::OpenCode,
+        ] {
             assert!(tool.install(None, None).is_some(), "{tool:?}");
         }
     }
@@ -420,23 +477,23 @@ mod tests {
 
         assert_eq!(
             with_user_folders("/usr/local/bin:/usr/bin", home),
-            "/home/me/.local/bin:/home/me/.cargo/bin:/usr/local/bin:/usr/bin"
+            "/home/me/.local/bin:/home/me/.cargo/bin:/home/me/.opencode/bin:/usr/local/bin:/usr/bin"
         );
         assert_eq!(
             with_user_folders("/home/me/.cargo/bin:/usr/bin", home),
-            "/home/me/.local/bin:/home/me/.cargo/bin:/usr/bin"
+            "/home/me/.local/bin:/home/me/.opencode/bin:/home/me/.cargo/bin:/usr/bin"
         );
         assert_eq!(
             with_user_folders("", home),
-            "/home/me/.local/bin:/home/me/.cargo/bin"
+            "/home/me/.local/bin:/home/me/.cargo/bin:/home/me/.opencode/bin"
         );
     }
 
     #[test]
     fn the_probe_looks_in_the_user_folders_first() {
-        assert!(
-            probe_script().starts_with("export PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\";")
-        );
+        assert!(probe_script().starts_with(
+            "export PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.opencode/bin:$PATH\";"
+        ));
     }
 
     #[test]

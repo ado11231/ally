@@ -92,12 +92,14 @@ slingshot tools
 | Rust | `rustup` |
 | Claude Code | Its official installer |
 | Codex | `npm` |
+| Ollama | Its official installer, which adds a system service. Offered when the Agent has a GPU. |
+| OpenCode | Its official installer |
 
 * Lists every command, then asks once. `sudo` commands run in your terminal so you can type your password.
 * Then signs in to Claude Code and Codex. Accounts are never copied from the Client.
 * For Codex, open the printed link on the Client. Slingshot forwards port 1455 for it.
 * Without `sudo`, it installs what it can and lists the rest under "Ask an admin to run".
-* `~/.local/bin` and `~/.cargo/bin` are on the PATH of everything Slingshot starts.
+* `~/.local/bin`, `~/.cargo/bin`, and `~/.opencode/bin` are on the PATH of everything Slingshot starts.
 * Versions are not matched. `.nvmrc` or `rust-toolchain.toml` still decide them.
 
 ## Run Work

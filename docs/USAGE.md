@@ -66,6 +66,7 @@ slingshot start
 * The service prints no code. Run `slingshot start` and press Enter for one. Ctrl C leaves the service running.
 * The service keeps the PATH of the terminal it was set up from.
 * If linger is refused, it starts at login, and Slingshot prints the `sudo` fix.
+* On a Linux Agent that can sleep, it also writes `/etc/polkit-1/rules.d/50-slingshot.rules` with `sudo`. The rule lets your account keep the machine awake with nobody logged in. `--remove` deletes it.
 
 ### Link The Client
 

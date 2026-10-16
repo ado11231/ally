@@ -62,7 +62,7 @@
 | Notifications | Finished, failed, and interrupted runs; the Agent going offline or returning; low memory, low disk, or a hot GPU. Shown with the Slingshot icon. |
 | Sessions | `attach` from anywhere. Syncs first, and pulls edits back on leaving. Login shell, full color, `UTF-8`, mouse scrolling, a colored bar, `~/Slingshot/<project>`, and the user folders on PATH. Works from terminals the Agent may not know, such as Kitty. |
 | Tools | `link` ends by offering the Client's tools on the Agent, including OpenCode, and Ollama when the Agent has a GPU, then signs in to Claude Code and Codex. `slingshot tools` repeats it, offers sign in when signed out, and lists `sudo` steps for an admin on accounts without it. |
-| Starting | A systemd user service with linger, or a launchd agent, offered on the first `slingshot start`. `--boot` and `--remove` manage it. Moves to the next free port when the pairing port is taken. Warns when Docker is unusable, and says when sleep is off. |
+| Starting | A systemd user service with linger, or a launchd agent, offered on the first `slingshot start`. On Linux, a polkit rule keeps an Agent that can sleep awake with nobody logged in. `--boot` and `--remove` manage it. Moves to the next free port when the pairing port is taken. Warns when Docker is unusable, and says when sleep is off. |
 | Sync | `--overwrite` keeps one side of a conflict, with a backup. Pulls refuse names that differ only in case. A Python `.venv` works on the Agent. |
 | Output | Problems on one line with dimmed fixes. `link` and `tools` in sections. Stopped runs are not failed, and `ps --all` shows `Lost connection`. Version errors name the older machine. |
 | Removal | `slingshot uninstall` lists everything on a Client or Agent, asks once with No as the default, and keeps the owner's own files and keys. |
@@ -85,7 +85,6 @@
 
 ## Known Limitations
 
-* On Linux, a boot service with nobody logged in cannot block sleep, so an Agent that can sleep may suspend after about 15 minutes idle ([#68](https://github.com/ado11231/ss/issues/68)).
 * Starting by itself on a macOS Agent is untested.
 * After the Agent loses power or crashes, the first iroh connection can wait about 20 seconds for the old one to time out.
 * Edits in a session whose connection dropped stay on the Agent until `slingshot sync --pull`.
@@ -186,3 +185,9 @@
 1. `slingshot projects` listed three projects on archbox with their sizes, last sync, and edits waiting.
 2. `clean` on Slingshot itself freed 3.9 GiB, and the next `cargo build` made it again in 28 seconds.
 3. A throwaway project showed 2 edits waiting. `remove` listed them, kept everything on Enter, and on `y` deleted the copy and its `~/Slingshot` link.
+
+### Sleep Rule: October 16, 2026
+
+1. With sleep turned back on, `slingshot start --boot` showed the polkit rule, wrote it with `sudo`, and printed `This machine stays awake with nobody logged in`.
+2. After `sudo reboot`, with only the login screen on archbox, Slingshot held the sleep lock from the first minute.
+3. 15 minutes after boot, GNOME tried to suspend and was refused by the lock. archbox was still reachable after 30 minutes.

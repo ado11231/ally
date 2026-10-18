@@ -14,7 +14,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 /// Wire version of this control protocol. Both machines must agree on it, so any change
 /// to a request or response shape has to raise it.
-pub const VERSION: u32 = 14;
+pub const VERSION: u32 = 15;
 
 /// Largest frame in either direction. Manifests for very large projects are the limit.
 pub const MAX_FRAME: u32 = 16 * 1024 * 1024;
@@ -136,6 +136,8 @@ pub enum Request {
     RemoveProject {
         project: String,
     },
+    /// The TCP ports that Ally's work, and Docker's containers, listen on.
+    Ports,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -158,6 +160,19 @@ pub enum Response {
     Status(AgentStatus),
     Projects(Vec<ProjectSummary>),
     Cleaned { bytes: u64 },
+    Ports(Vec<Listening>),
+}
+
+/// A TCP port that work on the Agent listens on, which port forwarding can reach.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Listening {
+    pub port: u16,
+    /// The address it listens on, such as `127.0.0.1`, `::1`, or `0.0.0.0` for every one.
+    pub address: String,
+    /// The program listening, such as `node`, or the container's name for Docker.
+    pub program: String,
+    /// The job it belongs to, or `None` for a port a Docker container publishes.
+    pub job: Option<String>,
 }
 
 /// One project copy on the Agent, as `ally projects` lists it.

@@ -495,10 +495,29 @@ fn stop_run(job: &Job) {
     kill_remaining(&tree);
 }
 
-fn stop_session(root: &Path, job: &Job) {
-    let target = format!("={}", job.id);
-    let panes: Vec<u32> = tmux(root)
-        .args(["list-panes", "-s", "-t", &target, "-F", "#{pane_pid}"])
+/// Every live process that belongs to an active job, with its start time. A run whose
+/// leader no longer has the recorded start time owns nothing, so a reused PID never counts.
+pub fn processes(root: &Path, job: &Job) -> HashMap<u32, u64> {
+    match (job.kind, job.pid, job.process_start) {
+        (JobKind::Session, _, _) => process_tree(&session_panes(root, &job.id), None),
+        (JobKind::Run, Some(pid), Some(start)) if process_start(pid) == Some(start) => {
+            process_tree(&[pid], Some(pid))
+        }
+        (JobKind::Run, _, _) => HashMap::new(),
+    }
+}
+
+/// The shell process of each pane in a session.
+fn session_panes(root: &Path, id: &str) -> Vec<u32> {
+    tmux(root)
+        .args([
+            "list-panes",
+            "-s",
+            "-t",
+            &format!("={id}"),
+            "-F",
+            "#{pane_pid}",
+        ])
         .output()
         .map(|out| {
             String::from_utf8_lossy(&out.stdout)
@@ -506,7 +525,12 @@ fn stop_session(root: &Path, job: &Job) {
                 .filter_map(|line| line.trim().parse().ok())
                 .collect()
         })
-        .unwrap_or_default();
+        .unwrap_or_default()
+}
+
+fn stop_session(root: &Path, job: &Job) {
+    let target = format!("={}", job.id);
+    let panes = session_panes(root, &job.id);
     let tree = process_tree(&panes, None);
     let shells: HashMap<u32, u64> = tree
         .iter()
@@ -606,6 +630,18 @@ pub fn signal_group(pid: u32, start: u64, signal: i32) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A run whose leader has another start time is a reused PID, which owns nothing.
+    #[test]
+    fn a_run_owns_its_processes_only_while_its_leader_matches() {
+        let me = std::process::id();
+        let mut job = new_job(JobKind::Run, None, "test".to_string());
+        job.pid = Some(me);
+        job.process_start = process_start(me);
+        assert!(processes(Path::new("/nonexistent"), &job).contains_key(&me));
+        job.process_start = job.process_start.map(|start| start + 1);
+        assert!(processes(Path::new("/nonexistent"), &job).is_empty());
+    }
 
     #[test]
     fn sessions_get_color_mouse_and_the_login_shell() {

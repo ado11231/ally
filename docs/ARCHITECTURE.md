@@ -330,9 +330,9 @@ ally/
 | `project.rs` | Finds the current project and its ID on each Agent. | none | `transfer`, `tunnel`, most commands |
 | `keys.rs` | Creates Ally's own ssh key. | none | `link` |
 | `live.rs` | Full screen views that refresh until Q or Ctrl C. | none | `health` |
-| `watch/mod.rs` | `ally internal-watch`: polls the Agent and prints lines for the menu bar app. | `client`, `route`, `watch/event`, `watch/state` | `lib` |
-| `watch/event.rs` | The line format, value levels, and plain explanations of failures. | `commands/health` | `watch/mod`, `watch/state` |
-| `watch/state.rs` | Decides when a notification is due, and words it. | `commands/health`, `watch/event` | `watch/mod` |
+| `watch/mod.rs` | `ally internal-watch`: polls the Agent, including its ports and which are forwarded, and prints lines for the menu bar app. | `client`, `forward`, `route`, `ssh`, `watch/event`, `watch/state` | `lib` |
+| `watch/event.rs` | The line format, value levels, forwarded ports, and plain explanations of failures. | `commands/health` | `watch/mod`, `watch/state` |
+| `watch/state.rs` | Decides when a notification is due, including a ready server, and words it. | `commands/health`, `watch/event` | `watch/mod` |
 
 ### Commands
 
@@ -371,9 +371,9 @@ ally/
 | `Sources/App.swift` | The starting point and menu bar icon. |
 | `Sources/Watcher.swift` | Starts `internal-watch`, reads its lines, restarts it if it stops, and sends `retry`. |
 | `Sources/Model.swift` | Reads the JSON lines. Must match `watch/event.rs`. |
-| `Sources/PopoverView.swift` | The panel: the four sections, the offline screen, and the bottom rows. |
+| `Sources/PopoverView.swift` | The panel: the four sections, forwarded ports, the offline screen, and the bottom rows. |
 | `Sources/Bars.swift` | The usage bar every section shares. |
-| `Sources/Notifier.swift` | Posts notifications. |
+| `Sources/Notifier.swift` | Posts notifications, and opens the address a clicked one names. |
 | `Sources/LoginItem.swift` | Starts the app at login, and removes that for `--remove`. |
 
 * `Model.swift` and `watch/event.rs` describe one format from both sides. Change them together, and raise `watch::event::VERSION` when a field changes meaning or is removed.

@@ -58,8 +58,8 @@
 
 | Area | What Works |
 | --- | --- |
-| Menu bar app | CPU, RAM, GPU, VRAM, and workspace space; an offline screen with the cause, fix, and Try again; always a login item; follows a new `ally` by itself; moves to a better connection within a minute. `ally menubar` builds, signs, installs, and removes it. |
-| Notifications | Finished, failed, and interrupted runs; the Agent going offline or returning; low memory, low disk, or a hot GPU. Shown with the Ally icon. |
+| Menu bar app | CPU, RAM, GPU, VRAM, and workspace space; an offline screen with the cause, fix, and Try again; always a login item; follows a new `ally` by itself; moves to a better connection within a minute; lists forwarded ports, and a click opens one. `ally menubar` builds, signs, installs, and removes it. |
+| Notifications | Finished, failed, and interrupted runs; the Agent going offline or returning; low memory, low disk, or a hot GPU; a server starting in a run or session, which opens on a click. Shown with the Ally icon. |
 | Sessions | `attach` from anywhere. Syncs first, and pulls edits back on leaving. Login shell, full color, `UTF-8`, mouse scrolling, a colored bar, `~/Ally/<project>`, and the user folders on PATH. Works from terminals the Agent may not know, such as Kitty. |
 | Tools | `link` ends by offering the Client's tools on the Agent, including OpenCode, and Ollama when the Agent has a GPU, then signs in to Claude Code and Codex. `ally tools` repeats it, offers sign in when signed out, and lists `sudo` steps for an admin on accounts without it. |
 | Starting | A systemd user service with linger, or a launchd agent, offered on the first `ally start`. On Linux, a polkit rule keeps an Agent that can sleep awake with nobody logged in. `--boot` and `--remove` manage it. Moves to the next free port when the pairing port is taken. Warns when Docker is unusable, and says when sleep is off. |
@@ -94,7 +94,7 @@
 * `ally.toml` supports only `sync.exclude`.
 * Linking needs a shared network or tailnet.
 * The back online notification and resource warnings have not been seen on real machines.
-* Port forwarding is tested only over the local network, and not with a Docker container running. The menu bar's port list and the server ready notification are not built yet ([#9](https://github.com/ado11231/ally/issues/9)).
+* Port forwarding is tested only over the local network, and not with a Docker container running. The menu bar's port list and server ready notification are checked through the helper's output, not yet by looking at the panel ([#9](https://github.com/ado11231/ally/issues/9)).
 * The tools step on an account without `sudo` is checked only by unit tests.
 * Installing Ollama and OpenCode through the tools step is checked only by unit tests. On archbox, the step found both already installed.
 
@@ -208,3 +208,4 @@
 6. In a real terminal, the forwarding line printed cleanly during the run.
 7. `ally forward 8790` opened a server Ally did not start. A second `ally forward 8790` was refused with the address, and Ctrl C stopped it.
 8. `ally ports` showed the Ally run with its job and project, the outside server, and sshd and Tailscale as other accounts, with open forwards in green.
+9. With `python -m http.server 8792` started by `ally run`, the menu bar helper sent one `Server ready on archbox` notice with `Open localhost:8792`, and listed `localhost:8792` for the panel.

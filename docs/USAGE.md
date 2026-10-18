@@ -227,8 +227,9 @@ ally env remove .env
 | `ally menubar --remove` | Lists, asks, then deletes the app and its settings. |
 
 * Shows the Agent, connection, CPU, RAM, GPU, VRAM, and project space.
+* Lists forwarded ports under Ports. A click opens one in the browser.
 * When the Agent is unreachable, shows why and the fix.
-* Notifies when a run of 10 seconds or more ends, a job is cut off by a lost connection or restart, the Agent goes offline or returns, or memory, disk, or GPU heat needs attention.
+* Notifies when a run of 10 seconds or more ends, a job is cut off by a lost connection or restart, the Agent goes offline or returns, memory, disk, or GPU heat needs attention, or a server starts in a run or session. A click on a ready server opens it.
 * No notifications? Turn them on in System Settings, Notifications, Ally.
 
 ## More Than One Agent

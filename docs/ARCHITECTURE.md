@@ -280,7 +280,7 @@ ally/
 | --- | --- | --- | --- |
 | `lib.rs` | Lists the modules. | none | the other crates |
 | `protocol.rs` | Pairing messages and the SPAKE2 handshake, hardware details, and health values. | none | `config`, `control`, `telemetry`, Agent `lib`, several Client commands |
-| `control.rs` | Versioned control messages, job records, and message reading and writing. | `protocol`, `source`, `tools` | Agent `service`, `jobs`, `projects`, `runner`; Client `client`, `transfer`, most commands |
+| `control.rs` | Versioned control messages, job records, and message reading and writing. | `protocol`, `source`, `tools` | Agent `service`, `jobs`, `ports`, `projects`, `runner`; Client `client`, `transfer`, most commands |
 | `config.rs` | The Client's saved Agents: loading, saving, and choosing one. | `network`, `protocol` | `keys` and nearly every Client file |
 | `network.rs` | Tells local, tailnet, and other addresses apart. | none | `config`, Agent `lib`, Client `route` |
 | `tunnel.rs` | What both machines share for iroh: the connection name and a saved identity. | `storage`, `source` | Agent `lib`, `clients`, `tunnel`; Client `route`, `tunnel`, `link` |
@@ -290,8 +290,8 @@ ally/
 | `sync.rs` | Three way sync: planning, conflicts, staging, and safe apply with rollback. | `source`, `storage` | Agent `projects`, Client `transfer` |
 | `stack.rs` | Recognizes Rust, Node, and Python projects. | none | `artifacts`, `tools` |
 | `artifacts.rs` | Where each kind of project keeps its build output on the Agent. | `stack` | Agent `projects`, Client `run` |
-| `telemetry.rs` | Reads hardware details and live use with `sysinfo` and `nvidia-smi`. | `presentation`, `protocol` | `preflight`, `tools`, Agent `lib`, Client `health`, `transfer`, `watch` |
-| `preflight.rs` | Setup checks that print the fix, and the package manager's install command. | `presentation`, `telemetry` | `tools`, Agent `lib`, `jobs`, `service`; Client `link`, `transfer` |
+| `telemetry.rs` | Reads hardware details and live use with `sysinfo` and `nvidia-smi`. | `presentation`, `protocol` | `preflight`, `tools`, Agent `lib`, `ports`, Client `health`, `transfer`, `watch` |
+| `preflight.rs` | Setup checks that print the fix, and the package manager's install command. | `presentation`, `telemetry` | `tools`, Agent `lib`, `jobs`, `ports`, `service`; Client `link`, `transfer` |
 | `tools.rs` | The tools Ally can set up on the Agent, how to find them, and their install commands. | `preflight`, `stack`, `telemetry` | `control`, Agent `service`, Client `tools` |
 | `presentation.rs` | The shared output style: symbols, colors, rows, and sizes. | none | `step`, `preflight`, `telemetry`, every command |
 | `step.rs` | A spinner for slow work, then a finished line with the time taken. | `presentation` | Agent `lib`; Client `client`, `transfer`, `run`, `link`, `ps`, `unlink` |
@@ -301,9 +301,10 @@ ally/
 | File | Purpose | Uses | Used By |
 | --- | --- | --- | --- |
 | `lib.rs` | `ally start`: setup checks, the start screen, pairing, and starting the other parts. `ally internal-daemon`: the same without pairing, for the boot service. | `awake`, `clients`, `service`, `tunnel` | Client `lib` |
-| `service.rs` | The private control socket, the `internal-control` helper that reaches it, and the tools probe run in the login shell. | `clients`, `jobs`, `projects` | `lib`, `runner`, Client `lib` |
+| `service.rs` | The private control socket, the `internal-control` helper that reaches it, and the tools probe run in the login shell. | `clients`, `jobs`, `ports`, `projects` | `lib`, `runner`, Client `lib` |
 | `projects.rs` | Project storage: source copies, sync locks, build output, and environment files. Lists, cleans, and removes copies. | `jobs` | `service`, `jobs`, `runner`, `uninstall` |
-| `jobs.rs` | Job records, `tmux` sessions, and safe stopping. | `projects` | `service`, `projects`, `runner` |
+| `jobs.rs` | Job records, `tmux` sessions, the processes each job owns, and safe stopping. | `projects` | `service`, `ports`, `projects`, `runner` |
+| `ports.rs` | The TCP ports that jobs and Docker containers listen on, found with `ss` on Linux and `lsof` on macOS, for port forwarding. | `jobs` | `service` |
 | `runner.rs` | `ally internal-run`: runs one command in the project copy with a real terminal. | `jobs`, `projects`, `service` | Client `lib` |
 | `clients.rs` | The Clients allowed over iroh, and their names for the start screen. | none | `lib`, `service`, `tunnel` |
 | `tunnel.rs` | The iroh endpoint, which passes paired Clients to the local ssh server. | `clients` | `lib` |

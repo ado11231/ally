@@ -1,27 +1,25 @@
-//! The TCP ports that Ally's work listens on, for port forwarding. Sockets come from `ss`
-//! on Linux and `lsof` on macOS, and count only when a job's process holds them. Ports
-//! that Docker containers publish come from `docker ps`, since Docker's own processes
-//! hold them outside any job.
+//! Every TCP port listening on the Agent, and who opened it, for port forwarding and
+//! `ally ports`. Sockets come from `ss` on Linux and `lsof` on macOS, and belong to a job
+//! when one of its processes holds them. Ports that Docker containers publish come from
+//! `docker ps`, since Docker's own processes hold them outside any job.
 
 use crate::jobs;
-use ally_core::control::Listening;
+use ally_core::control::{Listening, Source};
 use ally_core::preflight;
 use ally_core::telemetry::is_installed;
 use std::collections::HashMap;
 use std::path::Path;
 use std::process::Command;
 
-/// A listening TCP socket and the process that holds it.
+/// A listening TCP socket, and the process holding it when this account may see it.
 #[derive(Debug, PartialEq)]
 struct Socket {
     address: String,
     port: u16,
-    pid: u32,
-    program: String,
+    process: Option<(u32, String)>,
 }
 
-/// Every port that an active job's processes or a Docker container listen on, one entry
-/// per port. `ss` or `lsof` runs only while a job is active.
+/// Every listening port, one entry per port, with the most specific owner found.
 pub fn list(root: &Path) -> anyhow::Result<Vec<Listening>> {
     let mut owners = HashMap::new();
     for job in jobs::list(root, false)? {
@@ -29,19 +27,24 @@ pub fn list(root: &Path) -> anyhow::Result<Vec<Listening>> {
             owners.insert(pid, job.id.clone());
         }
     }
-    let mut found = Vec::new();
-    if !owners.is_empty() {
-        for socket in sockets()? {
-            if let Some(job) = owners.get(&socket.pid) {
-                found.push(Listening {
-                    port: socket.port,
-                    address: socket.address,
-                    program: socket.program,
-                    job: Some(job.clone()),
-                });
+    let mut found: Vec<Listening> = sockets()?
+        .into_iter()
+        .map(|socket| {
+            let (program, from) = match socket.process {
+                Some((pid, program)) => match owners.get(&pid) {
+                    Some(job) => (program, Source::Job(job.clone())),
+                    None => (program, Source::Outside),
+                },
+                None => (String::new(), Source::OtherAccount),
+            };
+            Listening {
+                port: socket.port,
+                address: socket.address,
+                program,
+                from,
             }
-        }
-    }
+        })
+        .collect();
     found.extend(docker());
     Ok(merged(found))
 }
@@ -71,14 +74,21 @@ fn output(program: &str, args: &[&str], package: &str) -> anyhow::Result<String>
 
 /// Lines of `ss -Hltnp`, such as
 /// `LISTEN 0 511 127.0.0.1:5173 0.0.0.0:* users:(("node",pid=7417,fd=23))`.
-/// ss names processes only for this account, which are the only ones a job can own.
+/// ss names processes only for this account. A socket without one belongs to another.
 fn from_ss(text: &str) -> Vec<Socket> {
     let mut sockets = Vec::new();
     for line in text.lines() {
         let Some((address, port)) = line.split_whitespace().nth(3).and_then(split_address) else {
             continue;
         };
-        let users = line.split_once("users:(").map_or("", |(_, rest)| rest);
+        let Some((_, users)) = line.split_once("users:(") else {
+            sockets.push(Socket {
+                address,
+                port,
+                process: None,
+            });
+            continue;
+        };
         for entry in users.split("(\"").skip(1) {
             let Some((program, rest)) = entry.split_once("\",") else {
                 continue;
@@ -93,8 +103,7 @@ fn from_ss(text: &str) -> Vec<Socket> {
                 sockets.push(Socket {
                     address: address.clone(),
                     port,
-                    pid,
-                    program: program.to_string(),
+                    process: Some((pid, program.to_string())),
                 });
             }
         }
@@ -103,7 +112,8 @@ fn from_ss(text: &str) -> Vec<Socket> {
 }
 
 /// The field output of `lsof -F pcn`: a `p` line with the process ID, a `c` line with its
-/// name, then an `n` line for each listening address.
+/// name, then an `n` line for each listening address. Without administrator rights lsof
+/// shows only this account's processes, so another account's ports are missing on macOS.
 fn from_lsof(text: &str) -> Vec<Socket> {
     let mut sockets = Vec::new();
     let mut pid = None;
@@ -117,8 +127,7 @@ fn from_lsof(text: &str) -> Vec<Socket> {
                     sockets.push(Socket {
                         address,
                         port,
-                        pid,
-                        program: program.clone(),
+                        process: Some((pid, program.clone())),
                     });
                 }
             }
@@ -164,7 +173,7 @@ fn from_docker(text: &str) -> Vec<Listening> {
                     port,
                     address,
                     program: name.to_string(),
-                    job: None,
+                    from: Source::Docker,
                 });
             }
         }
@@ -185,10 +194,23 @@ fn split_address(text: &str) -> Option<(String, u16)> {
     }
 }
 
-/// One entry per port. A server often listens on both IPv4 and IPv6, and IPv4 is kept,
-/// since it reaches a server that listens on every address either way.
+/// One entry per port, keeping the most specific owner. Docker's own proxy holds a
+/// published port as another account, so Docker wins over that. A server often listens on
+/// both IPv4 and IPv6, and IPv4 is kept, since it reaches a server on every address too.
 fn merged(mut found: Vec<Listening>) -> Vec<Listening> {
-    found.sort_by_key(|listening| (listening.port, listening.address.contains(':')));
+    let rank = |from: &Source| match from {
+        Source::Job(_) => 0,
+        Source::Docker => 1,
+        Source::Outside => 2,
+        Source::OtherAccount => 3,
+    };
+    found.sort_by_key(|listening| {
+        (
+            listening.port,
+            rank(&listening.from),
+            listening.address.contains(':'),
+        )
+    });
     found.dedup_by_key(|listening| listening.port);
     found
 }
@@ -201,21 +223,27 @@ mod tests {
         Socket {
             address: address.to_string(),
             port,
-            pid,
-            program: program.to_string(),
+            process: Some((pid, program.to_string())),
         }
     }
 
-    fn listening(address: &str, port: u16, job: Option<&str>) -> Listening {
+    fn hidden(address: &str, port: u16) -> Socket {
+        Socket {
+            address: address.to_string(),
+            port,
+            process: None,
+        }
+    }
+
+    fn listening(address: &str, port: u16, from: Source) -> Listening {
         Listening {
             port,
             address: address.to_string(),
             program: "node".to_string(),
-            job: job.map(str::to_string),
+            from,
         }
     }
 
-    /// Copied from an Arch Linux Agent. Sockets of other accounts carry no process.
     /// Runs the real `ss` or `lsof`, which must name this test's own listening socket.
     #[test]
     fn this_machines_tool_finds_a_port_this_process_listens_on() {
@@ -223,15 +251,16 @@ mod tests {
         let port = listener.local_addr().unwrap().port();
         let found = sockets().unwrap();
         assert!(
-            found
-                .iter()
-                .any(|s| s.port == port && s.pid == std::process::id() && s.address == "127.0.0.1"),
+            found.iter().any(|s| s.port == port
+                && s.process.as_ref().map(|(pid, _)| *pid) == Some(std::process::id())
+                && s.address == "127.0.0.1"),
             "{found:?}"
         );
     }
 
+    /// Copied from an Arch Linux Agent. Sockets of other accounts carry no process.
     #[test]
-    fn ss_lines_give_this_accounts_sockets_with_their_processes() {
+    fn ss_lines_give_every_socket_and_this_accounts_processes() {
         let text = "\
 LISTEN 0      4096                 100.67.90.119:48074 0.0.0.0:*
 LISTEN 0      5                        127.0.0.1:8765  0.0.0.0:* users:((\"python\",pid=7417,fd=3))
@@ -242,10 +271,12 @@ LISTEN 0      128                           [::]:22       [::]:*
         assert_eq!(
             from_ss(text),
             [
+                hidden("100.67.90.119", 48074),
                 socket("127.0.0.1", 8765, 7417, "python"),
                 socket("0.0.0.0", 5173, 88, "node"),
                 socket("0.0.0.0", 5173, 89, "node"),
                 socket("::1", 3000, 12, "next-server"),
+                hidden("::", 22),
             ]
         );
     }
@@ -275,7 +306,7 @@ LISTEN 0      128                           [::]:22       [::]:*
                     l.program.as_str(),
                     l.address.as_str(),
                     l.port,
-                    l.job.is_none(),
+                    l.from == Source::Docker,
                 )
             })
             .collect();
@@ -310,20 +341,26 @@ LISTEN 0      128                           [::]:22       [::]:*
     }
 
     #[test]
-    fn each_port_appears_once_and_ipv4_wins() {
+    fn each_port_appears_once_with_its_most_specific_owner_and_ipv4_wins() {
+        let job = || Source::Job("ab12".to_string());
         let found = merged(vec![
-            listening("::", 5432, None),
-            listening("0.0.0.0", 5432, None),
-            listening("::1", 3000, Some("ab12")),
-            listening("127.0.0.1", 8765, Some("ab12")),
-            listening("127.0.0.1", 8765, Some("ab12")),
+            listening("0.0.0.0", 5432, Source::OtherAccount),
+            listening("::", 5432, Source::Docker),
+            listening("0.0.0.0", 5432, Source::Docker),
+            listening("::1", 3000, job()),
+            listening("127.0.0.1", 8765, job()),
+            listening("127.0.0.1", 8765, job()),
+            listening("0.0.0.0", 22, Source::OtherAccount),
+            listening("127.0.0.1", 6379, Source::Outside),
         ]);
         assert_eq!(
             found,
             [
-                listening("::1", 3000, Some("ab12")),
-                listening("0.0.0.0", 5432, None),
-                listening("127.0.0.1", 8765, Some("ab12")),
+                listening("0.0.0.0", 22, Source::OtherAccount),
+                listening("::1", 3000, job()),
+                listening("0.0.0.0", 5432, Source::Docker),
+                listening("127.0.0.1", 6379, Source::Outside),
+                listening("127.0.0.1", 8765, job()),
             ]
         );
     }

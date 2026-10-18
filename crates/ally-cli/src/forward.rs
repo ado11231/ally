@@ -5,7 +5,7 @@
 use crate::client::Control;
 use crate::ssh::RemoteCommand;
 use ally_core::config::Agent;
-use ally_core::control::{Listening, Request, Response};
+use ally_core::control::{Listening, Request, Response, Source};
 use ally_core::preflight;
 use ally_core::presentation::{Style, Tone};
 use ally_core::storage;
@@ -145,7 +145,10 @@ async fn forward(agent: Agent, shown: Shown, mut stopped: oneshot::Receiver<()>)
             _ = tokio::time::sleep(POLL_EVERY) => {}
         }
         let ports = match control.call(Request::Ports).await {
-            Ok(Response::Ports(ports)) => ports,
+            Ok(Response::Ports(ports)) => ports
+                .into_iter()
+                .filter(|listening| listening.from.forwarded_automatically())
+                .collect::<Vec<_>>(),
             Ok(_) => break,
             Err(error) => {
                 if first {
@@ -283,9 +286,9 @@ fn session_args(socket: &str, id: &str, bar: &str, news: &[String]) -> Vec<Strin
 /// `▶ Forwarding archbox:5173 to localhost:5173 · node`, with a second line when the
 /// port was taken here. A Docker port names its container.
 fn added(agent: &str, listening: &Listening, local: u16, style: Style) -> String {
-    let owner = match listening.job {
-        Some(_) => listening.program.clone(),
-        None => format!("Docker {}", listening.program),
+    let owner = match listening.from {
+        Source::Docker => format!("Docker {}", listening.program),
+        _ => listening.program.clone(),
     };
     let mut text = format!(
         "Forwarding {} to {} · {owner}",
@@ -341,7 +344,10 @@ mod tests {
             port,
             address: address.to_string(),
             program: program.to_string(),
-            job: job.map(str::to_string),
+            from: match job {
+                Some(id) => Source::Job(id.to_string()),
+                None => Source::Docker,
+            },
         }
     }
 

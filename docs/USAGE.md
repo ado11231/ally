@@ -137,6 +137,16 @@ ally attach [path]
 | Leave it running | Ctrl B, then D |
 | End it | `exit`, or `ally stop <id>` |
 
+### Open A Server In Your Browser
+
+* While `ally run` or `ally attach` is connected, a server started on the Agent opens at the same port on the Client: `▶ Forwarding archbox:5173 to localhost:5173 · node`.
+* This covers every port that Ally's work listens on, and every port a Docker container publishes.
+* If the port is in use on the Client, the next free one is used, and a second line says so.
+* In a session, the bar lists the ports, and a short message shows each new one.
+* Forwards answer only on the Client itself, and end when the port closes or the command ends.
+* With several Ally commands open, one of them forwards each port and prints its line.
+* To reach a server again after leaving its session, run `ally attach`.
+
 ## Keep Files In Step
 
 * `run` and `attach` sync for you. `sync` does it alone.

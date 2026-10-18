@@ -66,6 +66,7 @@
 | Sync | `--overwrite` keeps one side of a conflict, with a backup. Pulls refuse names that differ only in case. A Python `.venv` works on the Agent. |
 | Output | Problems on one line with dimmed fixes. `link` and `tools` in sections. Stopped runs are not failed, and `ps --all` shows `Lost connection`. Version errors name the older machine. |
 | Removal | `ally uninstall` lists everything on a Client or Agent, asks once with No as the default, and keeps the owner's own files and keys. |
+| Port forwarding | While `run` or `attach` is connected, every port that Ally's work listens on, and every port a Docker container publishes, opens at `localhost` on the Client. A taken port moves to the next free one. Sessions show ports in the bar. |
 | Projects | `ally projects` lists each copy on the Agent with its size, build output, last sync, and edits waiting. `clean` frees build output, and `remove` deletes a copy after asking. |
 
 ## Planned
@@ -93,7 +94,7 @@
 * `ally.toml` supports only `sync.exclude`.
 * Linking needs a shared network or tailnet.
 * The back online notification and resource warnings have not been seen on real machines.
-* A dev server or container on the Agent cannot open in the Client's browser yet ([#9](https://github.com/ado11231/ally/issues/9)).
+* Port forwarding is tested only over the local network, and not with a Docker container running. `ally forward`, `ally ports`, and the menu bar's port list are not built yet ([#9](https://github.com/ado11231/ally/issues/9)).
 * The tools step on an account without `sudo` is checked only by unit tests.
 * Installing Ollama and OpenCode through the tools step is checked only by unit tests. On archbox, the step found both already installed.
 
@@ -196,3 +197,12 @@
 
 1. With archbox's service killed by `kill -9` while a shared iroh connection was open, the next `run` took 29.4 seconds before the fix and 3.8 seconds after.
 2. Commands back to back over iroh went from 0.30 to 0.44 seconds on average. Runs over the local network and tailnet are unchanged.
+
+### Port Forwarding: October 17, 2026, Local Network
+
+1. A second command over the local network took 0.07 seconds instead of 0.27, through the shared connection.
+2. A Python server started with `ally run` answered at `localhost:8765` on the Mac about 2 seconds after it started.
+3. With 8766 taken on the Mac, the Agent's 8766 opened at 8767 with `Port 8766 is in use here`.
+4. In a session, the bar showed `localhost:8768` and the message appeared. Leaving removed the forward.
+5. Two runs at once forwarded each port once. When the run holding a port was killed, the other took it over on the same port.
+6. In a real terminal, the forwarding line printed cleanly during the run.

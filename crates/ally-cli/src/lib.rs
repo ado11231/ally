@@ -154,6 +154,15 @@ enum Commands {
         action: Option<ProjectsAction>,
     },
 
+    #[command(about = "Reach one Agent port at localhost on this machine until Ctrl C")]
+    Forward {
+        /// The port on the Agent, such as 8080.
+        port: u16,
+    },
+
+    #[command(about = "List the ports listening on the Agent, and where each opens here")]
+    Ports,
+
     #[command(about = "List Ally runs and sessions on the Agent")]
     Ps {
         /// Include the most recent 100 finished jobs.
@@ -309,6 +318,8 @@ pub async fn run() {
                 commands::projects::remove(cli.agent, project).await
             }
         },
+        Commands::Forward { port } => commands::forward::forward(cli.agent, port).await,
+        Commands::Ports => commands::ports::ports(cli.agent).await,
         Commands::Ps { all } => commands::ps::ps(cli.agent, all).await,
         Commands::Stop { id } => commands::ps::stop(cli.agent, id).await,
         Commands::Health { watch } => commands::health::health(cli.agent, watch).await,

@@ -149,7 +149,7 @@
 
 ### Formats And Versions
 
-* **Control messages:** any change to a `Request` or `Response` shape in `ally-core/src/control.rs` raises `control::VERSION`, currently 15.
+* **Control messages:** any change to a `Request` or `Response` shape in `ally-core/src/control.rs` raises `control::VERSION`, currently 16.
 * **Menu bar lines:** if a field in `ally-cli/src/watch/event.rs` changes meaning or is removed, raise `watch::event::VERSION` and change `ally-cli/menubar/Sources/Model.swift` in the same commit.
 * **Pairing messages:** a change to the pairing messages in `ally-core/src/protocol.rs` means both machines must update before the next link. A change to `Specs` or `Health`, which are saved or sent after pairing, forces every user to link again. Say which one explicitly.
 

@@ -200,6 +200,47 @@ impl RemoteCommand {
         argv
     }
 
+    /// Keep one port forward open on a connection of its own, with no remote command, until
+    /// Ctrl C. Returns `None` after Ctrl C, or ssh's exit code when it ended first, as when
+    /// the port is taken. Ctrl C reaches ssh too, so ssh ending together with one is a stop.
+    pub async fn hold(&self, spec: &str) -> anyhow::Result<Option<i32>> {
+        use tokio::signal::unix::{SignalKind, signal};
+
+        let mut interrupt =
+            signal(SignalKind::interrupt()).context("Could not listen for Ctrl C")?;
+        let log = SshLog::create()?;
+        let mut argv = self.connection_args();
+        let destination = argv.pop().unwrap_or_default();
+        argv.extend(
+            ["-N", "-o", "ExitOnForwardFailure=yes", "-L", spec]
+                .map(String::from)
+                .into_iter()
+                .chain([destination]),
+        );
+        let mut child = Command::new("ssh")
+            .arg("-E")
+            .arg(&log.0)
+            .args(argv)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::inherit())
+            .kill_on_drop(true)
+            .spawn()
+            .context("Could not start ssh. Check that it is installed and on PATH")?;
+        let status = tokio::select! {
+            status = child.wait() => status.context("Waiting for ssh failed")?,
+            _ = interrupt.recv() => {
+                let _ = child.kill().await;
+                return Ok(None);
+            }
+        };
+        let stopped = tokio::time::timeout(Duration::from_millis(300), interrupt.recv()).await;
+        match stopped {
+            Ok(_) => Ok(None),
+            Err(_) => ended(status.code().unwrap_or(EXIT_SIGNALLED), &log).map(Some),
+        }
+    }
+
     /// Add (`forward`) or remove (`cancel`) a port forward on the shared connection while it
     /// runs, where `spec` is ssh's `-L` value. Returns whether ssh did it.
     pub async fn change_forward(&self, operation: &str, spec: &str) -> bool {

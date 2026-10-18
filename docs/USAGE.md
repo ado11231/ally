@@ -145,7 +145,16 @@ ally attach [path]
 * In a session, the bar lists the ports, and a short message shows each new one.
 * Forwards answer only on the Client itself, and end when the port closes or the command ends.
 * With several Ally commands open, one of them forwards each port and prints its line.
-* To reach a server again after leaving its session, run `ally attach`.
+* Programs that Ally did not start open only on request, with `ally forward`.
+
+| Command | Effect |
+| --- | --- |
+| `ally forward <port>` | Opens one Agent port at `localhost` until Ctrl C, for a server left running after leaving its session, or one Ally did not start. |
+| `ally ports` | Lists every port listening on the Agent, who opened it, and where it opens here. |
+
+* In `ally ports`, FROM is a job ID from `ally ps`, `Docker`, `outside Ally` for another program on the Agent account, or `other account` for the system and other accounts.
+* An open forward is green. Ports not forwarded and rows from other accounts are dimmed.
+* A macOS Agent cannot see other accounts' ports, so it shows only its own.
 
 ## Keep Files In Step
 

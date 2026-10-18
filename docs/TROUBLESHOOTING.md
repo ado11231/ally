@@ -105,6 +105,8 @@
 | `No swap configured` | No swap, the disk space used when RAM runs out. A large job may be stopped when memory fills. | Add swap on the Agent. |
 | `! Port forwarding is off: ss is not installed on the Agent` | A Linux Agent finds ports with `ss`. Commands still run. | Run the install command it shows, then run again. |
 | `! Port forwarding is off: no private folder could hold the shared ssh connection` | Forwarding needs a private folder in the temporary folder. | Check that the temporary folder can be written. |
+| `archbox:8080 is already forwarded at localhost:8080 by another Ally command` | A run, session, or other `ally forward` already opens it. | Open the address it names, or end that command and run `ally forward` again. |
+| `The forward to archbox:8080 ended` | ssh stopped, often because the port was taken here at the last moment. | Run `ally forward 8080` again. |
 | `! Could not forward archbox:3000 to this machine` | ssh refused the forward. | Restart the server on the Agent to try again. |
 | `Live views need an interactive terminal` | `ally health --watch` redraws the screen. | Run it in a terminal, or use `ally health` to pipe the output. |
 

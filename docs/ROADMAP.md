@@ -66,7 +66,7 @@
 | Sync | `--overwrite` keeps one side of a conflict, with a backup. Pulls refuse names that differ only in case. A Python `.venv` works on the Agent. |
 | Output | Problems on one line with dimmed fixes. `link` and `tools` in sections. Stopped runs are not failed, and `ps --all` shows `Lost connection`. Version errors name the older machine. |
 | Removal | `ally uninstall` lists everything on a Client or Agent, asks once with No as the default, and keeps the owner's own files and keys. |
-| Port forwarding | While `run` or `attach` is connected, every port that Ally's work listens on, and every port a Docker container publishes, opens at `localhost` on the Client. A taken port moves to the next free one. Sessions show ports in the bar. |
+| Port forwarding | While `run` or `attach` is connected, every port that Ally's work listens on, and every port a Docker container publishes, opens at `localhost` on the Client. A taken port moves to the next free one. Sessions show ports in the bar. `ally forward` opens any Agent port until Ctrl C, and `ally ports` lists every port with who opened it. |
 | Projects | `ally projects` lists each copy on the Agent with its size, build output, last sync, and edits waiting. `clean` frees build output, and `remove` deletes a copy after asking. |
 
 ## Planned
@@ -94,7 +94,7 @@
 * `ally.toml` supports only `sync.exclude`.
 * Linking needs a shared network or tailnet.
 * The back online notification and resource warnings have not been seen on real machines.
-* Port forwarding is tested only over the local network, and not with a Docker container running. `ally forward`, `ally ports`, and the menu bar's port list are not built yet ([#9](https://github.com/ado11231/ally/issues/9)).
+* Port forwarding is tested only over the local network, and not with a Docker container running. The menu bar's port list and the server ready notification are not built yet ([#9](https://github.com/ado11231/ally/issues/9)).
 * The tools step on an account without `sudo` is checked only by unit tests.
 * Installing Ollama and OpenCode through the tools step is checked only by unit tests. On archbox, the step found both already installed.
 
@@ -206,3 +206,5 @@
 4. In a session, the bar showed `localhost:8768` and the message appeared. Leaving removed the forward.
 5. Two runs at once forwarded each port once. When the run holding a port was killed, the other took it over on the same port.
 6. In a real terminal, the forwarding line printed cleanly during the run.
+7. `ally forward 8790` opened a server Ally did not start. A second `ally forward 8790` was refused with the address, and Ctrl C stopped it.
+8. `ally ports` showed the Ally run with its job and project, the outside server, and sshd and Tailscale as other accounts, with open forwards in green.

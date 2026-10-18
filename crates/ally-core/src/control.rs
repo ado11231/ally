@@ -14,7 +14,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 /// Wire version of this control protocol. Both machines must agree on it, so any change
 /// to a request or response shape has to raise it.
-pub const VERSION: u32 = 15;
+pub const VERSION: u32 = 16;
 
 /// Largest frame in either direction. Manifests for very large projects are the limit.
 pub const MAX_FRAME: u32 = 16 * 1024 * 1024;
@@ -136,7 +136,7 @@ pub enum Request {
     RemoveProject {
         project: String,
     },
-    /// The TCP ports that Ally's work, and Docker's containers, listen on.
+    /// Every TCP port listening on the Agent, and who opened it.
     Ports,
 }
 
@@ -163,16 +163,38 @@ pub enum Response {
     Ports(Vec<Listening>),
 }
 
-/// A TCP port that work on the Agent listens on, which port forwarding can reach.
+/// A TCP port listening on the Agent, which port forwarding can reach.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Listening {
     pub port: u16,
     /// The address it listens on, such as `127.0.0.1`, `::1`, or `0.0.0.0` for every one.
     pub address: String,
-    /// The program listening, such as `node`, or the container's name for Docker.
+    /// The program listening, such as `node`, or the container's name for Docker. Empty
+    /// for another account's program, whose name the Agent's account cannot see.
     pub program: String,
-    /// The job it belongs to, or `None` for a port a Docker container publishes.
-    pub job: Option<String>,
+    pub from: Source,
+}
+
+/// Who opened a port on the Agent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Source {
+    /// An Ally run or session, by job ID.
+    Job(String),
+    /// A port a Docker container publishes.
+    Docker,
+    /// A program on the Agent's account that Ally did not start.
+    Outside,
+    /// Another account or the system, such as sshd.
+    OtherAccount,
+}
+
+impl Source {
+    /// `run` and `attach` forward Ally's own work and Docker by themselves. Anything else
+    /// opens only on request with `ally forward`, so a stranger's services stay put.
+    pub fn forwarded_automatically(&self) -> bool {
+        matches!(self, Source::Job(_) | Source::Docker)
+    }
 }
 
 /// One project copy on the Agent, as `ally projects` lists it.
@@ -381,6 +403,14 @@ struct VersionOnly {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_allys_own_work_and_docker_forward_by_themselves() {
+        assert!(Source::Job("ab12".to_string()).forwarded_automatically());
+        assert!(Source::Docker.forwarded_automatically());
+        assert!(!Source::Outside.forwarded_automatically());
+        assert!(!Source::OtherAccount.forwarded_automatically());
+    }
 
     #[tokio::test]
     async fn frames_round_trip_and_enforce_version_and_size() {

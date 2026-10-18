@@ -4,6 +4,7 @@ use crate::route::{self, Route};
 use crate::tunnel;
 use ally_core::config;
 use ally_core::presentation::Style;
+use ally_core::source;
 use anyhow::Context;
 use shell_words::join;
 use std::path::PathBuf;
@@ -24,7 +25,34 @@ const SSH_OPTIONS: &[&str] = &[
     "LogLevel=ERROR",
 ];
 
-/// How long a call through the shared iroh connection may take before the connection is
+/// How long a shared connection outlives its last ssh call. Long enough to carry one
+/// command's control, sync, and run calls, short enough that an Agent that went away is
+/// noticed on the next command rather than minutes later.
+const SHARED_FOR_SECONDS: u32 = 30;
+
+/// Where ssh keeps the connection it shares between calls, so one command pays for the
+/// connection once and ports can be forwarded through it while it runs. Kept in a private
+/// folder and named by `route`, so each Agent and each way of reaching it gets its own.
+/// `None` when no folder fits or none can be made private, which only means no sharing.
+fn shared_socket(route: &str) -> Option<PathBuf> {
+    let user = std::env::var("USER").unwrap_or_else(|_| "user".to_string());
+    let name = format!("{}.sock", &source::digest(route.as_bytes())[..12]);
+    [std::env::temp_dir(), PathBuf::from("/tmp")]
+        .into_iter()
+        .map(|base| base.join(format!("ally-{user}")))
+        .find(|dir| {
+            dir.join(&name).as_os_str().len() + SOCKET_SUFFIX < SOCKET_LIMIT
+                && ally_core::storage::private_dir(dir).is_ok()
+        })
+        .map(|dir| dir.join(name))
+}
+
+/// The longest Unix socket path macOS accepts, and what ssh appends to the name while it
+/// creates the socket.
+const SOCKET_LIMIT: usize = 104;
+const SOCKET_SUFFIX: usize = 17;
+
+/// How long a call through the shared connection may take before the connection is
 /// treated as dead. A live one answers in well under a second.
 const SHARE_CHECK: Duration = Duration::from_secs(3);
 
@@ -67,7 +95,7 @@ pub struct RemoteCommand {
     pub host_key_alias: Option<String>,
     /// How ssh reaches the Agent when no address answers directly.
     pub proxy: Option<String>,
-    /// The socket ssh shares one connection through across calls, used over iroh.
+    /// The socket ssh shares one connection through across calls.
     pub shared: Option<PathBuf>,
     /// Whether to ask for a terminal on the Agent. See `wants_terminal`.
     pub tty: bool,
@@ -85,18 +113,18 @@ impl RemoteCommand {
     /// Everything ssh needs comes from the config, so nobody has to keep an entry in
     /// `~/.ssh/config` in step with this.
     pub fn to(agent: &config::Agent, program: String, args: Vec<String>) -> RemoteCommand {
-        let (host, proxy, shared) = match route::resolve(agent) {
-            Route::Direct { host, .. } => (host, None, None),
+        let (host, proxy, through) = match route::resolve(agent) {
+            Route::Direct { host, .. } => (host.clone(), None, host),
             Route::Iroh { key } => (
                 agent.host.clone(),
                 Some(tunnel::proxy_command(&key)),
-                tunnel::shared_socket(&key),
+                format!("iroh {key}"),
             ),
         };
         let command = RemoteCommand {
             host,
             proxy,
-            shared,
+            shared: shared_socket(&share_route(&agent.user, &through, agent.port)),
             user: Some(agent.user.clone()),
             port: agent.port,
             identity_file: agent.identity_file.clone(),
@@ -114,8 +142,9 @@ impl RemoteCommand {
         command
     }
 
-    /// A shared iroh connection to an Agent that crashed stays open until iroh gives up on
-    /// it, about 30 seconds, and every call through it waits that long. So before the first
+    /// A shared connection to an Agent that crashed stays open until ssh or iroh gives up
+    /// on it, which takes from 30 seconds to a few minutes, and every call through it waits
+    /// that long. So before the first
     /// reuse, one quick call goes through it, and a connection that does not answer is
     /// closed so ssh opens a new one. The rsync helper skips this, since its parent checked.
     fn drop_stale_share(&self) {
@@ -226,7 +255,7 @@ impl RemoteCommand {
             argv.push("-o".to_string());
             argv.push(format!("ControlPath=\"{}\"", socket.display()));
             argv.push("-o".to_string());
-            argv.push(format!("ControlPersist={}", tunnel::SHARED_FOR_SECONDS));
+            argv.push(format!("ControlPersist={SHARED_FOR_SECONDS}"));
         }
 
         if let Some(alias) = &self.host_key_alias {
@@ -320,6 +349,15 @@ impl RemoteCommand {
         }
         let status = child.wait().await.context("Waiting for ssh failed")?;
         ended(status.code().unwrap_or(EXIT_SIGNALLED), &log)
+    }
+}
+
+/// What names a shared connection: who logs in, through which address or iroh key, and on
+/// which port.
+fn share_route(user: &str, through: &str, port: Option<u16>) -> String {
+    match port {
+        Some(port) => format!("{user}@{through}:{port}"),
+        None => format!("{user}@{through}"),
     }
 }
 
@@ -730,6 +768,47 @@ mod tests {
             "{argv:?}"
         );
         assert!(argv.contains(&"ControlPersist=30".to_string()), "{argv:?}");
+    }
+
+    /// Unix sockets fail to bind past roughly 104 bytes of path on macOS.
+    #[test]
+    fn the_shared_socket_path_is_short_and_private() {
+        let path = shared_socket(&share_route("me", "iroh abcdef", None)).unwrap();
+
+        assert!(
+            path.as_os_str().len() + SOCKET_SUFFIX < SOCKET_LIMIT,
+            "{}",
+            path.display()
+        );
+        let mode = std::fs::metadata(path.parent().unwrap())
+            .unwrap()
+            .permissions();
+        assert_eq!(
+            std::os::unix::fs::PermissionsExt::mode(&mode) & 0o777,
+            0o700
+        );
+    }
+
+    /// A connection opened over one address must never carry calls meant for another, or
+    /// a run would say "via tailnet" while its bytes take the local network.
+    #[test]
+    fn each_account_address_and_port_gets_its_own_shared_connection() {
+        let routes = [
+            share_route("ado", "10.0.0.193", None),
+            share_route("ado", "100.67.90.119", None),
+            share_route("ado", "iroh abcdef", None),
+            share_route("other", "10.0.0.193", None),
+            share_route("ado", "10.0.0.193", Some(2222)),
+        ];
+        let sockets: std::collections::HashSet<_> = routes
+            .iter()
+            .map(|route| shared_socket(route).unwrap())
+            .collect();
+        assert_eq!(sockets.len(), routes.len());
+        assert_eq!(
+            shared_socket(&routes[0]),
+            shared_socket(&share_route("ado", "10.0.0.193", None))
+        );
     }
 
     #[test]

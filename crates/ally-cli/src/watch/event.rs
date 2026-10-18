@@ -3,10 +3,12 @@
 //! decision to notify stays in Rust.
 
 use crate::commands::health::{LOAD, Limits, MEMORY, TEMPERATURE};
+use ally_core::control::{Job, Listening, Source};
 use ally_core::presentation::Tone;
 use ally_core::protocol::Health;
 use ally_core::telemetry::DISK_WARNING_MIB;
 use serde::Serialize;
+use std::collections::HashMap;
 
 /// Raised whenever a field changes meaning or disappears, so the app can ask for an update
 /// rather than draw something wrong.
@@ -42,6 +44,17 @@ pub struct Status {
     pub workspace: Option<Space>,
     pub gpus: Vec<Gpu>,
     pub gpu_problem: Option<String>,
+    /// Agent ports an Ally command forwards to this machine right now.
+    pub ports: Vec<Port>,
+}
+
+/// A forwarded port, which the panel opens in the browser.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Port {
+    /// Where it opens on this machine, as in `localhost:5173`.
+    pub local: u16,
+    /// Who opened it on the Agent, such as `node · app` or `Docker db`.
+    pub owner: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -120,6 +133,9 @@ pub struct Notice {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subtitle: Option<String>,
     pub body: String,
+    /// An address a click on the notification opens.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub open: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -128,13 +144,14 @@ pub enum NoticeKind {
     JobFinished,
     JobFailed,
     JobInterrupted,
+    ServerReady,
     Unreachable,
     Back,
     Resource,
 }
 
 impl Status {
-    pub fn online(agent: &str, path: &str, health: &Health) -> Status {
+    pub fn online(agent: &str, path: &str, health: &Health, ports: Vec<Port>) -> Status {
         Status {
             agent: agent.to_string(),
             online: true,
@@ -148,6 +165,7 @@ impl Status {
             )),
             gpus: health.gpus.iter().map(gpu).collect(),
             gpu_problem: health.gpu_problem.clone(),
+            ports,
         }
     }
 
@@ -163,8 +181,34 @@ impl Status {
             workspace: None,
             gpus: Vec::new(),
             gpu_problem: None,
+            ports: Vec::new(),
         }
     }
+}
+
+/// The forwarded ports among `listening`, where `here` maps an Agent port to the one it
+/// opens at on this machine, each named by who opened it.
+pub fn ports(listening: &[Listening], jobs: &[Job], here: &HashMap<u16, u16>) -> Vec<Port> {
+    listening
+        .iter()
+        .filter_map(|port| {
+            let local = *here.get(&port.port)?;
+            let owner = match &port.from {
+                Source::Job(id) => {
+                    let project = jobs
+                        .iter()
+                        .find(|job| job.id == *id)
+                        .and_then(|job| job.project_name.as_deref())
+                        .unwrap_or("home");
+                    format!("{} · {project}", port.program)
+                }
+                Source::Docker => format!("Docker {}", port.program),
+                Source::Outside => port.program.clone(),
+                Source::OtherAccount => "other account".to_string(),
+            };
+            Some(Port { local, owner })
+        })
+        .collect()
 }
 
 /// Turn a connection failure into what it means and what to do. The messages matched here
@@ -271,7 +315,52 @@ fn gpu(gpu: &ally_core::protocol::GpuHealth) -> Gpu {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ally_core::control::{JobKind, JobState};
     use ally_core::protocol::GpuHealth;
+
+    #[test]
+    fn the_panel_lists_only_forwarded_ports_named_by_who_opened_them() {
+        let port = |number, program: &str, from| Listening {
+            port: number,
+            address: "127.0.0.1".to_string(),
+            program: program.to_string(),
+            from,
+        };
+        let job = Job {
+            id: "ab12".to_string(),
+            kind: JobKind::Session,
+            project: Some("p".to_string()),
+            project_name: Some("app".to_string()),
+            command: "Shell session".to_string(),
+            state: JobState::Running,
+            started: 0,
+            ended: None,
+            exit_code: None,
+            pid: None,
+            process_start: None,
+            boot: 0,
+            stop_requested: false,
+        };
+        let listening = [
+            port(22, "", Source::OtherAccount),
+            port(5173, "node", Source::Job("ab12".to_string())),
+            port(5432, "db", Source::Docker),
+            port(8790, "python", Source::Outside),
+        ];
+        let here = HashMap::from([(5173, 5174), (5432, 5432), (8790, 8790)]);
+        let owners: Vec<(u16, String)> = ports(&listening, &[job], &here)
+            .into_iter()
+            .map(|port| (port.local, port.owner))
+            .collect();
+        assert_eq!(
+            owners,
+            [
+                (5174, "node · app".to_string()),
+                (5432, "Docker db".to_string()),
+                (8790, "python".to_string()),
+            ]
+        );
+    }
 
     fn health() -> Health {
         Health {
@@ -294,7 +383,11 @@ mod tests {
 
     #[test]
     fn a_status_line_carries_values_and_levels() {
-        let event = Event::Status(Status::online("archbox", "tailnet", &health()));
+        let ports = vec![Port {
+            local: 5174,
+            owner: "node · app".to_string(),
+        }];
+        let event = Event::Status(Status::online("archbox", "tailnet", &health(), ports));
         let line = serde_json::to_value(Line {
             version: VERSION,
             event: &event,
@@ -307,6 +400,8 @@ mod tests {
         assert_eq!(line["cpu"]["level"], "good");
         assert_eq!(line["memory"]["level"], "high");
         assert_eq!(line["workspace"]["free_mib"], 1024);
+        assert_eq!(line["ports"][0]["local"], 5174);
+        assert_eq!(line["ports"][0]["owner"], "node · app");
         assert_eq!(line["workspace"]["level"], "high");
         assert_eq!(line["gpus"][0]["utilization"]["level"], "warning");
         assert_eq!(line["gpus"][0]["temperature_level"], "good");
@@ -320,7 +415,7 @@ mod tests {
         health.memory_total_mib = 0;
         health.workspace_free_mib = None;
         health.gpus[0].vram_free_mib = Some(99_999);
-        let status = Status::online("archbox", "iroh", &health);
+        let status = Status::online("archbox", "iroh", &health, Vec::new());
         assert!(status.cpu.is_none());
         assert!(status.memory.is_none());
         assert_eq!(status.workspace.unwrap().free_mib, 500_000);
@@ -404,6 +499,7 @@ mod tests {
             title: "t".to_string(),
             subtitle: None,
             body: "b".to_string(),
+            open: None,
         });
         let text = serde_json::to_string(&Line {
             version: VERSION,

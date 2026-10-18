@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Each resource keeps its own color and icon, so the four sections read apart at a glance.
 enum Metric {
-    case cpu, ram, gpu, workspace
+    case cpu, ram, gpu, workspace, ports
 
     var label: String {
         switch self {
@@ -10,6 +10,7 @@ enum Metric {
         case .ram: "RAM"
         case .gpu: "GPU"
         case .workspace: "Workspace"
+        case .ports: "Ports"
         }
     }
 
@@ -19,6 +20,7 @@ enum Metric {
         case .ram: "memorychip"
         case .gpu: "square.3.layers.3d"
         case .workspace: "internaldrive"
+        case .ports: "network"
         }
     }
 
@@ -28,6 +30,7 @@ enum Metric {
         case .ram: .purple
         case .gpu: .green
         case .workspace: .teal
+        case .ports: .indigo
         }
     }
 }
@@ -129,6 +132,16 @@ struct PopoverView: View {
                 level: workspace.level
             ) {
                 EmptyView()
+            }
+        }
+        if let ports = status.ports, !ports.isEmpty {
+            MetricSection(metric: .ports, value: "", level: nil) {
+                VStack(spacing: 0) {
+                    ForEach(ports, id: \.local) { port in
+                        PortRow(port: port)
+                    }
+                }
+                .padding(.horizontal, -8)
             }
         }
     }
@@ -243,6 +256,44 @@ struct MenuRow<Trailing: View>: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
+            .contentShape(Rectangle())
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(hovering ? Color.primary.opacity(0.1) : .clear)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+    }
+}
+
+/// A forwarded port that opens in the browser, highlighted under the pointer like a menu item.
+struct PortRow: View {
+    let port: Port
+    @State private var hovering = false
+
+    var body: some View {
+        Button {
+            if let url = port.url {
+                NSWorkspace.shared.open(url)
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Text("localhost:\(port.local)")
+                    .font(valueFont)
+                Text(port.owner)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer()
+                Image(systemName: "arrow.up.right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.leading, 30)
+            .padding(.trailing, 8)
+            .padding(.vertical, 4)
             .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: 6)

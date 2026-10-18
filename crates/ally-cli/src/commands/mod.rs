@@ -1,5 +1,6 @@
 pub mod attach;
 pub mod env;
+pub mod forward;
 pub mod health;
 pub mod link;
 pub mod menubar;

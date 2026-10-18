@@ -12,7 +12,7 @@ use ally_core::storage;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::net::{Ipv6Addr, SocketAddr, TcpListener};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
@@ -178,7 +178,7 @@ async fn forward(agent: Agent, shown: Shown, mut stopped: oneshot::Receiver<()>)
             if forwards.contains_key(&listening.port) || failed.contains(&listening.port) {
                 continue;
             }
-            let Some(claim) = claim(&socket, listening.port) else {
+            let Some(mut claim) = claim(&socket, listening.port) else {
                 continue;
             };
             remote
@@ -192,6 +192,7 @@ async fn forward(agent: Agent, shown: Shown, mut stopped: oneshot::Receiver<()>)
             let spec = local.map(|local| spec(local, &listening));
             match (local, spec) {
                 (Some(local), Some(spec)) if remote.change_forward("forward", &spec).await => {
+                    record(&mut claim, local);
                     news.push(added(&agent.name, &listening, local, style));
                     forwards.insert(
                         listening.port,
@@ -223,10 +224,32 @@ async fn forward(agent: Agent, shown: Shown, mut stopped: oneshot::Receiver<()>)
 /// of a command still running takes the port over. A command killed by a signal leaves its
 /// forward in the shared connection, so holding the claim also means any forward of the
 /// port to the same port here is left over, and is removed first.
-fn claim(socket: &Path, port: u16) -> Option<File> {
-    storage::try_lock(&socket.with_extension(format!("{port}.lock")))
-        .ok()
-        .flatten()
+pub fn claim(socket: &Path, port: u16) -> Option<File> {
+    storage::try_lock(&claim_path(socket, port)).ok().flatten()
+}
+
+fn claim_path(socket: &Path, port: u16) -> PathBuf {
+    socket.with_extension(format!("{port}.lock"))
+}
+
+/// Write where a claimed port opens here into its claim, so other commands can say so.
+pub fn record(claim: &mut File, local: u16) {
+    use std::io::{Seek, Write};
+
+    let _ = claim
+        .set_len(0)
+        .and_then(|()| claim.rewind())
+        .and_then(|()| write!(claim, "{local}"));
+}
+
+/// Where another Ally command forwards an Agent port here, or `None` when no live command
+/// holds its claim.
+pub fn forwarded_at(socket: &Path, port: u16) -> Option<u16> {
+    let path = claim_path(socket, port);
+    if !path.exists() || storage::try_lock(&path).ok()?.is_some() {
+        return None;
+    }
+    std::fs::read_to_string(&path).ok()?.trim().parse().ok()
 }
 
 fn off(reason: &str, style: Style) -> String {
@@ -301,8 +324,8 @@ fn added(agent: &str, listening: &Listening, local: u16, style: Style) -> String
     style.status(text, Tone::Info)
 }
 
-/// ssh's `-L` value. The forward listens on this machine's loopback address only, and
-/// reaches the server at the address it listens on, or at loopback when it listens on all.
+/// ssh's `-L` value for a port the Agent reported. It reaches the server at the address
+/// it listens on, or at loopback when it listens on all.
 fn spec(local: u16, listening: &Listening) -> String {
     let target = match listening.address.as_str() {
         "0.0.0.0" => "127.0.0.1".to_string(),
@@ -310,13 +333,18 @@ fn spec(local: u16, listening: &Listening) -> String {
         address if address.contains(':') => format!("[{address}]"),
         address => address.to_string(),
     };
-    format!("127.0.0.1:{local}:{target}:{}", listening.port)
+    spec_to(local, &target, listening.port)
+}
+
+/// ssh's `-L` value. The forward listens on this machine's loopback address only.
+pub fn spec_to(local: u16, target: &str, port: u16) -> String {
+    format!("127.0.0.1:{local}:{target}:{port}")
 }
 
 /// The port to listen on here: `wanted` when nothing on this machine uses it, else the
 /// next free one nearby, else one the system picks, which also covers ports below 1024
 /// that only an administrator may open.
-fn free_port(wanted: u16) -> Option<u16> {
+pub fn free_port(wanted: u16) -> Option<u16> {
     (wanted..=wanted.saturating_add(NEARBY))
         .filter(|port| *port != 0)
         .find(|port| free(*port))
@@ -395,10 +423,15 @@ mod tests {
     #[test]
     fn only_one_holder_may_claim_a_port_until_it_lets_go() {
         let socket = std::env::temp_dir().join(format!("ally-test-{}.sock", storage::new_id()));
-        let first = claim(&socket, 5173).unwrap();
+        let mut first = claim(&socket, 5173).unwrap();
         assert!(claim(&socket, 5173).is_none());
         assert!(claim(&socket, 3000).is_some());
+        assert_eq!(forwarded_at(&socket, 5173), None);
+        record(&mut first, 5174);
+        assert_eq!(forwarded_at(&socket, 5173), Some(5174));
+        assert_eq!(forwarded_at(&socket, 3000), None);
         drop(first);
+        assert_eq!(forwarded_at(&socket, 5173), None);
         assert!(claim(&socket, 5173).is_some());
         let _ = std::fs::remove_file(socket.with_extension("5173.lock"));
         let _ = std::fs::remove_file(socket.with_extension("3000.lock"));

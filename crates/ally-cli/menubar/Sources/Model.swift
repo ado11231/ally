@@ -45,6 +45,14 @@ struct Problem: Decodable {
     let fix: Fix?
 }
 
+/// An Agent port forwarded to this machine, which a click opens in the browser.
+struct Port: Decodable {
+    let local: Int
+    let owner: String
+
+    var url: URL? { URL(string: "http://localhost:\(local)") }
+}
+
 struct Status: Decodable {
     let agent: String
     let online: Bool
@@ -56,6 +64,8 @@ struct Status: Decodable {
     let workspace: Space?
     let gpus: [Gpu]
     let gpuProblem: String?
+    /// Missing from helpers older than port forwarding.
+    let ports: [Port]?
 }
 
 struct Notice: Decodable {
@@ -63,6 +73,8 @@ struct Notice: Decodable {
     let title: String
     let subtitle: String?
     let body: String
+    /// An address a click on the notification opens.
+    let open: String?
 }
 
 enum Event {

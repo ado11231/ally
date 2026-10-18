@@ -8,11 +8,15 @@ pub mod event;
 pub mod state;
 
 use crate::client::{Control, unexpected};
+use crate::forward;
 use crate::route::{self, Route};
+use crate::ssh::RemoteCommand;
 use ally_core::config::{Agent, Config};
-use ally_core::control::{Request, Response};
-use event::{Event, Line, Status, VERSION};
+use ally_core::control::{Job, Listening, Request, Response};
+use ally_core::protocol::Health;
+use event::{Event, Line, Port, Status, VERSION};
 use state::Watch;
+use std::collections::HashMap;
 use std::convert::Infallible;
 use std::io::{BufRead, Write};
 use std::sync::Arc;
@@ -22,7 +26,8 @@ use tokio::sync::Notify;
 /// How often the popover's numbers move.
 const HEALTH_EVERY: Duration = Duration::from_secs(2);
 
-/// Jobs are checked on every second health tick, which is soon enough for a notification.
+/// Jobs and ports are checked on every second health tick, which is soon enough for a
+/// notification.
 const JOBS_EVERY_TICKS: u32 = 2;
 
 const TICK_LIMIT: Duration = Duration::from_secs(15);
@@ -116,6 +121,8 @@ async fn session(agent: Option<&str>, watch: &mut Option<Watch>) -> anyhow::Resu
         let mut control = Control::connect(target).await?;
         let current = route::resolve(target);
         let path = current.name();
+        let socket = RemoteCommand::to(target, String::new(), Vec::new()).shared;
+        let mut forwarded: Vec<Port> = Vec::new();
         let mut ticks = 0u32;
         loop {
             if ticks > 0
@@ -141,10 +148,26 @@ async fn session(agent: Option<&str>, watch: &mut Option<Watch>) -> anyhow::Resu
             };
             let mut notices = watch.reached(path);
             notices.extend(watch.health(&health));
-            if let Some(jobs) = jobs {
+            if let Some((jobs, ports)) = jobs {
                 notices.extend(watch.jobs(&jobs));
+                let here: HashMap<u16, u16> = match &socket {
+                    Some(socket) => ports
+                        .iter()
+                        .filter_map(|port| {
+                            forward::forwarded_at(socket, port.port).map(|local| (port.port, local))
+                        })
+                        .collect(),
+                    None => HashMap::new(),
+                };
+                notices.extend(watch.servers(&ports, &jobs, &here));
+                forwarded = event::ports(&ports, &jobs, &here);
             }
-            emit(&Event::Status(Status::online(&target.name, path, &health)));
+            emit(&Event::Status(Status::online(
+                &target.name,
+                path,
+                &health,
+                forwarded.clone(),
+            )));
             for notice in notices {
                 emit(&Event::Notice(notice));
             }
@@ -162,13 +185,12 @@ async fn better_route(target: &Agent, current: &Route) -> bool {
         .unwrap_or(false)
 }
 
+/// Health on every tick, and jobs and ports when `jobs` is set. An Agent that cannot list
+/// its ports, such as one without `ss`, still shows everything else.
 async fn poll(
     control: &mut Control,
     jobs: bool,
-) -> anyhow::Result<(
-    ally_core::protocol::Health,
-    Option<Vec<ally_core::control::Job>>,
-)> {
+) -> anyhow::Result<(Health, Option<(Vec<Job>, Vec<Listening>)>)> {
     let Response::Health(health) = control.call(Request::Health).await? else {
         return Err(unexpected());
     };
@@ -178,7 +200,13 @@ async fn poll(
     let Response::Jobs(jobs) = control.call(Request::Jobs { all: true }).await? else {
         return Err(unexpected());
     };
-    Ok((health, Some(jobs)))
+    let ports = match control.call(Request::Ports).await {
+        Ok(Response::Ports(ports)) => ports,
+        Ok(_) => return Err(unexpected()),
+        Err(error) if error.downcast_ref::<crate::client::Refused>().is_some() => Vec::new(),
+        Err(error) => return Err(error),
+    };
+    Ok((health, Some((jobs, ports))))
 }
 
 /// A closed pipe means the app is gone, so there is nobody left to watch for.

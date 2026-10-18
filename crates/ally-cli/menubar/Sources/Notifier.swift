@@ -1,3 +1,4 @@
+import AppKit
 import UserNotifications
 
 /// Posts what the helper decided is worth a notification. The app never decides that itself.
@@ -17,6 +18,9 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         }
         content.body = notice.body
         content.threadIdentifier = notice.kind
+        if let open = notice.open {
+            content.userInfo = ["open": open]
+        }
         if notice.kind != "job_finished" {
             content.sound = .default
         }
@@ -30,5 +34,18 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
         completionHandler([.banner, .sound, .list])
+    }
+
+    /// A click on a notice that names an address, such as a ready server, opens it.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        if let open = response.notification.request.content.userInfo["open"] as? String,
+           let url = URL(string: open) {
+            NSWorkspace.shared.open(url)
+        }
+        completionHandler()
     }
 }

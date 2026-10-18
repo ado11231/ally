@@ -4,11 +4,11 @@
 
 use super::event::{self, Machine, Notice, NoticeKind};
 use crate::commands::health::{MEMORY, TEMPERATURE};
-use ally_core::control::{Job, JobKind, JobState};
+use ally_core::control::{Job, JobKind, JobState, Listening, Source};
 use ally_core::presentation::{capacity, plural};
 use ally_core::protocol::Health;
 use ally_core::telemetry::DISK_WARNING_MIB;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 /// A run shorter than this finished while you were still looking at it.
 const WORTH_NOTICING: u64 = 10;
@@ -36,6 +36,19 @@ pub struct Watch {
     failures: u32,
     unreachable: bool,
     alarms: HashSet<Alarm>,
+    /// Servers in Ally jobs. Empty until the first answer sets the baseline.
+    servers: Option<Servers>,
+}
+
+/// A port a job listens on, by job ID.
+type Server = (String, u16);
+
+#[derive(Default)]
+struct Servers {
+    /// Told already, kept while the job runs, so a restarting dev server is told once.
+    announced: HashSet<Server>,
+    /// Seen once without a forward, given one more look so the notice can say where it opens.
+    waiting: HashSet<Server>,
 }
 
 impl Watch {
@@ -46,6 +59,7 @@ impl Watch {
             failures: 0,
             unreachable: false,
             alarms: HashSet::new(),
+            servers: None,
         }
     }
 
@@ -69,6 +83,7 @@ impl Watch {
             title: format!("{} is back", self.name),
             subtitle: None,
             body: format!("Connected via {path}."),
+            open: None,
         }]
     }
 
@@ -97,6 +112,7 @@ impl Watch {
             title: format!("{} went offline", self.name),
             subtitle: Some(problem.title),
             body,
+            open: None,
         }]
     }
 
@@ -115,6 +131,64 @@ impl Watch {
             .collect();
         let listed: HashSet<&str> = jobs.iter().map(|job| job.id.as_str()).collect();
         known.retain(|id| listed.contains(id.as_str()));
+        notices
+    }
+
+    /// Servers that just started listening in an Ally job, with where each opens here when
+    /// it is forwarded. A port is told once it is forwarded, or on its second look, about 4
+    /// seconds later, so a forward that is on its way can still be named. The first list
+    /// only sets the baseline, so starting the menu bar never announces old servers.
+    pub fn servers(
+        &mut self,
+        ports: &[Listening],
+        jobs: &[Job],
+        here: &HashMap<u16, u16>,
+    ) -> Vec<Notice> {
+        let listening: Vec<(&Listening, &str)> = ports
+            .iter()
+            .filter_map(|port| match &port.from {
+                Source::Job(id) => Some((port, id.as_str())),
+                _ => None,
+            })
+            .collect();
+        let Some(servers) = &mut self.servers else {
+            self.servers = Some(Servers {
+                announced: listening
+                    .iter()
+                    .map(|(port, id)| (id.to_string(), port.port))
+                    .collect(),
+                waiting: HashSet::new(),
+            });
+            return Vec::new();
+        };
+        let mut notices = Vec::new();
+        for (port, id) in &listening {
+            let server = (id.to_string(), port.port);
+            if servers.announced.contains(&server) {
+                continue;
+            }
+            let local = here.get(&port.port).copied();
+            if local.is_none() && servers.waiting.insert(server.clone()) {
+                continue;
+            }
+            servers.waiting.remove(&server);
+            servers.announced.insert(server);
+            let job = jobs.iter().find(|job| job.id == *id);
+            notices.push(ready(&self.name, port, job, local));
+        }
+        let active: HashSet<&str> = jobs
+            .iter()
+            .filter(|job| job.state.active())
+            .map(|job| job.id.as_str())
+            .collect();
+        servers
+            .announced
+            .retain(|(id, _)| active.contains(id.as_str()));
+        servers.waiting.retain(|(id, number)| {
+            listening
+                .iter()
+                .any(|(port, job)| job == id && port.port == *number)
+        });
         notices
     }
 
@@ -186,6 +260,7 @@ fn resource(title: String, body: String) -> Notice {
         title,
         subtitle: None,
         body,
+        open: None,
     }
 }
 
@@ -235,7 +310,39 @@ fn notice(name: &str, job: &Job) -> Option<Notice> {
         title,
         subtitle: Some(what),
         body,
+        open: None,
     })
+}
+
+/// A server that is ready: what started it, and where to open it. A click opens a forwarded
+/// one, and one that is not forwarded says how to forward it.
+fn ready(name: &str, port: &Listening, job: Option<&Job>, local: Option<u16>) -> Notice {
+    let what = match job {
+        Some(job) if job.kind == JobKind::Run => short(&job.command),
+        _ => port.program.clone(),
+    };
+    let place = job
+        .and_then(|job| job.project_name.as_ref())
+        .map(|project| format!(" · {project}"))
+        .unwrap_or_default();
+    let number = port.port;
+    let (body, open) = match local {
+        Some(local) => (
+            format!("Open localhost:{local}"),
+            Some(format!("http://localhost:{local}")),
+        ),
+        None => (
+            format!("Listening on {name}:{number}. Run ally forward {number} to open it here."),
+            None,
+        ),
+    };
+    Notice {
+        kind: NoticeKind::ServerReady,
+        title: format!("Server ready on {name}"),
+        subtitle: Some(format!("{what}{place}")),
+        body,
+        open,
+    }
 }
 
 /// `12 seconds`, `3 minutes`, or `1 hour 5 minutes`, as a sentence would say it.
@@ -314,6 +421,74 @@ mod tests {
     }
 
     const PLENTY: u64 = 100_000;
+
+    fn port(number: u16, program: &str, from: Source) -> Listening {
+        Listening {
+            port: number,
+            address: "127.0.0.1".to_string(),
+            program: program.to_string(),
+            from,
+        }
+    }
+
+    fn running(id: &str) -> Job {
+        job(id, JobKind::Run, JobState::Running, 0)
+    }
+
+    #[test]
+    fn a_new_server_is_told_once_with_the_address_to_open() {
+        let mut watch = Watch::new("archbox");
+        let jobs = [running("old"), running("new")];
+        let old = [port(3000, "node", Source::Job("old".to_string()))];
+        assert!(watch.servers(&old, &jobs, &HashMap::new()).is_empty());
+        let both = [
+            port(3000, "node", Source::Job("old".to_string())),
+            port(8765, "python", Source::Job("new".to_string())),
+            port(5432, "db", Source::Docker),
+        ];
+        let here = HashMap::from([(8765, 8766)]);
+        let notices = watch.servers(&both, &jobs, &here);
+        assert_eq!(
+            notices,
+            [Notice {
+                kind: NoticeKind::ServerReady,
+                title: "Server ready on archbox".to_string(),
+                subtitle: Some("cargo build --release · app".to_string()),
+                body: "Open localhost:8766".to_string(),
+                open: Some("http://localhost:8766".to_string()),
+            }]
+        );
+        assert!(watch.servers(&both, &jobs, &here).is_empty());
+    }
+
+    /// A forward usually follows within seconds, so one look is not enough to give up on it.
+    #[test]
+    fn a_server_not_forwarded_waits_one_look_then_says_how_to_forward_it() {
+        let mut watch = Watch::new("archbox");
+        let jobs = [running("a")];
+        watch.servers(&[], &jobs, &HashMap::new());
+        let ports = [port(5173, "node", Source::Job("a".to_string()))];
+        assert!(watch.servers(&ports, &jobs, &HashMap::new()).is_empty());
+        let notices = watch.servers(&ports, &jobs, &HashMap::new());
+        assert_eq!(
+            notices[0].body,
+            "Listening on archbox:5173. Run ally forward 5173 to open it here."
+        );
+        assert_eq!(notices[0].open, None);
+    }
+
+    /// A dev server that restarts closes and reopens its port, which is not news.
+    #[test]
+    fn a_restarting_server_is_not_told_again_while_its_job_runs() {
+        let mut watch = Watch::new("archbox");
+        let jobs = [running("a")];
+        let ports = [port(5173, "node", Source::Job("a".to_string()))];
+        let here = HashMap::from([(5173, 5173)]);
+        watch.servers(&[], &jobs, &here);
+        assert_eq!(watch.servers(&ports, &jobs, &here).len(), 1);
+        assert!(watch.servers(&[], &jobs, &here).is_empty());
+        assert!(watch.servers(&ports, &jobs, &here).is_empty());
+    }
 
     #[test]
     fn the_first_list_sets_a_baseline() {

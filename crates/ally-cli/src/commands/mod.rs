@@ -4,6 +4,7 @@ pub mod forward;
 pub mod health;
 pub mod link;
 pub mod menubar;
+pub mod ports;
 pub mod projects;
 pub mod ps;
 pub mod run;

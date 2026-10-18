@@ -2,6 +2,7 @@
 //! current project's copy, or in the Agent's home folder when there is no project.
 
 use crate::client::{self, Refused, unexpected};
+use crate::forward::{Forwarding, Shown};
 use crate::project::{self, Local};
 use crate::route;
 use crate::ssh::{self, RemoteCommand};
@@ -54,6 +55,15 @@ pub async fn attach(
         &place,
         style.colored(),
     );
+    let forwarding = Forwarding::start(
+        target,
+        Shown::Session {
+            tmux: session.tmux.clone(),
+            socket: session.socket.clone(),
+            id: session.job.id.clone(),
+            label: label.clone(),
+        },
+    );
     let mut remote = RemoteCommand::to(
         target,
         session.tmux,
@@ -67,6 +77,7 @@ pub async fn attach(
         presentation::row("Return", "ally attach").trim_end()
     );
     let code = super::run::interact(target, &remote, lost).await?;
+    forwarding.stop().await;
     if pulls_after(code)
         && let Err(error) = after_leaving(target, local.as_ref(), &session.job.id).await
     {

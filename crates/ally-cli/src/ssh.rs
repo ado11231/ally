@@ -167,7 +167,7 @@ impl RemoteCommand {
             return;
         }
         let _ = std::process::Command::new("ssh")
-            .args(self.share_exit_args())
+            .args(self.master_args(&["exit"]))
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -190,12 +190,28 @@ impl RemoteCommand {
         argv
     }
 
-    /// Ask the process holding the shared connection to end it.
-    fn share_exit_args(&self) -> Vec<String> {
+    /// Ask the process holding the shared connection to do `request`, such as `exit`.
+    fn master_args(&self, request: &[&str]) -> Vec<String> {
         let mut argv = self.connection_args();
         let destination = argv.pop().unwrap_or_default();
-        argv.extend(["-O".to_string(), "exit".to_string(), destination]);
+        argv.push("-O".to_string());
+        argv.extend(request.iter().map(|part| part.to_string()));
+        argv.push(destination);
         argv
+    }
+
+    /// Add (`forward`) or remove (`cancel`) a port forward on the shared connection while it
+    /// runs, where `spec` is ssh's `-L` value. Returns whether ssh did it.
+    pub async fn change_forward(&self, operation: &str, spec: &str) -> bool {
+        Command::new("ssh")
+            .args(self.master_args(&[operation, "-L", spec]))
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .kill_on_drop(true)
+            .status()
+            .await
+            .is_ok_and(|status| status.success())
     }
 
     /// Who to log in as and where, in the form ssh expects.
@@ -727,10 +743,21 @@ mod tests {
         assert_eq!(&check[..4], ["-o", "ControlMaster=no", "-W", "127.0.0.1:9"]);
         assert!(!check.contains(&"-t".to_string()), "{check:?}");
         assert_eq!(check.last(), Some(&command.destination()));
-        let exit = command.share_exit_args();
+        let exit = command.master_args(&["exit"]);
         assert_eq!(
             exit[exit.len() - 3..],
             ["-O".to_string(), "exit".to_string(), command.destination()]
+        );
+        let forward = command.master_args(&["forward", "-L", "127.0.0.1:3001:127.0.0.1:3000"]);
+        assert_eq!(
+            forward[forward.len() - 5..],
+            [
+                "-O",
+                "forward",
+                "-L",
+                "127.0.0.1:3001:127.0.0.1:3000",
+                &command.destination()
+            ]
         );
     }
 

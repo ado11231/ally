@@ -103,6 +103,9 @@
 | `! Did not bring back edits: NOTES.md changed on both this machine and archbox` | The same files changed in both places. Both versions are kept. | Follow the conflict row under [Syncing Files](#syncing-files), then `ally sync --pull`. |
 | `RAM is 92% used` or `Only 1.2 GiB free on the Agent workspace disk` | A warning. The run still starts, but may be slow or fail. | Free memory or disk on the Agent. |
 | `No swap configured` | No swap, the disk space used when RAM runs out. A large job may be stopped when memory fills. | Add swap on the Agent. |
+| `! Port forwarding is off: ss is not installed on the Agent` | A Linux Agent finds ports with `ss`. Commands still run. | Run the install command it shows, then run again. |
+| `! Port forwarding is off: no private folder could hold the shared ssh connection` | Forwarding needs a private folder in the temporary folder. | Check that the temporary folder can be written. |
+| `! Could not forward archbox:3000 to this machine` | ssh refused the forward. | Restart the server on the Agent to try again. |
 | `Live views need an interactive terminal` | `ally health --watch` redraws the screen. | Run it in a terminal, or use `ally health` to pipe the output. |
 
 ## Syncing Files

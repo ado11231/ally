@@ -1,6 +1,7 @@
 //! `ally run <cmd>`: sync the project, then run a command in the Agent copy.
 
 use crate::client::{self, Refused};
+use crate::forward::{Forwarding, Shown};
 use crate::project::{self, Local};
 use crate::route;
 use crate::ssh::{Disconnected, RemoteCommand};
@@ -62,7 +63,9 @@ pub async fn run(agent: Option<String>, cmd: Vec<String>) -> anyhow::Result<i32>
     );
 
     let remote = RemoteCommand::to(target, target.program().to_string(), args);
+    let forwarding = Forwarding::start(target, Shown::Terminal { raw: remote.tty });
     let code = interact(target, &remote, lost_connection(&target.name)).await?;
+    forwarding.stop().await;
     eprintln!("\n{}", finished(code, started.elapsed(), style));
     Ok(code)
 }

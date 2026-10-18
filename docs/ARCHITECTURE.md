@@ -322,7 +322,7 @@ ally/
 | `build.rs` | Puts the build's commit into `--version`, using `git` when present. | `git` | `lib` |
 | `client.rs` | The pairing connection, and the `Control` connection over `ssh`. | `route`, `ssh`, `tunnel` | `transfer`, `watch`, most commands |
 | `route.rs` | Chooses the path: local network, tailnet, or iroh. Prints the `▶` location line. | none | `client`, `ssh`, `transfer`, `watch`, `run`, `attach`, `tools` |
-| `ssh.rs` | Builds every `ssh` call, with safe quoting and a shared connection. | `route`, `tunnel` | `client`, `run`, `attach`, `unlink` |
+| `ssh.rs` | Builds every `ssh` call, with safe quoting and a connection shared on every route. | `route`, `tunnel`, `source` | `client`, `run`, `attach`, `unlink` |
 | `tunnel.rs` | `ally internal-tunnel`: the Client's end of an iroh connection. | `project` | `client`, `ssh` |
 | `transfer.rs` | Performs a sync: lists files, plans, calls `rsync`, and reports. | `client`, `project`, `route` | `run`, `attach`, `sync` |
 | `project.rs` | Finds the current project and its ID on each Agent. | none | `transfer`, `tunnel`, most commands |

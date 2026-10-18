@@ -5,6 +5,7 @@ pub mod awake;
 pub mod boot;
 pub mod clients;
 pub mod jobs;
+pub mod ports;
 pub mod projects;
 pub mod runner;
 pub mod service;

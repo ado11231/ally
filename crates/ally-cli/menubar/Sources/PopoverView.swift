@@ -155,25 +155,27 @@ struct PopoverView: View {
             valueIcon: gpu.temperatureC == nil ? nil : "thermometer.medium",
             level: gpu.temperatureLevel
         ) {
-            if let usage = gpu.utilization {
-                PartRow(
-                    icon: "gauge.with.dots.needle.33percent",
-                    label: "Usage",
-                    value: String(format: "%.0f%%", usage.percent),
-                    level: usage.level,
-                    fraction: usage.percent / 100,
-                    color: Metric.gpu.color
-                )
-            }
-            if let vram = gpu.vram {
-                PartRow(
-                    icon: "square.stack.3d.down.right",
-                    label: "VRAM",
-                    value: "\(capacity(vram.usedMib)) / \(capacity(vram.totalMib))",
-                    level: vram.level,
-                    fraction: vram.fraction,
-                    color: vramColor
-                )
+            VStack(alignment: .leading, spacing: 12) {
+                if let usage = gpu.utilization {
+                    PartRow(
+                        icon: "gauge.with.dots.needle.33percent",
+                        label: "Usage",
+                        value: String(format: "%.0f%%", usage.percent),
+                        level: usage.level,
+                        fraction: usage.percent / 100,
+                        color: Metric.gpu.color
+                    )
+                }
+                if let vram = gpu.vram {
+                    PartRow(
+                        icon: "square.stack.3d.down.right",
+                        label: "VRAM",
+                        value: "\(capacity(vram.usedMib)) / \(capacity(vram.totalMib))",
+                        level: vram.level,
+                        fraction: vram.fraction,
+                        color: vramColor
+                    )
+                }
             }
         }
     }
@@ -278,20 +280,27 @@ struct PortRow: View {
                 NSWorkspace.shared.open(url)
             }
         } label: {
-            HStack(spacing: 8) {
-                Text("localhost:\(port.local)")
-                    .font(valueFont)
+            HStack(spacing: 6) {
+                Image(systemName: "chevron.left.forwardslash.chevron.right")
+                    .font(.caption2)
+                    .foregroundStyle(Metric.ports.color)
+                    .frame(width: 16)
                 Text(port.owner)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
-                Spacer()
-                Image(systemName: "arrow.up.right")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                Spacer(minLength: 8)
+                HStack(spacing: 3) {
+                    Text(verbatim: "localhost:\(port.local)")
+                        .font(valueFont)
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 9, weight: .semibold))
+                }
+                .foregroundStyle(Metric.ports.color)
+                .layoutPriority(1)
             }
-            .padding(.leading, 30)
+            .padding(.leading, 8)
             .padding(.trailing, 8)
             .padding(.vertical, 4)
             .contentShape(Rectangle())

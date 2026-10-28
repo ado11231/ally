@@ -95,7 +95,6 @@
 * Linking needs a shared network or tailnet.
 * The back online notification and resource warnings have not been seen on real machines.
 * `ally stop` on a `docker run` whose container ignores the stop signal ends the run but leaves the container running. Stop it with `docker stop <name>` ([#144](https://github.com/ado11231/ally/issues/144)).
-* `ally ports` cuts long container names short ([#145](https://github.com/ado11231/ally/issues/145)).
 * The tools step on an account without `sudo` is checked only by unit tests.
 * Installing Ollama and OpenCode through the tools step is checked only by unit tests. On archbox, the step found both already installed.
 

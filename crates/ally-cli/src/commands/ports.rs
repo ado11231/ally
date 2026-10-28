@@ -10,6 +10,11 @@ use ally_core::presentation::{Style, Tone};
 use ally_core::storage;
 use std::collections::HashMap;
 
+/// The PROGRAM column grows to fit names such as Docker's `optimistic_zhukovsky`, between
+/// these widths. A longer name ends in `…`, so a cut is never mistaken for the whole name.
+const PROGRAM_MIN: usize = 12;
+const PROGRAM_MAX: usize = 24;
+
 pub async fn ports(agent: Option<String>) -> anyhow::Result<i32> {
     let config = Config::load()?;
     let target = config.resolve(agent.as_deref())?;
@@ -58,8 +63,14 @@ fn render(
         ));
         return output;
     }
+    let width = ports
+        .iter()
+        .map(|listening| listening.program.chars().count())
+        .max()
+        .unwrap_or(0)
+        .clamp(PROGRAM_MIN, PROGRAM_MAX);
     let header = format!(
-        "{:<6} {:<12} {:<14} {:<16} {}",
+        "{:<6} {:<width$} {:<14} {:<16} {}",
         "PORT", "PROGRAM", "FROM", "PROJECT", "HERE"
     );
     output.push_str(&format!("  {}\n", style.dim(header)));
@@ -73,9 +84,13 @@ fn render(
         })
         .collect();
     for listening in ports {
-        let program = match listening.program.is_empty() {
-            true => "-".to_string(),
-            false => listening.program.chars().take(12).collect(),
+        let program = match listening.program.chars().count() {
+            0 => "-".to_string(),
+            length if length > width => {
+                let kept: String = listening.program.chars().take(width - 1).collect();
+                format!("{kept}…")
+            }
+            _ => listening.program.clone(),
         };
         let (from, project) = match &listening.from {
             Source::Job(id) => (
@@ -87,7 +102,7 @@ fn render(
             Source::OtherAccount => ("other account".to_string(), ""),
         };
         let project: String = project.chars().take(16).collect();
-        let row = format!("{:<6} {program:<12} ", listening.port);
+        let row = format!("{:<6} {program:<width$} ", listening.port);
         let from = format!("{from:<14}");
         let project = format!(" {project:<16} ");
         let forwarded = here.get(&listening.port);
@@ -196,6 +211,26 @@ Ports on archbox
         assert!(output.contains("\x1b[36mDocker        \x1b[0m"), "{output}");
         assert!(output.contains("\x1b[2mnot forwarded\x1b[0m"), "{output}");
         assert!(output.contains("  \x1b[2m22     -"), "{output}");
+    }
+
+    #[test]
+    fn a_long_program_name_widens_its_column_and_a_longer_one_is_marked_cut() {
+        let ports = [
+            listening(8801, "optimistic_zhukovsky", Source::Docker),
+            listening(5432, "a_compose_project-postgres-1", Source::Docker),
+        ];
+        let here = HashMap::from([(8801, 8801), (5432, 5432)]);
+        let output = render("archbox", &ports, &[], &here, Style::new(false));
+        assert_eq!(
+            output,
+            "\
+Ports on archbox
+
+  PORT   PROGRAM                  FROM           PROJECT          HERE
+  8801   optimistic_zhukovsky     Docker                          localhost:8801
+  5432   a_compose_project-postg… Docker                          localhost:5432
+"
+        );
     }
 
     #[test]

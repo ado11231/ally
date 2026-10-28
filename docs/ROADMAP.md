@@ -73,7 +73,7 @@
 
 | Phase | Work | Issue |
 | --- | --- | --- |
-| 5 | Port forwarding, plus ready and waiting notifications | [#9](https://github.com/ado11231/ally/issues/9) |
+| 5 | A notification when a session waits for input | [#136](https://github.com/ado11231/ally/issues/136) |
 | 6 | Local AI models through Ollama | [#20](https://github.com/ado11231/ally/issues/20) |
 | 6 | Pairing across networks, keeping the code safe through a relay | [#19](https://github.com/ado11231/ally/issues/19) |
 | 6 | Watching several Agents from the menu bar | [#109](https://github.com/ado11231/ally/issues/109) |
@@ -94,7 +94,8 @@
 * `ally.toml` supports only `sync.exclude`.
 * Linking needs a shared network or tailnet.
 * The back online notification and resource warnings have not been seen on real machines.
-* Port forwarding is tested only over the local network, and not with a Docker container running. The menu bar's port list and server ready notification are checked through the helper's output, not yet by looking at the panel ([#9](https://github.com/ado11231/ally/issues/9)).
+* `ally stop` on a `docker run` whose container ignores the stop signal ends the run but leaves the container running. Stop it with `docker stop <name>` ([#144](https://github.com/ado11231/ally/issues/144)).
+* `ally ports` cuts long container names short ([#145](https://github.com/ado11231/ally/issues/145)).
 * The tools step on an account without `sudo` is checked only by unit tests.
 * Installing Ollama and OpenCode through the tools step is checked only by unit tests. On archbox, the step found both already installed.
 
@@ -209,3 +210,14 @@
 7. `ally forward 8790` opened a server Ally did not start. A second `ally forward 8790` was refused with the address, and Ctrl C stopped it.
 8. `ally ports` showed the Ally run with its job and project, the outside server, and sshd and Tailscale as other accounts, with open forwards in green.
 9. With `python -m http.server 8792` started by `ally run`, the menu bar helper sent one `Server ready on archbox` notice with `Open localhost:8792`, and listed `localhost:8792` for the panel.
+
+### Port Forwarding: October 27, 2026, Every Route
+
+1. A container started with `docker run -p 8801:80` through `ally run` answered at `localhost:8801` on the Mac after 3 seconds. `ally ports` showed it as `Docker`.
+2. With the Mac's own Ollama on 11434, archbox's Ollama opened at `localhost:11435` with `Port 11434 is in use here`, and answered with archbox's version.
+3. The menu bar panel listed `localhost:11435`, and a click opened archbox's Ollama in the browser.
+4. On a phone hotspot with Tailscale off, a run went `via iroh`, and its server answered at `localhost` 5 seconds after it started.
+5. On the same hotspot with Tailscale on, a run went `via tailnet`, and its server answered after 5 seconds.
+6. A server started in a session showed in the panel, and its `Server ready on archbox` notice reached Notification Center. Banners showed once Ally's notifications were turned on in System Settings.
+7. Found and fixed: the panel showed port 8830 as `8,830` (#143).
+8. Found: `ally stop` on a `docker run` left the container running, because the container's first process ignored the stop signal and only the `docker` command was killed (#144).

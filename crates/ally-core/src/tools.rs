@@ -1,7 +1,7 @@
 //! The developer tools Ally can set up on the Agent. The Agent reports which it has,
 //! and the Client decides what to offer and shows every command before anything runs.
 
-use crate::preflight::install_command;
+use crate::preflight::{Check, install_command};
 use crate::stack::Stack;
 use crate::telemetry::is_installed;
 use serde::{Deserialize, Serialize};
@@ -242,11 +242,72 @@ pub fn probe_script() -> String {
     format!(
         "{}; for program in {}; do if command -v \"$program\" >/dev/null 2>&1; then echo \"$program\"; fi; done; \
          if command -v npm >/dev/null 2>&1; then if [ -w \"$(npm prefix -g)\" ]; then echo {NPM_WRITABLE}; else echo {NPM_ROOT}; fi; fi; {}; \
-         if [ \"$(id -u)\" = 0 ] || id -Gn | tr ' ' '\\n' | grep -qxE 'wheel|sudo|admin'; then echo {ADMIN}; else echo {NOT_ADMIN}; fi",
+         if [ \"$(id -u)\" = 0 ] || id -Gn | tr ' ' '\\n' | grep -qxE 'wheel|sudo|admin'; then echo {ADMIN}; else echo {NOT_ADMIN}; fi; {}",
         user_path_line(),
         programs.join(" "),
-        statuses.join("; ")
+        statuses.join("; "),
+        ollama_probe()
     )
+}
+
+const OLLAMA_STOPPED: &str = "ollama:stopped";
+const OLLAMA_CPU: &str = "ollama:cpu";
+
+/// Checks that an installed Ollama can serve models on the GPU. `ollama list` fails when its
+/// server is not running. On an NVIDIA Agent, a build with GPU support keeps its CUDA
+/// library in `lib/ollama` beside the folder of the `ollama` program.
+fn ollama_probe() -> String {
+    format!(
+        "if command -v ollama >/dev/null 2>&1; then \
+         ollama list >/dev/null 2>&1 </dev/null || echo {OLLAMA_STOPPED}; \
+         if command -v nvidia-smi >/dev/null 2>&1 && ! find \"$(dirname \"$(dirname \"$(readlink -f \"$(command -v ollama)\")\")\")/lib/ollama\" -name 'libggml-cuda*' 2>/dev/null | grep -q .; then echo {OLLAMA_CPU}; fi; fi"
+    )
+}
+
+/// Why the Agent's Ollama cannot serve models on its GPU yet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OllamaProblem {
+    Stopped,
+    CpuOnly,
+}
+
+/// The problems `probe_script` found with Ollama.
+pub fn ollama_problems(output: &str) -> Vec<OllamaProblem> {
+    let lines: Vec<&str> = output.lines().map(str::trim).collect();
+    [
+        (OLLAMA_STOPPED, OllamaProblem::Stopped),
+        (OLLAMA_CPU, OllamaProblem::CpuOnly),
+    ]
+    .into_iter()
+    .filter(|(line, _)| lines.contains(line))
+    .map(|(_, problem)| problem)
+    .collect()
+}
+
+/// A warning for each problem on the Agent `agent`, with the exact fix for its package manager.
+pub fn ollama_checks(problems: &[OllamaProblem], agent: &str, manager: Option<&str>) -> Vec<Check> {
+    problems
+        .iter()
+        .map(|problem| match (problem, manager) {
+            (OllamaProblem::Stopped, Some("brew")) => Check::warn(
+                format!("Ollama is not running on {agent}"),
+                "brew services start ollama",
+            ),
+            (OllamaProblem::Stopped, _) => Check::warn(
+                format!("Ollama is not running on {agent}"),
+                "sudo systemctl enable --now ollama",
+            ),
+            (OllamaProblem::CpuOnly, Some("pacman")) => Check::warn(
+                format!("Ollama on {agent} runs models on the CPU only, not the GPU"),
+                "sudo pacman -S ollama-cuda, then sudo systemctl restart ollama",
+            ),
+            (OllamaProblem::CpuOnly, _) => Check::warn(
+                format!("Ollama on {agent} runs models on the CPU only, not the GPU"),
+                "curl -fsSL https://ollama.com/install.sh | sudo sh",
+            ),
+        })
+        .collect()
 }
 
 const ADMIN: &str = "admin:yes";
@@ -579,6 +640,48 @@ mod tests {
         assert_eq!(admin("git"), None);
         assert!(needs_admin("sudo pacman -S git"));
         assert!(!needs_admin("npm install -g @openai/codex"));
+    }
+
+    #[test]
+    fn the_probe_reports_a_stopped_or_cpu_only_ollama() {
+        let script = probe_script();
+        assert!(script.contains("ollama list"), "{script}");
+        assert!(script.contains("libggml-cuda"), "{script}");
+        assert_eq!(
+            ollama_problems("ollama\nollama:stopped\nollama:cpu\n"),
+            vec![OllamaProblem::Stopped, OllamaProblem::CpuOnly]
+        );
+        assert!(ollama_problems("ollama\nadmin:yes\n").is_empty());
+        assert!(found("ollama:stopped\n").is_empty());
+    }
+
+    #[test]
+    fn ollama_fixes_fit_the_package_manager() {
+        let fix = |problem, manager| {
+            ollama_checks(&[problem], "archbox", manager)[0]
+                .fix
+                .clone()
+                .unwrap()
+        };
+        assert_eq!(
+            fix(OllamaProblem::Stopped, Some("pacman")),
+            "sudo systemctl enable --now ollama"
+        );
+        assert_eq!(
+            fix(OllamaProblem::Stopped, Some("brew")),
+            "brew services start ollama"
+        );
+        assert_eq!(
+            fix(OllamaProblem::CpuOnly, Some("pacman")),
+            "sudo pacman -S ollama-cuda, then sudo systemctl restart ollama"
+        );
+        assert_eq!(
+            fix(OllamaProblem::CpuOnly, Some("apt")),
+            "curl -fsSL https://ollama.com/install.sh | sudo sh"
+        );
+        let checks = ollama_checks(&[OllamaProblem::Stopped], "archbox", None);
+        assert_eq!(checks[0].label, "Ollama is not running on archbox");
+        assert_eq!(checks[0].state, crate::preflight::State::Warn);
     }
 
     #[test]

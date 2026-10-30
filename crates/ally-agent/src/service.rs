@@ -303,6 +303,7 @@ fn agent_tools(root: &Path) -> anyhow::Result<AgentTools> {
         npm_writable: tools::npm_writable(&output),
         signed_out: tools::signed_out(&output),
         admin: tools::admin(&output),
+        ollama: tools::ollama_problems(&output),
     })
 }
 

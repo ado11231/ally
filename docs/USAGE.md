@@ -97,6 +97,7 @@ ally tools
 
 * Lists every command, then asks once. `sudo` commands run in your terminal so you can type your password.
 * Then signs in to Claude Code and Codex. Accounts are never copied from the Client.
+* Warns when the Agent's Ollama is not running, or on an NVIDIA Agent runs on the CPU only, with the fix.
 * For Codex, open the printed link on the Client. Ally forwards port 1455 for it.
 * Without `sudo`, it installs what it can and lists the rest under "Ask an admin to run".
 * `~/.local/bin`, `~/.cargo/bin`, and `~/.opencode/bin` are on the PATH of everything Ally starts.

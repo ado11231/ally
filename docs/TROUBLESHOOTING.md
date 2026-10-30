@@ -71,6 +71,8 @@
 | `No install command for brew. Install it on the Agent yourself`, or `No package manager found` | Ally only runs install commands it trusts on that Agent. | Install the tool by its own instructions, such as inside `ally attach`. |
 | `Docker is still missing. Check the output above, then run ally tools again` | An install failed, or the tool landed outside the login PATH, `~/.local/bin`, and `~/.cargo/bin`. | Fix the install error, or add the tool's folder to PATH in the Agent's `~/.profile` or `~/.bash_profile`. Then `ally tools` again. |
 | `Sign in to Codex did not finish` | The sign in was cancelled or failed. The tool is still installed. | Run the command in the message inside `ally attach`. For Codex, keep port 1455 free on the Client. |
+| `! Ollama is not running on archbox` | Ollama is installed, but its server is stopped, so no model can run. | Run the fix printed, such as `sudo systemctl enable --now ollama`, or `brew services start ollama` on macOS. |
+| `! Ollama on archbox runs models on the CPU only, not the GPU` | This Ollama build has no CUDA support, such as the plain `ollama` package on Arch Linux. Models run, but slowly. | Run the fix printed, such as `sudo pacman -S ollama-cuda`, then `sudo systemctl restart ollama`. |
 | `permission denied while trying to connect to the Docker daemon socket` | The account is not in the `docker` group, or was added after sessions and the service started. | `sudo usermod -aG docker <user>` if needed, then restart the machine. `ally run` sees it at once, sessions after the restart. |
 
 ## Reaching The Agent

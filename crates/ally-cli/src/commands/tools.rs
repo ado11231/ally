@@ -7,6 +7,7 @@ use crate::route;
 use crate::ssh::{self, RemoteCommand};
 use ally_core::config::{Agent, Config};
 use ally_core::control::{AgentTools, Request, Response};
+use ally_core::preflight;
 use ally_core::presentation::{self, Style, Tone, plural, row};
 use ally_core::step;
 use ally_core::tools::{self, Tool};
@@ -41,6 +42,7 @@ pub async fn offer(target: &Agent) -> anyhow::Result<()> {
     let offered = tools::missing(&here, &before.installed, &stacks, gpu);
     if offered.is_empty() {
         checking.done(format!("{} has every tool this machine uses", target.name));
+        report_ollama(target, &before);
         return offer_sign_in(target, &before, &here, &[], true).await;
     }
     checking.warn(format!(
@@ -48,6 +50,7 @@ pub async fn offer(target: &Agent) -> anyhow::Result<()> {
         target.name,
         plural(offered.len(), "tool")
     ));
+    report_ollama(target, &before);
 
     let manager = before.manager.as_deref();
     let admin = before.admin.unwrap_or(true);
@@ -119,6 +122,9 @@ pub async fn offer(target: &Agent) -> anyhow::Result<()> {
             )),
         }
     }
+    if offered.contains(&Tool::Ollama) {
+        report_ollama(target, &after);
+    }
     if offered.contains(&Tool::Docker) && after.installed.contains(&Tool::Docker) {
         eprintln!(
             "  {}",
@@ -139,6 +145,15 @@ pub async fn offer(target: &Agent) -> anyhow::Result<()> {
         sign_in(target, &after.shell, *tool).await?;
     }
     offer_sign_in(target, &after, &here, &offered, installed.is_empty()).await
+}
+
+/// Warn when the Agent's Ollama cannot serve models on its GPU, with the exact fix.
+fn report_ollama(target: &Agent, agent: &AgentTools) {
+    preflight::report(&tools::ollama_checks(
+        &agent.ollama,
+        &target.name,
+        agent.manager.as_deref(),
+    ));
 }
 
 /// Tools that need `sudo` install with a terminal, so a password can be typed. The rest
@@ -372,6 +387,7 @@ mod tests {
             npm_writable: None,
             signed_out: vec![Tool::ClaudeCode, Tool::Codex],
             admin: None,
+            ollama: Vec::new(),
         };
         assert_eq!(
             waiting_for_sign_in(&agent, &[Tool::Codex], &[]),

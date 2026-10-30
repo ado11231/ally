@@ -419,6 +419,20 @@ mod tests {
         file
     }
 
+    /// Whether a dropped claim frees within a second. A process another test starts at that
+    /// moment holds a copy of the lock until it runs its program, so the claim may outlive
+    /// its holder by a few milliseconds.
+    fn released(socket: &Path, port: u16) -> bool {
+        let deadline = std::time::Instant::now() + Duration::from_secs(1);
+        while forwarded_at(socket, port).is_some() {
+            if std::time::Instant::now() > deadline {
+                return false;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        true
+    }
+
     /// Two commands to one Agent must not both forward a port, and a claim ends with its holder.
     #[test]
     fn only_one_holder_may_claim_a_port_until_it_lets_go() {
@@ -431,7 +445,7 @@ mod tests {
         assert_eq!(forwarded_at(&socket, 5173), Some(5174));
         assert_eq!(forwarded_at(&socket, 3000), None);
         drop(first);
-        assert_eq!(forwarded_at(&socket, 5173), None);
+        assert!(released(&socket, 5173));
         assert!(claim(&socket, 5173).is_some());
         let _ = std::fs::remove_file(socket.with_extension("5173.lock"));
         let _ = std::fs::remove_file(socket.with_extension("3000.lock"));

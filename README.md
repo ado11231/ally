@@ -1,6 +1,6 @@
 <h3 align="center">ally</h3>
 
-<p align="center"><img src="docs/media/ally.png" alt="Ally logo, a small blue pixel art creature" width="72"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/ado11231/ally/master/docs/media/ally.png" alt="Ally logo, a small blue pixel art creature" width="72"></p>
 
 <p align="center">
   <a href="https://github.com/ado11231/ally/actions/workflows/ci.yml"><img src="https://github.com/ado11231/ally/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -10,7 +10,7 @@
 
 <p align="center">run terminal processes and local models on your stronger computer. use your gaming PC or mini computer as a server.</p>
 
-<p align="center"><img src="docs/media/demo.gif" alt="Starting Ally on the powerful machine, linking the laptop, and opening a session" width="830"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/ado11231/ally/master/docs/media/demo.gif" alt="Starting Ally on the powerful machine, linking the laptop, and opening a session" width="830"></p>
 
 ## What It Does
 
@@ -210,10 +210,10 @@ Any command works, such as `npm run dev` or `python main.py`.
 | `ally ps` | Lists running jobs. `ally stop <id>` stops one. |
 | `ally projects` | Lists the projects on the Agent and their size. `clean` frees build output. |
 
-Every command and option is in [USAGE.md](docs/USAGE.md).
+Every command and option is in [USAGE.md](https://github.com/ado11231/ally/blob/master/docs/USAGE.md).
 
 ## Menu Bar
 
 On a Mac, `link` offers a menu bar app showing how busy the Agent is and when a run finishes.
 
-<p align="center"><img src="docs/media/menubar.png" alt="The Ally menu bar panel" width="360"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/ado11231/ally/master/docs/media/menubar.png" alt="The Ally menu bar panel" width="360"></p>

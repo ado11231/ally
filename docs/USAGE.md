@@ -52,7 +52,7 @@ ally start
 | --- | --- |
 | `--name <name>` | Name shown for the Agent. Default is its hostname. |
 | `--port <port>` | Pairing port. Default `7433`, or the next free one. |
-| `--boot` | Start by itself, without asking. |
+| `--boot` | Start by itself, without asking. When it already does, set it up again, which retries a step that failed, such as the sleep rule. |
 | `--remove` | Stop starting by itself, and stop the service. |
 
 ### Start By Itself

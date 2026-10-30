@@ -40,7 +40,7 @@
 
 | Message | Meaning | Fix |
 | --- | --- | --- |
-| `Ally is set to start by itself but is not running` | The service exists but stopped or failed. | Read the logs, then run `ally start --remove` and `ally start --boot`. |
+| `Ally is set to start by itself but is not running` | The service exists but stopped or failed. | Read the logs, then run `ally start --boot`. |
 | `Ally was set up to start at boot but did not start` | The service did not answer within 15 seconds. | Fix what the logs report, then `ally start --boot`. |
 | `systemctl --user enable --now ally.service failed: <reason>`, or the same for `launchctl` | The service manager refused a step. | Fix the reason given, then `ally start --boot`. |
 | `! Ally starts when you log in, not at boot` | Linux refused linger without an admin password. | Run the `sudo loginctl enable-linger <user>` command printed. |

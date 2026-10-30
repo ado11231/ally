@@ -137,18 +137,21 @@ pub async fn start(name: Option<String>, port: u16, at_boot: AtBoot) -> anyhow::
     let root = service::root()?;
     let installed = boot::installed()?;
     if service::running(&root)? {
-        if at_boot == AtBoot::Install && !installed {
-            anyhow::bail!(
-                "Ally is already running for this account. Stop the other ally start, then run ally start --boot again"
-            );
+        if at_boot == AtBoot::Install {
+            if !installed {
+                anyhow::bail!(
+                    "Ally is already running for this account. Stop the other ally start, then run ally start --boot again"
+                );
+            }
+            boot_again(&root).await?;
         }
         return beside(name, port, root).await;
     }
 
     let name = agent_name(name);
-    if installed {
+    if installed && at_boot != AtBoot::Install {
         presentation::warning(format!(
-            "Ally is set to start by itself but is not running. Its file is {}. Run ally start --remove, then ally start --boot",
+            "Ally is set to start by itself but is not running. Its file is {}. Run ally start --boot",
             presentation::home_path(&boot::file()?)
         ));
     } else if wants_boot(&root, &name, at_boot).await? {
@@ -265,6 +268,17 @@ async fn wants_boot(root: &std::path::Path, name: &str, at_boot: AtBoot) -> anyh
     }
     step.done("Ally started");
     Ok(true)
+}
+
+/// `--boot` while the boot service runs: set it up again under its running name, so a step
+/// that failed before, such as linger or the sleep rule, is tried again. The running
+/// service keeps going.
+async fn boot_again(root: &std::path::Path) -> anyhow::Result<()> {
+    let name = service::status(root).await?.name;
+    let user = whoami().context("Could not work out which user is running Ally")?;
+    let plan = boot::plan(root, &name, &user)?;
+    boot::show(&plan);
+    boot::install(&plan)
 }
 
 /// Whether someone is at a terminal to answer a question.

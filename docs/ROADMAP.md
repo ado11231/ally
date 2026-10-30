@@ -2,7 +2,7 @@
 
 * What works, what was tested, and what comes next.
 * A feature is complete only after it ran on real machines.
-* Last updated October 15, 2026.
+* Last updated October 29, 2026.
 
 ## Contents
 
@@ -221,3 +221,10 @@
 6. A server started in a session showed in the panel, and its `Server ready on archbox` notice reached Notification Center. Banners showed once Ally's notifications were turned on in System Settings.
 7. Found and fixed: the panel showed port 8830 as `8,830` (#143).
 8. Found: `ally stop` on a `docker run` left the container running, because the container's first process ignored the stop signal and only the `docker` command was killed (#144).
+
+### Maintenance: October 29, 2026
+
+1. With archbox's boot service running, `ally start --boot` wrote the service again, ran its commands, and showed the start screen. The service file was unchanged and the service stayed active (#151).
+2. The tools probe found nothing wrong with archbox's Ollama, and reported a stopped server and a CPU only build for a stand in `ollama` program. `ally tools` showed no warning (#152).
+3. ssh through `ally internal-tunnel` on iroh 1.4.1 reached archbox in 0.76 seconds, with both machines on the same network.
+4. `cargo publish --workspace --dry-run --locked` passed for all three crates.

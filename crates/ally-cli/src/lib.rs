@@ -139,12 +139,6 @@ enum Commands {
         path: Option<PathBuf>,
     },
 
-    #[command(about = "Manage environment files kept on the Agent")]
-    Env {
-        #[command(subcommand)]
-        action: EnvAction,
-    },
-
     #[command(about = "Reach one Agent port at localhost on this machine until Ctrl C")]
     Forward {
         /// The port on the Agent, such as 8080.
@@ -177,30 +171,6 @@ enum Commands {
         #[arg(long)]
         remove: bool,
     },
-}
-
-#[derive(Subcommand)]
-enum EnvAction {
-    #[command(about = "Store a local environment file for this project on the Agent")]
-    Add {
-        /// The local file to upload. Its contents are never printed.
-        file: PathBuf,
-
-        /// Where it appears in the Agent copy, such as .env or api/.env.local. Defaults to
-        /// the file's own place in the project.
-        #[arg(long)]
-        target: Option<String>,
-
-        /// Replace an existing file at the same target.
-        #[arg(long)]
-        replace: bool,
-    },
-
-    #[command(about = "List environment file names for this project")]
-    List,
-
-    #[command(about = "Remove an environment file from the Agent")]
-    Remove { target: String },
 }
 
 /// Ally's own warnings show by default. Libraries such as iroh only show real errors,
@@ -270,15 +240,6 @@ pub async fn run() {
             overwrite,
             path,
         } => commands::sync::sync(cli.agent, path, pull, check, overwrite).await,
-        Commands::Env { action } => match action {
-            EnvAction::Add {
-                file,
-                target,
-                replace,
-            } => commands::env::add(cli.agent, file, target, replace).await,
-            EnvAction::List => commands::env::list(cli.agent).await,
-            EnvAction::Remove { target } => commands::env::remove(cli.agent, target).await,
-        },
         Commands::Forward { port } => commands::forward::forward(cli.agent, port).await,
         Commands::Ps { all } => commands::ps::ps(cli.agent, all).await,
         Commands::Stop { id } => commands::ps::stop(cli.agent, id).await,
@@ -439,29 +400,6 @@ mod tests {
             }
         ));
         assert!(Cli::try_parse_from(["ally", "sync", "--overwrite", "--check"]).is_err());
-        let cli = Cli::try_parse_from([
-            "ally",
-            "env",
-            "add",
-            "local.env",
-            "--target",
-            "api/.env",
-            "--replace",
-        ])
-        .unwrap();
-        assert!(matches!(
-            cli.command,
-            Commands::Env {
-                action: EnvAction::Add { replace: true, .. }
-            }
-        ));
-        let cli = Cli::try_parse_from(["ally", "env", "add", ".env"]).unwrap();
-        assert!(matches!(
-            cli.command,
-            Commands::Env {
-                action: EnvAction::Add { target: None, .. }
-            }
-        ));
         assert!(Cli::try_parse_from(["ally", "stop"]).is_err());
     }
 

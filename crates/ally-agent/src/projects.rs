@@ -3,7 +3,7 @@
 
 use crate::jobs;
 use ally_core::artifacts::{self, Layout};
-use ally_core::control::{Job, JobKind, MAX_ENVIRONMENT_FILE, ProjectInfo, ProjectRef, Snapshot};
+use ally_core::control::{Job, JobKind, ProjectInfo, ProjectRef, Snapshot};
 use ally_core::source::{self, Manifest, Rules};
 use ally_core::sync::{self, StateDir};
 use ally_core::{stack, storage};
@@ -369,70 +369,6 @@ fn stored_name(target: &str) -> String {
     target.bytes().map(|b| format!("{b:02x}")).collect()
 }
 
-pub fn env_add(
-    root: &Path,
-    id: &str,
-    target: &str,
-    contents: &[u8],
-    replace: bool,
-) -> anyhow::Result<()> {
-    ensure!(
-        contents.len() <= MAX_ENVIRONMENT_FILE,
-        "Environment files are limited to 1 MiB"
-    );
-    source::environment_target(target)?;
-    let (paths, metadata) = load(root, id)?;
-    let _lock = acquire(root, &paths, &metadata, Blocking::Runs)?;
-    ensure_ready(&paths, &metadata)?;
-    storage::private_dir(&paths.environment)?;
-
-    let stored = paths.environment.join(stored_name(target));
-    let mut names: Vec<String> = storage::read_json(&paths.names())?;
-    if names.iter().any(|n| n == target) && !replace {
-        bail!("{target} is already set on the Agent. Pass --replace to replace it");
-    }
-    storage::create_parents(&paths.source, target)?;
-    let link = storage::safe_path(&paths.source, target)?;
-    let linked = match fs::symlink_metadata(&link) {
-        Ok(meta) => {
-            ensure!(
-                meta.file_type().is_symlink() && fs::read_link(&link)? == stored,
-                "A file Ally does not manage already exists at {target} on the Agent"
-            );
-            true
-        }
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => false,
-        Err(e) => return Err(e.into()),
-    };
-    storage::write_bytes(&stored, contents)?;
-    if !linked {
-        std::os::unix::fs::symlink(&stored, &link)?;
-    }
-    if !names.iter().any(|n| n == target) {
-        names.push(target.to_string());
-        names.sort();
-        storage::write_json(&paths.names(), &names)?;
-    }
-    Ok(())
-}
-
-pub fn env_list(root: &Path, id: &str) -> anyhow::Result<Vec<String>> {
-    let (paths, _) = load(root, id)?;
-    storage::read_json(&paths.names())
-}
-
-pub fn env_remove(root: &Path, id: &str, target: &str) -> anyhow::Result<()> {
-    source::environment_target(target)?;
-    let (paths, metadata) = load(root, id)?;
-    let _lock = acquire(root, &paths, &metadata, Blocking::Runs)?;
-    let names: Vec<String> = storage::read_json(&paths.names())?;
-    ensure!(
-        names.iter().any(|n| n == target),
-        "No environment file is set at {target}"
-    );
-    remove_environment(&paths, target)
-}
-
 /// Remove the link only when it is still Ally's own, then the stored copy.
 fn remove_environment(paths: &Paths, target: &str) -> anyhow::Result<()> {
     let stored = paths.environment.join(stored_name(target));
@@ -646,57 +582,13 @@ mod tests {
         assert_eq!(paths.sync_state().baseline().unwrap(), snapshot.manifest);
     }
 
-    #[test]
-    fn environment_files_are_private_managed_and_never_in_manifests() {
-        let root = Root::new();
-        let id = project(&root.0);
-        assert!(env_add(&root.0, &id, ".env", b"SECRET=1", false).is_err());
-        let paths = initialize(&root.0, &id);
-        env_add(&root.0, &id, "api/.env.local", b"SECRET=1", false).unwrap();
-        let link = paths.source.join("api/.env.local");
-        assert_eq!(fs::read_to_string(&link).unwrap(), "SECRET=1");
-        let stored = fs::read_link(&link).unwrap();
-        assert!(stored.starts_with(&paths.environment));
-        assert_eq!(
-            fs::metadata(&stored).unwrap().permissions().mode() & 0o777,
-            0o600
-        );
-        assert_eq!(env_list(&root.0, &id).unwrap(), ["api/.env.local"]);
-        let manifest = source::scan(
-            &paths.source,
-            &Rules::new(&paths.source, &[]).unwrap(),
-            &Manifest::new(),
-            None,
-        )
-        .unwrap();
-        assert!(manifest.is_empty(), "{manifest:?}");
-
-        assert!(env_add(&root.0, &id, "api/.env.local", b"SECRET=2", false).is_err());
-        env_add(&root.0, &id, "api/.env.local", b"SECRET=2", true).unwrap();
-        assert_eq!(fs::read_to_string(&link).unwrap(), "SECRET=2");
-        assert_eq!(fs::read_dir(&paths.environment).unwrap().count(), 2);
-
-        env_remove(&root.0, &id, "api/.env.local").unwrap();
-        assert!(fs::symlink_metadata(&link).is_err());
-        assert!(!stored.exists());
-        assert!(env_list(&root.0, &id).unwrap().is_empty());
-    }
-
-    #[test]
-    fn environment_add_refuses_unmanaged_files_and_symlinked_parents() {
-        let root = Root::new();
-        let id = project(&root.0);
-        let paths = initialize(&root.0, &id);
-        fs::write(paths.source.join(".env"), "not ours").unwrap();
-        assert!(env_add(&root.0, &id, ".env", b"x", false).is_err());
-        assert_eq!(
-            fs::read_to_string(paths.source.join(".env")).unwrap(),
-            "not ours"
-        );
-        let outside = Root::new();
-        std::os::unix::fs::symlink(&outside.0, paths.source.join("linked")).unwrap();
-        assert!(env_add(&root.0, &id, "linked/.env", b"x", false).is_err());
-        assert!(!outside.0.join(".env").exists());
+    /// An environment file stored the way older builds of `ally env add` left them.
+    fn environment_file(paths: &Paths) -> PathBuf {
+        let stored = paths.environment.join(stored_name(".env"));
+        fs::write(&stored, "SECRET=1").unwrap();
+        std::os::unix::fs::symlink(&stored, paths.source.join(".env")).unwrap();
+        storage::write_json(&paths.names(), &[".env"]).unwrap();
+        stored
     }
 
     #[test]
@@ -707,12 +599,13 @@ mod tests {
         let paths = initialize(&root.0, &id);
         initialize(&root.0, &other);
         fs::write(paths.source.join("main.rs"), "code").unwrap();
-        env_add(&root.0, &id, ".env", b"x", false).unwrap();
-        env_add(&root.0, &other, ".env", b"y", false).unwrap();
+        let stored = environment_file(&paths);
+        let kept = environment_file(&Paths::new(&root.0, &other).unwrap());
         assert_eq!(unlink(&root.0, std::slice::from_ref(&id)).unwrap(), 1);
         assert!(paths.source.join("main.rs").exists());
-        assert!(env_list(&root.0, &id).unwrap().is_empty());
-        assert_eq!(env_list(&root.0, &other).unwrap(), [".env"]);
+        assert!(fs::symlink_metadata(paths.source.join(".env")).is_err());
+        assert!(!stored.exists());
+        assert!(kept.exists());
     }
 
     #[test]

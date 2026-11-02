@@ -34,7 +34,6 @@ fn help_is_readable_and_uses_stdout() {
         Some("link"),
         Some("attach"),
         Some("sync"),
-        Some("env"),
         Some("ps"),
         Some("stop"),
         Some("menubar"),
@@ -66,7 +65,7 @@ fn internal_helpers_are_hidden_from_help() {
     let output = invoke(&["--color", "never", "--help"], false, "xterm");
     let help = String::from_utf8(output.stdout).unwrap();
     for visible in [
-        "start", "link", "run", "attach", "sync", "env", "ps", "stop", "health",
+        "start", "link", "run", "attach", "sync", "ps", "stop", "health",
     ] {
         assert!(help.contains(visible), "{visible} missing from help");
     }

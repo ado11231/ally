@@ -239,22 +239,6 @@ fn respond(root: &Path, name: &str, request: Request) -> anyhow::Result<Response
         }
         Request::Jobs { all } => Response::Jobs(jobs::list(root, all)?),
         Request::Stop { job } => Response::Job(jobs::stop(root, &job)?),
-        Request::EnvAdd {
-            project,
-            target,
-            contents,
-            replace,
-        } => {
-            projects::env_add(root, &project, &target, &contents, replace)?;
-            Response::Done
-        }
-        Request::EnvList { project } => {
-            Response::EnvironmentFiles(projects::env_list(root, &project)?)
-        }
-        Request::EnvRemove { project, target } => {
-            projects::env_remove(root, &project, &target)?;
-            Response::Done
-        }
         Request::Unlink {
             client,
             projects: ids,

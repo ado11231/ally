@@ -18,9 +18,6 @@ pub const VERSION: u32 = 18;
 /// Largest frame in either direction. Manifests for very large projects are the limit.
 pub const MAX_FRAME: u32 = 16 * 1024 * 1024;
 
-/// Largest environment file accepted by `ally env add`.
-pub const MAX_ENVIRONMENT_FILE: usize = 1024 * 1024;
-
 /// This build's release, such as `0.1.0`, sent beside the protocol so a mismatch can name
 /// both. Builds from before it was added send none.
 pub const RELEASE: &str = env!("CARGO_PKG_VERSION");
@@ -101,19 +98,6 @@ pub enum Request {
     Stop {
         job: String,
     },
-    EnvAdd {
-        project: String,
-        target: String,
-        contents: Vec<u8>,
-        replace: bool,
-    },
-    EnvList {
-        project: String,
-    },
-    EnvRemove {
-        project: String,
-        target: String,
-    },
     /// Remove environment files for these projects and stop accepting this Client over
     /// iroh. Source and backups stay.
     Unlink {
@@ -141,7 +125,6 @@ pub enum Response {
     Session(SessionInfo),
     Jobs(Vec<Job>),
     Job(Job),
-    EnvironmentFiles(Vec<String>),
     Unlinked { environment_files: usize },
     Status(AgentStatus),
     Ports(Vec<Listening>),

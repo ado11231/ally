@@ -1,5 +1,6 @@
-//! Project storage on the Agent: source copies, sync leases, build output, and
-//! environment files. Each project ID gets separate folders for each kind of data.
+//! Project storage on the Agent: source copies, sync leases, build output, and the
+//! environment files older builds stored. Each project ID gets separate folders for each
+//! kind of data.
 
 use crate::jobs;
 use ally_core::artifacts::{self, Layout};

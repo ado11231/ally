@@ -4,7 +4,7 @@
 //! through that SSH login, relays bytes between the connection and a Unix socket that
 //! only the Agent account can open. The Agent OS account is the trust boundary.
 
-use crate::{jobs, ports, projects};
+use crate::{jobs, ports, projects, repository};
 use ally_core::control::{self, AgentStatus, AgentTools, Request, Response};
 use ally_core::{preflight, storage, telemetry, tools};
 use anyhow::{Context, bail};
@@ -274,6 +274,21 @@ fn respond(root: &Path, name: &str, request: Request) -> anyhow::Result<Response
             Response::Done
         }
         Request::Ports => Response::Ports(ports::list(root)?),
+        Request::Repository { project } => Response::Repository {
+            path: repository::prepare(root, &project)?,
+        },
+        Request::Head {
+            project,
+            head,
+            name,
+            email,
+        } => Response::Head(repository::point(
+            root,
+            &project,
+            &head,
+            name.as_deref(),
+            email.as_deref(),
+        )?),
         Request::Ping
         | Request::Status
         | Request::Begin { .. }

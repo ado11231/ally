@@ -14,7 +14,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 /// Wire version of this control protocol. Both machines must agree on it, so any change
 /// to a request or response shape has to raise it.
-pub const VERSION: u32 = 17;
+pub const VERSION: u32 = 18;
 
 /// Largest frame in either direction. Manifests for very large projects are the limit.
 pub const MAX_FRAME: u32 = 16 * 1024 * 1024;
@@ -138,6 +138,20 @@ pub enum Request {
     },
     /// Every TCP port listening on the Agent, and who opened it.
     Ports,
+    /// Make the project's copy a git repository if it is not one yet, and say where the
+    /// Client sends its history with `git push`.
+    Repository {
+        project: String,
+    },
+    /// Point the copy's git at the commit the Client just pushed, unless that would leave
+    /// commits made on the Agent behind.
+    Head {
+        project: String,
+        head: GitHead,
+        /// The Client's `user.name` and `user.email`, so commits made on the Agent carry them.
+        name: Option<String>,
+        email: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -161,6 +175,31 @@ pub enum Response {
     Projects(Vec<ProjectSummary>),
     Cleaned { bytes: u64 },
     Ports(Vec<Listening>),
+    Repository { path: String },
+    Head(HeadOutcome),
+}
+
+/// Where the Client's `git push` lands in the Agent's copy. Outside `refs/heads`, so a push
+/// never moves a branch a coding agent may be working on.
+pub const PUSHED: &str = "refs/ally/client";
+
+/// Where a git checkout stands: its commit, and its branch, or `None` when detached.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GitHead {
+    pub commit: String,
+    pub branch: Option<String>,
+}
+
+/// What the Agent did with the commit the Client pushed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum HeadOutcome {
+    /// The copy now stands at the Client's commit. `commits` is how many it gained, or
+    /// `None` when it had no history before.
+    Moved { commits: Option<usize> },
+    /// Left as it was, because `reference`, a branch or `HEAD`, holds `commits` that the
+    /// Client does not have.
+    Kept { reference: String, commits: usize },
 }
 
 /// A TCP port listening on the Agent, which port forwarding can reach.

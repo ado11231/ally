@@ -7,6 +7,7 @@ pub mod clients;
 pub mod jobs;
 pub mod ports;
 pub mod projects;
+pub mod repository;
 pub mod runner;
 pub mod service;
 pub mod tunnel;

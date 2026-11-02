@@ -124,6 +124,10 @@
 | `Unsupported source path` or `Unsafe source link` | A name or link cannot be copied safely, such as a link outside the project. | Remove it, or add it to `.gitignore`. |
 | `Message is too large. The project may have too many files` | The file list is over the limit. | Leave out large generated or data folders with `.gitignore` or `sync.exclude`. |
 | `sync.exclude in ally.toml cannot contain negated patterns` | Patterns starting with `!` are not allowed. | Remove them. |
+| `! archbox's main has 1 commit this machine does not have, so its git was left as it is` | Someone committed on the Agent, such as a coding agent. Ally never moves a branch when that would lose a commit. The files still synced. | See the commits with `ally run git log --oneline -1`. To keep their changes, run `ally sync --pull` and commit here. Then drop the Agent's commits with `ally run git reset --soft HEAD~1`, using the number of commits, which keeps the files. |
+| `! Git history was not sent to archbox: Git is not installed on the Agent` | The files synced, but the Agent has no `git`. | Run `ally tools`, or install `git` on the Agent. |
+| `! Git history was not sent to archbox: git push to the Agent failed` | The files synced, but sending commits failed. git's own reason follows. | Run the sync again. If it fails the same way, open an issue with the full message. |
+| `! Git history was not sent to archbox: git reset failed in the Agent's copy` | git on the Agent was busy, such as a coding agent running git at the same moment. | Run the sync again. |
 
 ## Jobs And GPU
 

@@ -97,6 +97,7 @@ flowchart LR
 | **Control** | `ssh` starts `ally internal-control` | Short requests: health, jobs, sync plans, sessions, environment files, tools. |
 | **Work** | `ssh` starts `ally internal-run`, or joins `tmux` | Runs your command in a real terminal. |
 | **Files** | `rsync` through `ally internal-rsh` | Copies changed source files either way. |
+| **Git history** | `git push` through `ally internal-rsh` | Sends the Client's commits to the Agent's copy. |
 
 * Only pairing has its own port. Everything else is `ssh`, so it is encrypted and every caller is checked.
 * Commands starting with `internal-` are hidden helpers Ally starts itself.
@@ -172,6 +173,17 @@ sequenceDiagram
 6. The receiving side checks every staged file, then applies them all at once, or restores the previous state if anything fails.
 
 * `--pull` runs the same steps the other way. `--check` shows the plan only.
+
+### Git History
+
+* In a git repository, a push also sends history, so git works in the Agent's copy. The `.git` folder itself is never copied, because git changes it on every command.
+
+1. The Agent runs `git init` in the copy once (`Request::Repository`).
+2. The Client runs `git push` of its `HEAD` commit into `refs/ally/client`, outside the branches. Local hooks are skipped.
+3. The Agent moves the copy's branch and index to that commit with `git reset`, which leaves files alone (`Request::Head`). The sync already made the files match.
+4. A branch or `HEAD` moves only if it is where Ally last put it, or the new commit contains it. Otherwise it holds a commit made on the Agent, so nothing moves and the Client warns.
+
+* Only `user.name` and `user.email` are copied to the Agent's repository.
 * `ally env add` stores environment files outside the source copy. Their contents never appear in arguments.
 
 ## Build Output
@@ -247,10 +259,10 @@ flowchart LR
 ```
 jobs/                  one record per run or session
 projects/<project id>/
-├── source/            the source copy
+├── source/            the source copy, with its own .git in a git project
 ├── artifacts/         build output, such as target, node_modules, and the pip cache
 ├── environment/       files added with ally env
-└── state/             the baseline, staging, and backups
+└── state/             the baseline, staging, backups, and where git was last moved
 ```
 
 ## File Reference
@@ -301,8 +313,9 @@ ally/
 | File | Purpose | Uses | Used By |
 | --- | --- | --- | --- |
 | `lib.rs` | `ally start`: setup checks, the start screen, pairing, and starting the other parts. `ally internal-daemon`: the same without pairing, for the boot service. | `awake`, `clients`, `service`, `tunnel` | Client `lib` |
-| `service.rs` | The private control socket, the `internal-control` helper that reaches it, and the tools probe run in the login shell. | `clients`, `jobs`, `ports`, `projects` | `lib`, `runner`, Client `lib` |
-| `projects.rs` | Project storage: source copies, sync locks, build output, and environment files. Lists, cleans, and removes copies. | `jobs` | `service`, `jobs`, `runner`, `uninstall` |
+| `service.rs` | The private control socket, the `internal-control` helper that reaches it, and the tools probe run in the login shell. | `clients`, `jobs`, `ports`, `projects`, `repository` | `lib`, `runner`, Client `lib` |
+| `projects.rs` | Project storage: source copies, sync locks, build output, and environment files. Lists, cleans, and removes copies. | `jobs` | `service`, `jobs`, `repository`, `runner`, `uninstall` |
+| `repository.rs` | Git in a project's copy: `git init`, and moving the branch to the Client's pushed commit unless that would lose a commit made on the Agent. | `projects` | `service` |
 | `jobs.rs` | Job records, `tmux` sessions, the processes each job owns, and safe stopping. | `projects` | `service`, `ports`, `projects`, `runner` |
 | `ports.rs` | The TCP ports that jobs and Docker containers listen on, found with `ss` on Linux and `lsof` on macOS, for port forwarding. | `jobs` | `service` |
 | `runner.rs` | `ally internal-run`: runs one command in the project copy with a real terminal. | `jobs`, `projects`, `service` | Client `lib` |
@@ -326,7 +339,8 @@ ally/
 | `ssh.rs` | Builds every `ssh` call, with safe quoting and a connection shared on every route. | `route`, `tunnel`, `source` | `client`, `forward`, `run`, `attach`, `unlink` |
 | `forward.rs` | Port forwarding while `run` or `attach` is connected: asks the Agent for ports, adds and removes them on the shared ssh connection, and claims each one so only one command forwards it. Each claim records where its port opens here. | `client`, `ssh`, `storage`, `preflight` | `run`, `attach`, `forward` command, `ports` |
 | `tunnel.rs` | `ally internal-tunnel`: the Client's end of an iroh connection. | `project` | `client`, `ssh` |
-| `transfer.rs` | Performs a sync: lists files, plans, calls `rsync`, and reports. | `client`, `project`, `route` | `run`, `attach`, `sync` |
+| `transfer.rs` | Performs a sync: lists files, plans, calls `rsync`, and reports. | `client`, `git`, `project`, `route` | `git`, `run`, `attach`, `sync` |
+| `git.rs` | After a push, sends the Client's commits with `git push` and asks the Agent to move its git. | `client`, `project`, `route`, `transfer` | `transfer` |
 | `project.rs` | Finds the current project and its ID on each Agent. | none | `transfer`, `tunnel`, most commands |
 | `keys.rs` | Creates Ally's own ssh key. | none | `link` |
 | `live.rs` | Full screen views that refresh until Q or Ctrl C. | none | `health` |

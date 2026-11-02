@@ -63,7 +63,7 @@
 | Sessions | `attach` from anywhere. Syncs first, and pulls edits back on leaving. Login shell, full color, `UTF-8`, mouse scrolling, a colored bar, `~/Ally/<project>`, and the user folders on PATH. Works from terminals the Agent may not know, such as Kitty. |
 | Tools | `link` ends by offering the Client's tools on the Agent, including OpenCode, and Ollama when the Agent has a GPU, then signs in to Claude Code and Codex. Warns when Ollama is stopped or runs on the CPU only. `ally tools` repeats it, offers sign in when signed out, and lists `sudo` steps for an admin on accounts without it. |
 | Starting | A systemd user service with linger, or a launchd agent, offered on the first `ally start`. On Linux, a polkit rule keeps an Agent that can sleep awake with nobody logged in. `--boot` and `--remove` manage it. Moves to the next free port when the pairing port is taken. Warns when Docker is unusable, and says when sleep is off. |
-| Sync | `--overwrite` keeps one side of a conflict, with a backup. Pulls refuse names that differ only in case. A Python `.venv` works on the Agent. |
+| Sync | `--overwrite` keeps one side of a conflict, with a backup. Pulls refuse names that differ only in case. A Python `.venv` works on the Agent. In a git repository, commits reach the Agent's copy, so git works there, and a commit made on the Agent is never moved. |
 | Output | Problems on one line with dimmed fixes. `link` and `tools` in sections. Stopped runs are not failed, and `ps --all` shows `Lost connection`. Version errors name the older machine. |
 | Removal | `ally uninstall` lists everything on a Client or Agent, asks once with No as the default, and keeps the owner's own files and keys. |
 | Port forwarding | While `run` or `attach` is connected, every port that Ally's work listens on, and every port a Docker container publishes, opens at `localhost` on the Client. A taken port moves to the next free one. Sessions show ports in the bar. `ally forward` opens any Agent port until Ctrl C, and `ally ports` lists every port with who opened it. |
@@ -89,6 +89,8 @@
 * Starting by itself on a macOS Agent is untested.
 * After a power loss, the first iroh connection is untested. A crash is tested below.
 * Edits in a session whose connection dropped stay on the Agent until `ally sync --pull`.
+* Commits made on the Agent stay there. Only their files come back, with `ally sync --pull`.
+* Git history was tested only on the local network, and not through `attach`, or with submodules, a detached `HEAD`, or a shallow clone.
 * The tools step installs Docker only with `pacman`, `apt`, `dnf`, and `zypper`, and Git, Node, and Python only with package managers it knows.
 * Untested: file watchers in sessions, two Clients on one Agent account at once, and large Node and Python projects.
 * `ally.toml` supports only `sync.exclude`.
@@ -228,3 +230,11 @@
 2. The tools probe found nothing wrong with archbox's Ollama, and reported a stopped server and a CPU only build for a stand in `ollama` program. `ally tools` showed no warning (#152).
 3. ssh through `ally internal-tunnel` on iroh 1.4.1 reached archbox in 0.76 seconds, with both machines on the same network.
 4. `cargo publish --workspace --dry-run --locked` passed for all three crates.
+
+### Git On The Agent: November 1, 2026, Local Network
+
+1. The first sync of a two commit project said `Synced 2 changes and git history`. On archbox, `git status` showed branch `main` and the same uncommitted edit as the Mac, and `git log` matched.
+2. A new commit on the Mac synced as `Synced 1 commit`.
+3. A commit made on archbox carried the Mac's `user.name`. The next sync left it in place and warned `archbox's main has 1 commit this machine does not have`.
+4. The Ally repository's 357 commits reached archbox in 0.8 seconds, and `git status` listed the same 7 entries on both machines.
+5. A project with no git synced as before, and its copy had no `.git`.

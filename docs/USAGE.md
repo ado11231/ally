@@ -172,6 +172,13 @@ ally attach [path]
 * A file changed on both machines stops the sync. Use `--overwrite`, or fix it by hand.
 * Sync works while a session is open.
 
+### Git On The Agent
+
+* In a git repository, every sync to the Agent also sends your commits with `git push`. `git status`, `git diff`, and `git log` then work on the Agent, as they do here.
+* The Agent's branch and index follow yours. Its files come through the sync as usual.
+* Commits made on the Agent, such as by a coding agent, stay there. While one is there, the Agent's branch is left as it is, and the sync says so: `! archbox's main has 1 commit this machine does not have`.
+* Only `user.name` and `user.email` are copied, so commits on the Agent carry your name. Hooks, remotes, and the rest of `.git/config` are never sent.
+
 ## Environment Files
 
 * `.env` files are never synced. Add them on purpose. They are stored outside the project copy.
@@ -249,6 +256,7 @@ exclude = ["data/", "*.mp4"]
 ## What Ally Copies
 
 * Source files only. Never `.gitignore` matches, `.git`, build output, environment files, or `sync.exclude` patterns.
+* Git history goes separately, through `git push`. See [Git On The Agent](#git-on-the-agent).
 
 | Project | Build Output |
 | --- | --- |

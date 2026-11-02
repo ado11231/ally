@@ -3,6 +3,7 @@
 mod client;
 mod commands;
 mod forward;
+mod git;
 mod keys;
 mod live;
 mod project;

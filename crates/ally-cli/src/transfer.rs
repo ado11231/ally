@@ -8,7 +8,7 @@ use crate::client::{self, Control, unexpected};
 use crate::project::{self, Local};
 use crate::route;
 use ally_core::config::Agent;
-use ally_core::control::{ProjectInfo, ProjectRef, Request, Response, Snapshot};
+use ally_core::control::{HeadOutcome, ProjectInfo, ProjectRef, Request, Response, Snapshot};
 use ally_core::presentation::{self, Style, Tone};
 use ally_core::source::{self, Manifest, Rules};
 use ally_core::step::Step;
@@ -75,6 +75,9 @@ pub struct SyncResult {
     pub kept: usize,
     /// The paths a pull brought back, to name them. Empty after a push.
     pub pulled: Vec<String>,
+    /// What happened to git history after a push. `None` without git, and after a pull.
+    /// A failure is only words, because the files synced and the work can go on.
+    pub history: Option<Result<HeadOutcome, String>>,
 }
 
 /// Finish or undo an interrupted pull on this machine before its source is read again.
@@ -222,10 +225,16 @@ pub async fn push(
         else {
             return Err(unexpected());
         };
+        step.set(format!("Sending git history to {}", agent.name));
+        let history = crate::git::send(opened, agent, local)
+            .await
+            .map_err(|error| format!("{error:#}"))
+            .transpose();
         Ok(SyncResult {
             changed,
             kept: plan.kept.len(),
             pulled: Vec::new(),
+            history,
         })
     }
     .await;
@@ -240,10 +249,23 @@ pub fn syncing(local: &Local) -> Step {
 /// End a sync step with what changed. A pull names what it brought back, since those are
 /// edits made somewhere else, such as by a coding agent.
 pub fn finish(step: Step, outcome: &SyncResult, direction: Direction, agent: &str) {
-    let changes = presentation::plural(outcome.changed, "change");
     match (direction, outcome.changed) {
-        (Direction::Push, 0) => step.done("Source up to date"),
-        (Direction::Push, _) => step.done(format!("Synced {changes}")),
+        (Direction::Push, _) => {
+            step.done(pushed(outcome.changed, outcome.history.as_ref()));
+            match &outcome.history {
+                Some(Ok(HeadOutcome::Kept { reference, commits })) => {
+                    presentation::warning(kept(reference, *commits, agent));
+                    presentation::detail(
+                        "See them",
+                        format!("ally run git log --oneline -{commits}"),
+                    );
+                }
+                Some(Err(error)) => {
+                    presentation::warning(format!("Git history was not sent to {agent}: {error}"))
+                }
+                _ => {}
+            }
+        }
         (Direction::Pull, 0) => step.done(format!("No edits to bring back from {agent}")),
         (Direction::Pull, count) => {
             step.done(format!(
@@ -256,6 +278,33 @@ pub fn finish(step: Step, outcome: &SyncResult, direction: Direction, agent: &st
             }
         }
     }
+}
+
+/// The finished line of a push: what moved, files and commits, in one sentence.
+fn pushed(changed: usize, history: Option<&Result<HeadOutcome, String>>) -> String {
+    let mut parts = Vec::new();
+    if changed > 0 {
+        parts.push(presentation::plural(changed, "change"));
+    }
+    match history {
+        Some(Ok(HeadOutcome::Moved { commits: None })) => parts.push("git history".to_string()),
+        Some(Ok(HeadOutcome::Moved { commits: Some(n) })) if *n > 0 => {
+            parts.push(presentation::plural(*n, "commit"))
+        }
+        _ => {}
+    }
+    match parts.is_empty() {
+        true => "Source up to date".to_string(),
+        false => format!("Synced {}", parts.join(" and ")),
+    }
+}
+
+/// Why the copy's git stayed where it was: commits made on the Agent would be left behind.
+fn kept(reference: &str, commits: usize, agent: &str) -> String {
+    format!(
+        "{agent}'s {reference} has {} this machine does not have, so its git was left as it is",
+        presentation::plural(commits, "commit")
+    )
 }
 
 /// How many paths a pull names before summing up the rest, so a large pull stays readable.
@@ -350,6 +399,7 @@ pub async fn pull(
             changed: plan.changes.len(),
             kept: plan.kept.len(),
             pulled: plan.changes.clone(),
+            history: None,
         })
     }
     .await;
@@ -517,12 +567,6 @@ async fn rsync(
         "rsync is not installed on this machine. Fix: {}",
         ally_core::preflight::install_hint("rsync")
     );
-    let exe = std::env::current_exe()?;
-    let exe = exe.to_str().context("Ally's own path is not UTF 8")?;
-    ensure!(
-        !exe.contains('\''),
-        "Ally's own path contains a quote, which rsync cannot use: {exe}"
-    );
     let list = FileList::write(&files.join("\n"))?;
     let local_path = format!("{}/", local.display());
     let (from, to) = match direction {
@@ -532,7 +576,7 @@ async fn rsync(
     let rsync_path = format!("cd {} && rsync", escape_remote(remote)?);
     let mut child = tokio::process::Command::new("rsync")
         .arg("-e")
-        .arg(format!("'{exe}' internal-rsh"))
+        .arg(remote_shell()?)
         .arg(format!("--rsync-path={rsync_path}"))
         .arg(format!("--files-from={}", list.0))
         .arg(from)
@@ -557,6 +601,17 @@ async fn rsync(
         );
     }
     Ok(())
+}
+
+/// The remote shell rsync and git start: Ally itself, which picks the route and runs ssh.
+pub(crate) fn remote_shell() -> anyhow::Result<String> {
+    let exe = std::env::current_exe()?;
+    let exe = exe.to_str().context("Ally's own path is not UTF 8")?;
+    ensure!(
+        !exe.contains('\''),
+        "Ally's own path contains a quote, which rsync and git cannot use: {exe}"
+    );
+    Ok(format!("'{exe}' internal-rsh"))
 }
 
 /// Escape each unusual character with a backslash. Some rsync versions split the remote
@@ -603,7 +658,7 @@ impl Drop for FileList {
     }
 }
 
-async fn with_heartbeat(
+pub(crate) async fn with_heartbeat(
     control: &mut Control,
     work: impl std::future::Future<Output = anyhow::Result<()>>,
 ) -> anyhow::Result<()> {
@@ -728,6 +783,29 @@ mod tests {
         let lower = dir.with_file_name(dir.file_name().unwrap().to_str().unwrap().to_lowercase());
         assert_eq!(ignores_case(&dir), lower.exists());
         std::fs::remove_dir(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_push_names_changes_and_commits_in_one_line() {
+        let moved = |commits| Some(Ok(HeadOutcome::Moved { commits }));
+        assert_eq!(pushed(0, None), "Source up to date");
+        assert_eq!(pushed(0, moved(Some(0)).as_ref()), "Source up to date");
+        assert_eq!(pushed(3, None), "Synced 3 changes");
+        assert_eq!(pushed(0, moved(Some(1)).as_ref()), "Synced 1 commit");
+        assert_eq!(
+            pushed(3, moved(Some(2)).as_ref()),
+            "Synced 3 changes and 2 commits"
+        );
+        assert_eq!(
+            pushed(40, moved(None).as_ref()),
+            "Synced 40 changes and git history"
+        );
+        let failed = Some(Err("no git".to_string()));
+        assert_eq!(pushed(1, failed.as_ref()), "Synced 1 change");
+        assert_eq!(
+            kept("main", 1, "archbox"),
+            "archbox's main has 1 commit this machine does not have, so its git was left as it is"
+        );
     }
 
     #[test]

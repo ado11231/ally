@@ -91,11 +91,6 @@ pub async fn interact(target: &Agent, remote: &RemoteCommand, lost: String) -> a
     settle(target, remote.interactive().await, lost).await
 }
 
-/// `interact` for a command that needs no input, with its output framed under the step.
-pub async fn framed(target: &Agent, remote: &RemoteCommand, lost: String) -> anyhow::Result<i32> {
-    settle(target, remote.framed().await, lost).await
-}
-
 async fn settle(target: &Agent, result: anyhow::Result<i32>, lost: String) -> anyhow::Result<i32> {
     let error = match result {
         Ok(code) => return Ok(code),

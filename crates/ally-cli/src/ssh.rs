@@ -3,7 +3,6 @@
 use crate::route::{self, Route};
 use crate::tunnel;
 use ally_core::config;
-use ally_core::presentation::Style;
 use ally_core::source;
 use anyhow::Context;
 use shell_words::join;
@@ -374,39 +373,6 @@ impl RemoteCommand {
 
         ended(status.code().unwrap_or(EXIT_SIGNALLED), &log)
     }
-
-    /// Run without a terminal, showing each line of output dimmed under a bar, so it reads
-    /// as part of the step around it and cannot clear the screen. Only for commands that
-    /// need no input, with their errors sent to standard output too.
-    pub async fn framed(&self) -> anyhow::Result<i32> {
-        use tokio::io::{AsyncBufReadExt, BufReader};
-
-        let log = SshLog::create()?;
-        let mut child = Command::new("ssh")
-            .arg("-E")
-            .arg(&log.0)
-            .args(self.to_ssh_args())
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
-            .kill_on_drop(true)
-            .spawn()
-            .context("Could not start ssh. Check that it is installed and on PATH")?;
-        let style = Style::stderr();
-        if let Some(stdout) = child.stdout.take() {
-            let mut reader = BufReader::new(stdout);
-            let mut line = Vec::new();
-            while reader.read_until(b'\n', &mut line).await? > 0 {
-                eprintln!(
-                    "  {}",
-                    style.dim(framed_line(&String::from_utf8_lossy(&line)))
-                );
-                line.clear();
-            }
-        }
-        let status = child.wait().await.context("Waiting for ssh failed")?;
-        ended(status.code().unwrap_or(EXIT_SIGNALLED), &log)
-    }
 }
 
 /// What names a shared connection: who logs in, through which address or iroh key, and on
@@ -416,17 +382,6 @@ fn share_route(user: &str, through: &str, port: Option<u16>) -> String {
         Some(port) => format!("{user}@{through}:{port}"),
         None => format!("{user}@{through}"),
     }
-}
-
-/// One line of framed output. A progress bar redraws its line with carriage returns, so
-/// only what it drew last is kept.
-fn framed_line(line: &str) -> String {
-    let shown = line
-        .trim_end_matches(['\n', '\r'])
-        .rsplit('\r')
-        .next()
-        .unwrap_or("");
-    format!("│ {}", shown.trim_end())
 }
 
 /// The remote exit code, or `Disconnected` when ssh itself failed. ssh's own messages are
@@ -727,13 +682,6 @@ mod tests {
         assert_eq!(argv[at + 1], "1455:localhost:1455");
         assert!(argv.contains(&"ExitOnForwardFailure=yes".to_string()));
         assert_eq!(argv.last().unwrap(), "echo hi");
-    }
-
-    #[test]
-    fn framed_output_keeps_the_last_redraw_of_a_progress_line() {
-        assert_eq!(framed_line("Installing...\n"), "│ Installing...");
-        assert_eq!(framed_line(" 10%\r 55%\r100%  \n"), "│ 100%");
-        assert_eq!(framed_line("\n"), "│ ");
     }
 
     #[test]

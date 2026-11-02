@@ -8,7 +8,6 @@ use crate::{jobs, projects, service};
 use ally_core::control::{JobKind, JobState};
 use ally_core::presentation::{Style, Tone};
 use ally_core::storage;
-use ally_core::tools;
 use anyhow::{Context, bail};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -79,7 +78,7 @@ pub async fn run(
         .envs(env);
     if let Some(dirs) = directories::BaseDirs::new() {
         let path = std::env::var("PATH").unwrap_or_default();
-        child.env("PATH", tools::with_user_folders(&path, dirs.home_dir()));
+        child.env("PATH", jobs::with_user_folders(&path, dirs.home_dir()));
     }
     unsafe {
         child.pre_exec(move || {

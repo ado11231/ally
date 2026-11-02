@@ -7,7 +7,6 @@
 
 use crate::protocol::Health;
 use crate::source::Manifest;
-use crate::tools::{OllamaProblem, Tool};
 use anyhow::{Context, ensure};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
@@ -121,8 +120,6 @@ pub enum Request {
         client: String,
         projects: Vec<String>,
     },
-    /// Which developer tools a session on the Agent would find.
-    Tools,
     /// What the running daemon calls itself and whether iroh reaches it, for a second
     /// `ally start` on the same account.
     Status,
@@ -146,7 +143,6 @@ pub enum Response {
     Job(Job),
     EnvironmentFiles(Vec<String>),
     Unlinked { environment_files: usize },
-    Tools(AgentTools),
     Status(AgentStatus),
     Ports(Vec<Listening>),
 }
@@ -193,30 +189,6 @@ pub struct AgentStatus {
     pub release: String,
     /// Whether an iroh relay has answered, which makes the Agent reachable from other networks.
     pub online: bool,
-}
-
-/// The developer tools on the Agent, and what installing more of them needs there.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AgentTools {
-    pub installed: Vec<Tool>,
-    /// The package manager found on the Agent, such as `pacman`.
-    pub manager: Option<String>,
-    /// The account's login shell, which runs install commands so they see a session's PATH.
-    pub shell: String,
-    /// Whether this account can write npm's global folder, so Codex installs without
-    /// `sudo`. `None` when npm is not installed yet.
-    #[serde(default)]
-    pub npm_writable: Option<bool>,
-    /// Installed tools that are not signed in, so the Client can offer to sign in.
-    #[serde(default)]
-    pub signed_out: Vec<Tool>,
-    /// Whether this account can use `sudo`. `None` when the Agent did not say, which is
-    /// treated as yes.
-    #[serde(default)]
-    pub admin: Option<bool>,
-    /// Why an installed Ollama cannot serve models on the GPU yet.
-    #[serde(default)]
-    pub ollama: Vec<OllamaProblem>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -444,31 +416,5 @@ mod tests {
         let mismatch = error.downcast_ref::<Mismatch>().unwrap();
         assert!(!mismatch.other_is_older());
         assert_eq!(mismatch.release.as_deref(), Some("9.9.9"));
-    }
-
-    #[tokio::test]
-    async fn the_tools_reply_round_trips() {
-        let (mut a, mut b) = tokio::io::duplex(1024);
-        let reply = Response::Tools(AgentTools {
-            installed: vec![Tool::Git, Tool::ClaudeCode],
-            manager: Some("pacman".into()),
-            shell: "/usr/bin/bash".into(),
-            npm_writable: Some(false),
-            signed_out: vec![Tool::Codex],
-            admin: Some(false),
-            ollama: vec![OllamaProblem::CpuOnly],
-        });
-        write_frame(&mut a, &reply).await.unwrap();
-
-        let Some(Response::Tools(back)) = read_frame(&mut b).await.unwrap() else {
-            panic!("expected a tools reply");
-        };
-        assert_eq!(back.installed, vec![Tool::Git, Tool::ClaudeCode]);
-        assert_eq!(back.manager.as_deref(), Some("pacman"));
-        assert_eq!(back.shell, "/usr/bin/bash");
-        assert_eq!(back.npm_writable, Some(false));
-        assert_eq!(back.signed_out, vec![Tool::Codex]);
-        assert_eq!(back.admin, Some(false));
-        assert_eq!(back.ollama, vec![OllamaProblem::CpuOnly]);
     }
 }

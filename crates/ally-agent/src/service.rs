@@ -5,8 +5,8 @@
 //! only the Agent account can open. The Agent OS account is the trust boundary.
 
 use crate::{jobs, ports, projects};
-use ally_core::control::{self, AgentStatus, AgentTools, Request, Response};
-use ally_core::{preflight, storage, telemetry, tools};
+use ally_core::control::{self, AgentStatus, Request, Response};
+use ally_core::{storage, telemetry};
 use anyhow::{Context, bail};
 use std::fs::File;
 use std::os::unix::fs::{FileTypeExt, PermissionsExt};
@@ -263,7 +263,6 @@ fn respond(root: &Path, name: &str, request: Request) -> anyhow::Result<Response
             crate::clients::forget(root, &client)?;
             Response::Unlinked { environment_files }
         }
-        Request::Tools => Response::Tools(agent_tools(root)?),
         Request::Ports => Response::Ports(ports::list(root)?),
         Request::Ping
         | Request::Status
@@ -272,29 +271,6 @@ fn respond(root: &Path, name: &str, request: Request) -> anyhow::Result<Response
         | Request::Release { .. } => {
             bail!("Unexpected control request")
         }
-    })
-}
-
-/// The tools a session on this account would find. The probe runs in the login shell,
-/// because tools such as rustup and Claude Code add themselves to PATH in startup files
-/// that `ally start` may never have read.
-fn agent_tools(root: &Path) -> anyhow::Result<AgentTools> {
-    let shell = jobs::login_shell(root);
-    let output = std::process::Command::new(&shell)
-        .args(["-l", "-c", &tools::probe_script()])
-        .stdin(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .output()
-        .with_context(|| format!("Could not start the login shell {shell} on the Agent"))?;
-    let output = String::from_utf8_lossy(&output.stdout);
-    Ok(AgentTools {
-        installed: tools::found(&output),
-        manager: preflight::package_manager().map(str::to_string),
-        shell,
-        npm_writable: tools::npm_writable(&output),
-        signed_out: tools::signed_out(&output),
-        admin: tools::admin(&output),
-        ollama: tools::ollama_problems(&output),
     })
 }
 

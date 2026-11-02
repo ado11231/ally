@@ -106,9 +106,6 @@ enum Commands {
     #[command(about = "Remove everything Ally keeps on this machine, after listing it and asking")]
     Uninstall,
 
-    #[command(about = "Install the developer tools this machine uses on the Agent, after asking")]
-    Tools,
-
     /// `trailing_var_arg` stops clap parsing after `run`, so flags like `--release`
     /// reach the remote program untouched rather than being claimed by ally.
     #[command(about = "Sync the project, then run a command on the Agent")]
@@ -265,7 +262,6 @@ pub async fn run() {
         Commands::Link { code, name } => commands::link::link(code, name).await,
         Commands::Unlink => commands::unlink::unlink(cli.agent).await,
         Commands::Uninstall => commands::uninstall::uninstall().await,
-        Commands::Tools => commands::tools::tools(cli.agent).await,
         Commands::Run { cmd } => commands::run::run(cli.agent, cmd).await,
         Commands::Attach { path } => commands::attach::attach(cli.agent, path).await,
         Commands::Sync {

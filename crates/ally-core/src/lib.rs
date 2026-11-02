@@ -14,5 +14,4 @@ pub mod step;
 pub mod storage;
 pub mod sync;
 pub mod telemetry;
-pub mod tools;
 pub mod tunnel;

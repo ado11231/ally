@@ -75,7 +75,7 @@ pub fn report(checks: &[Check]) -> bool {
 const PACKAGE_MANAGERS: &[&str] = &["pacman", "apt", "dnf", "zypper", "apk", "brew"];
 
 /// The first known package manager on this machine.
-pub fn package_manager() -> Option<&'static str> {
+fn package_manager() -> Option<&'static str> {
     PACKAGE_MANAGERS
         .iter()
         .copied()
@@ -84,7 +84,7 @@ pub fn package_manager() -> Option<&'static str> {
 
 /// The command that installs `packages` with `manager`, or `None` for a manager Ally
 /// does not know.
-pub fn install_command(manager: &str, packages: &str) -> Option<String> {
+fn install_command(manager: &str, packages: &str) -> Option<String> {
     Some(match manager {
         "pacman" => format!("sudo pacman -S {packages}"),
         "apt" => format!("sudo apt install {packages}"),

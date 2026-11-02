@@ -4,7 +4,6 @@ pub mod forward;
 pub mod health;
 pub mod link;
 pub mod menubar;
-pub mod ports;
 pub mod ps;
 pub mod run;
 pub mod sync;

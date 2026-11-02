@@ -148,12 +148,6 @@ enum Commands {
         action: EnvAction,
     },
 
-    #[command(about = "List the projects copied to the Agent, and free their space")]
-    Projects {
-        #[command(subcommand)]
-        action: Option<ProjectsAction>,
-    },
-
     #[command(about = "Reach one Agent port at localhost on this machine until Ctrl C")]
     Forward {
         /// The port on the Agent, such as 8080.
@@ -213,23 +207,6 @@ enum EnvAction {
 
     #[command(about = "Remove an environment file from the Agent")]
     Remove { target: String },
-}
-
-#[derive(Subcommand)]
-enum ProjectsAction {
-    #[command(
-        about = "Remove a project's build output on the Agent. The next build makes it again"
-    )]
-    Clean {
-        /// The project name or ID from ally projects. Defaults to the current project.
-        project: Option<String>,
-    },
-
-    #[command(about = "Delete a project from the Agent, after asking")]
-    Remove {
-        /// The project name or ID from ally projects. Defaults to the current project.
-        project: Option<String>,
-    },
 }
 
 /// Ally's own warnings show by default. Libraries such as iroh only show real errors,
@@ -308,15 +285,6 @@ pub async fn run() {
             } => commands::env::add(cli.agent, file, target, replace).await,
             EnvAction::List => commands::env::list(cli.agent).await,
             EnvAction::Remove { target } => commands::env::remove(cli.agent, target).await,
-        },
-        Commands::Projects { action } => match action {
-            None => commands::projects::list(cli.agent).await,
-            Some(ProjectsAction::Clean { project }) => {
-                commands::projects::clean(cli.agent, project).await
-            }
-            Some(ProjectsAction::Remove { project }) => {
-                commands::projects::remove(cli.agent, project).await
-            }
         },
         Commands::Forward { port } => commands::forward::forward(cli.agent, port).await,
         Commands::Ports => commands::ports::ports(cli.agent).await,

@@ -22,7 +22,7 @@
 | 3 | Source copies, sync, sessions, jobs, environment files, and live health | Complete |
 | 4 | Reaching the Agent from any network | Complete |
 | 5 | Menu bar app, notifications, and port forwarding | In progress |
-| 6 | Local AI models, pairing across networks, and more platforms | Planned |
+| 6 | Pairing across networks, and more platforms | Planned |
 | 7 | Installers, packages, and a public release | Planned |
 
 ## Complete
@@ -85,7 +85,6 @@
 | Phase | Work | Issue |
 | --- | --- | --- |
 | 5 | A notification when a session waits for input | [#136](https://github.com/ado11231/ally/issues/136) |
-| 6 | Local AI models through Ollama | [#20](https://github.com/ado11231/ally/issues/20) |
 | 6 | Pairing across networks, keeping the code safe through a relay | [#19](https://github.com/ado11231/ally/issues/19) |
 | 6 | Watching several Agents from the menu bar | [#109](https://github.com/ado11231/ally/issues/109) |
 | 6 | A setting to use your own iroh relay, and stronger Linux Client support | |

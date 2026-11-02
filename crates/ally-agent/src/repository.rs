@@ -174,6 +174,8 @@ fn optional(dir: &Path, args: &[&str]) -> anyhow::Result<Option<String>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testing::Root;
+    use ally_core::control::ProjectRef;
 
     #[test]
     fn a_reference_moves_only_when_no_agent_commit_would_be_left_behind() {
@@ -191,5 +193,116 @@ mod tests {
         assert!(!is_commit("HEAD"));
         assert!(!is_commit(&format!("-{}", "a".repeat(39))));
         assert!(!is_commit(&"a".repeat(41)));
+    }
+
+    fn run(dir: &Path, args: &[&str]) -> String {
+        let out = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args([
+                "-c",
+                "user.name=T",
+                "-c",
+                "user.email=t@t",
+                "-c",
+                "commit.gpgsign=false",
+            ])
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        String::from_utf8_lossy(&out.stdout).trim().to_string()
+    }
+
+    fn commit(dir: &Path, text: &str) -> String {
+        std::fs::write(dir.join("file"), text).unwrap();
+        run(dir, &["add", "file"]);
+        run(dir, &["commit", "--quiet", "-m", text]);
+        run(dir, &["rev-parse", "HEAD"])
+    }
+
+    fn push(client: &Path, copy: &str) -> GitHead {
+        let commit = run(client, &["rev-parse", "HEAD"]);
+        run(
+            client,
+            &[
+                "push",
+                "--quiet",
+                "--force",
+                copy,
+                &format!("{commit}:{PUSHED}"),
+            ],
+        );
+        let branch = run(client, &["symbolic-ref", "--short", "HEAD"]);
+        GitHead {
+            commit,
+            branch: Some(branch),
+        }
+    }
+
+    #[test]
+    fn the_copy_follows_the_client_until_the_agent_commits() {
+        let root = Root::new();
+        let id = storage::new_id();
+        projects::open(
+            &root.0,
+            &ProjectRef {
+                id: id.clone(),
+                name: "app".into(),
+                client: "laptop".into(),
+            },
+        )
+        .unwrap();
+        let client = root.0.join("client");
+        std::fs::create_dir(&client).unwrap();
+        run(&client, &["init", "--quiet"]);
+        commit(&client, "one");
+        commit(&client, "two");
+
+        let copy = prepare(&root.0, &id).unwrap();
+        let first = push(&client, &copy);
+        assert_eq!(
+            point(&root.0, &id, &first, Some("Ann"), None).unwrap(),
+            HeadOutcome::Moved { commits: None }
+        );
+        let copy = Path::new(&copy);
+        assert_eq!(run(copy, &["rev-parse", "HEAD"]), first.commit);
+        assert_eq!(
+            run(copy, &["config", "--file", ".git/config", "user.name"]),
+            "Ann"
+        );
+
+        commit(&client, "three");
+        let second = push(&client, copy.to_str().unwrap());
+        assert_eq!(
+            point(&root.0, &id, &second, None, None).unwrap(),
+            HeadOutcome::Moved { commits: Some(1) }
+        );
+
+        run(
+            &client,
+            &["commit", "--quiet", "--amend", "-m", "three again"],
+        );
+        let rewritten = push(&client, copy.to_str().unwrap());
+        assert_eq!(
+            point(&root.0, &id, &rewritten, None, None).unwrap(),
+            HeadOutcome::Moved { commits: Some(1) }
+        );
+
+        let made_here = commit(copy, "agent");
+        commit(&client, "four");
+        let third = push(&client, copy.to_str().unwrap());
+        assert_eq!(
+            point(&root.0, &id, &third, None, None).unwrap(),
+            HeadOutcome::Kept {
+                reference: third.branch.clone().unwrap(),
+                commits: 1
+            }
+        );
+        assert_eq!(run(copy, &["rev-parse", "HEAD"]), made_here);
     }
 }

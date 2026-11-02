@@ -71,7 +71,7 @@ pub enum Request {
         excludes: Vec<String>,
         pull: bool,
     },
-    /// Describe the Agent source without taking a lease, for previews.
+    /// Describe the Agent source without taking a lease, to list conflicts before `--overwrite` asks.
     Inspect {
         project: String,
         excludes: Vec<String>,

@@ -1,4 +1,4 @@
-//! `ally sync [--pull] [--check] [path]`: move eligible source between machines.
+//! `ally sync [--pull] [--overwrite] [path]`: move eligible source between machines.
 
 use crate::project::{self, Local};
 use crate::transfer::{self, Direction, ProjectSession};
@@ -9,7 +9,6 @@ pub async fn sync(
     agent: Option<String>,
     path: Option<std::path::PathBuf>,
     pull: bool,
-    check: bool,
     overwrite: bool,
 ) -> anyhow::Result<i32> {
     let config = Config::load()?;
@@ -21,39 +20,27 @@ pub async fn sync(
     };
 
     let mut opened = transfer::open(target, &local).await?;
-    let result = match check {
-        true if !opened.project.initialized => {
-            presentation::progress(format!(
-                "{} has no copy on {} yet. ally sync will copy it",
-                local.name, target.name
-            ));
+    let result = match chosen(&mut opened, target, &local, direction, overwrite).await {
+        Ok(Some(chosen)) => {
+            let step = transfer::syncing(&local);
+            let outcome = match direction {
+                Direction::Push => {
+                    transfer::push(&mut opened, target, &local, &step, &chosen).await
+                }
+                Direction::Pull => {
+                    transfer::pull(&mut opened, target, &local, &step, &chosen).await
+                }
+            };
+            outcome.map(|outcome| {
+                transfer::finish(step, &outcome, direction, &target.name);
+                report_kept(outcome.kept, &target.name, direction);
+            })
+        }
+        Ok(None) => {
+            presentation::success("Nothing was changed");
             Ok(())
         }
-        true => transfer::preview(&mut opened, target, &local, direction)
-            .await
-            .map(|_| ()),
-        false => match chosen(&mut opened, target, &local, direction, overwrite).await {
-            Ok(Some(chosen)) => {
-                let step = transfer::syncing(&local);
-                let outcome = match direction {
-                    Direction::Push => {
-                        transfer::push(&mut opened, target, &local, &step, &chosen).await
-                    }
-                    Direction::Pull => {
-                        transfer::pull(&mut opened, target, &local, &step, &chosen).await
-                    }
-                };
-                outcome.map(|outcome| {
-                    transfer::finish(step, &outcome, direction, &target.name);
-                    report_kept(outcome.kept, &target.name, direction);
-                })
-            }
-            Ok(None) => {
-                presentation::success("Nothing was changed");
-                Ok(())
-            }
-            Err(error) => Err(error),
-        },
+        Err(error) => Err(error),
     };
     opened.control.close().await;
     result.map(|_| 0)
@@ -117,17 +104,17 @@ fn overwrite_notice(conflicts: &[String], agent: &str, direction: Direction) -> 
     lines.join("\n")
 }
 
-/// Paths changed only on the receiving side are left alone, and worth a look.
+/// Paths changed only on the receiving side are left alone, and a sync the other way carries them.
 pub fn report_kept(kept: usize, agent: &str, direction: Direction) {
     if kept == 0 {
         return;
     }
     let (place, hint) = match direction {
-        Direction::Push => (agent, "ally sync --pull --check"),
-        Direction::Pull => ("this machine", "ally sync --check"),
+        Direction::Push => (agent, "Bring them here with ally sync --pull"),
+        Direction::Pull => ("this machine", "Send them with ally sync"),
     };
     presentation::warning(format!(
-        "Kept {} changed only on {place}. Review with {hint}",
+        "Kept {} changed only on {place}. {hint}",
         presentation::plural(kept, "path")
     ));
 }

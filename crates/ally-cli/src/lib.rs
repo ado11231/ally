@@ -126,13 +126,9 @@ enum Commands {
         #[arg(long)]
         pull: bool,
 
-        /// Show what would change without changing anything.
-        #[arg(long)]
-        check: bool,
-
         /// Settle files changed on both machines with the sending side's version, after
         /// listing them and asking once.
-        #[arg(long, conflicts_with = "check")]
+        #[arg(long)]
         overwrite: bool,
 
         /// Project folder. Defaults to the current project.
@@ -236,10 +232,9 @@ pub async fn run() {
         Commands::Attach { path } => commands::attach::attach(cli.agent, path).await,
         Commands::Sync {
             pull,
-            check,
             overwrite,
             path,
-        } => commands::sync::sync(cli.agent, path, pull, check, overwrite).await,
+        } => commands::sync::sync(cli.agent, path, pull, overwrite).await,
         Commands::Forward { port } => commands::forward::forward(cli.agent, port).await,
         Commands::Ps { all } => commands::ps::ps(cli.agent, all).await,
         Commands::Stop { id } => commands::ps::stop(cli.agent, id).await,
@@ -380,12 +375,11 @@ mod tests {
 
     #[test]
     fn sync_and_env_commands_parse() {
-        let cli = Cli::try_parse_from(["ally", "sync", "--pull", "--check", "app"]).unwrap();
+        let cli = Cli::try_parse_from(["ally", "sync", "--pull", "app"]).unwrap();
         assert!(matches!(
             cli.command,
             Commands::Sync {
                 pull: true,
-                check: true,
                 overwrite: false,
                 path: Some(_)
             }
@@ -399,7 +393,7 @@ mod tests {
                 ..
             }
         ));
-        assert!(Cli::try_parse_from(["ally", "sync", "--overwrite", "--check"]).is_err());
+        assert!(Cli::try_parse_from(["ally", "sync", "--check"]).is_err());
         assert!(Cli::try_parse_from(["ally", "stop"]).is_err());
     }
 

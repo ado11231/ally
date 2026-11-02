@@ -189,7 +189,7 @@ ally link 192.168.1.9:7433:K7QW9ZR2
 
 Both machines need the same network or Tailscale for this step only. After that, Ally works from anywhere.
 
-Offers to set up your tools on the Agent, such as Claude Code, and the menu bar app on a Mac. Asks before each one.
+On a Mac, offers the menu bar app. Install the tools you need on the Agent yourself, such as inside `ally attach`.
 
 **4. Try it.** Open a terminal in your project folder, then run:
 
@@ -208,7 +208,7 @@ Any command works, such as `npm run dev` or `python main.py`.
 | `ally sync --pull` | Brings edits made on the Agent back to the Client. |
 | `ally health` | Shows the Agent's hardware and use. Add `--watch` to keep it live. |
 | `ally ps` | Lists running jobs. `ally stop <id>` stops one. |
-| `ally projects` | Lists the projects on the Agent and their size. `clean` frees build output. |
+| `ally forward <port>` | Opens a port on the Agent at `localhost` here. Servers that `run` and `attach` start open by themselves. |
 
 Every command and option is in [USAGE.md](https://github.com/ado11231/ally/blob/master/docs/USAGE.md).
 

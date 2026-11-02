@@ -1,8 +1,7 @@
 //! Which project files count as source, and how their content is fingerprinted.
 //!
 //! Git ignore rules, version control internals, generated folders, and environment
-//! files never enter a manifest, so they are never copied, pulled, previewed, or
-//! backed up. Environment files are handled separately by `ally env`.
+//! files never enter a manifest, so they are never copied, pulled, or backed up.
 
 use crate::storage;
 use anyhow::{Context, bail, ensure};

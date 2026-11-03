@@ -238,7 +238,14 @@ fn respond(root: &Path, name: &str, request: Request) -> anyhow::Result<Response
             Response::Session(jobs::session(root, name, project.as_deref())?)
         }
         Request::Jobs { all } => Response::Jobs(jobs::list(root, all)?),
-        Request::Stop { job } => Response::Job(jobs::stop(root, &job)?),
+        Request::Stop { job } => {
+            let (job, containers, unsure) = jobs::stop(root, &job)?;
+            Response::Stopped {
+                job,
+                containers,
+                unsure,
+            }
+        }
         Request::Unlink {
             client,
             projects: ids,

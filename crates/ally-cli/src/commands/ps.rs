@@ -3,7 +3,7 @@
 use crate::client::{self, unexpected};
 use ally_core::config::Config;
 use ally_core::control::{Job, JobKind, JobState, Request, Response};
-use ally_core::presentation::{Style, Tone};
+use ally_core::presentation::{self, Style, Tone};
 use ally_core::step;
 use ally_core::storage;
 
@@ -49,7 +49,12 @@ pub async fn stop(agent: Option<String>, id: String) -> anyhow::Result<i32> {
     let config = Config::load()?;
     let target = config.resolve(agent.as_deref())?;
     let stopping = step::start(format!("Stopping {id} on {}", target.name));
-    let Response::Job(job) = client::request(target, Request::Stop { job: id }).await? else {
+    let Response::Stopped {
+        job,
+        containers,
+        unsure,
+    } = client::request(target, Request::Stop { job: id }).await?
+    else {
         return Err(unexpected());
     };
     stopping.done(format!(
@@ -57,7 +62,22 @@ pub async fn stop(agent: Option<String>, id: String) -> anyhow::Result<i32> {
         job.command,
         storage::short_id(&job.id)
     ));
+    for name in containers {
+        eprintln!("  Stopped container {name}");
+    }
+    for name in unsure {
+        presentation::warning(may_still_run(&name, Style::stderr()));
+    }
     Ok(0)
+}
+
+/// A container another job could also have started is left running, with the command
+/// that stops it, since stopping the wrong one would end someone else's work.
+fn may_still_run(name: &str, style: Style) -> String {
+    format!(
+        "Container {name} may still run. Stop it with {}",
+        style.paint(format!("docker stop {name}"), Tone::Info)
+    )
 }
 
 /// What the state column says. An interruption other than Ctrl C means the connection was
@@ -260,5 +280,13 @@ mod tests {
         outside.project_name = None;
         let text = render("archbox", &[outside], true, 1010, None, Style::new(false));
         assert!(text.contains("Completed        home"), "{text}");
+    }
+
+    #[test]
+    fn a_container_left_running_names_the_command_that_stops_it() {
+        assert_eq!(
+            may_still_run("quirky_hopper", Style::new(false)),
+            "Container quirky_hopper may still run. Stop it with docker stop quirky_hopper"
+        );
     }
 }

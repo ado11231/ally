@@ -6,7 +6,7 @@ use crate::project;
 use ally_core::config::{Agent, Config};
 use ally_core::keys as core_keys;
 use ally_core::preflight::{self, Check, State};
-use ally_core::presentation::{self, home_path};
+use ally_core::presentation::{self, Style, Tone};
 use ally_core::protocol::Joining;
 use ally_core::step;
 use ally_core::tunnel;
@@ -37,7 +37,7 @@ pub async fn link(code: String, name: Option<String>) -> anyhow::Result<i32> {
     }
     reaching.set(format!("Pairing with {host}"));
 
-    let (private_key, public_key, new_key) = keys::ensure(&client_name)?;
+    let (private_key, public_key, _) = keys::ensure(&client_name)?;
 
     let paired = client::pair(
         &host,
@@ -61,8 +61,8 @@ pub async fn link(code: String, name: Option<String>) -> anyhow::Result<i32> {
         user: paired.user.clone(),
         port: ssh_port,
         daemon_port: Some(port),
-        identity_file: Some(private_key.clone()),
-        known_hosts: Some(known_hosts.clone()),
+        identity_file: Some(private_key),
+        known_hosts: Some(known_hosts),
         program: paired.program.clone(),
         addresses: paired.addresses.clone(),
         iroh: paired.iroh.clone(),
@@ -70,32 +70,9 @@ pub async fn link(code: String, name: Option<String>) -> anyhow::Result<i32> {
         specs: Some(paired.specs),
     });
 
-    let saved = config.save()?;
+    config.save()?;
 
     reaching.done(format!("Paired with {name}"));
-    presentation::detail(
-        "Key",
-        match new_key {
-            true => format!("{} (new)", home_path(&private_key)),
-            false => home_path(&private_key),
-        },
-    );
-    presentation::detail(
-        "Installed",
-        format!("{}@{}:~/.ssh/authorized_keys", paired.user, host),
-    );
-    presentation::detail(
-        "Host keys",
-        format!(
-            "{} ({} learned)",
-            home_path(&known_hosts),
-            paired.host_keys.len()
-        ),
-    );
-    if !paired.addresses.is_empty() {
-        presentation::detail("Addresses", paired.addresses.join(", "));
-    }
-    presentation::detail("Saved", home_path(&saved));
 
     if let Err(error) = super::menubar::offer(&name).await {
         presentation::warning(format!(
@@ -103,7 +80,10 @@ pub async fn link(code: String, name: Option<String>) -> anyhow::Result<i32> {
         ));
     }
     presentation::section("Ready");
-    presentation::detail("Try it", "ally run uname -n");
+    eprintln!(
+        "Try it:  {}",
+        Style::stderr().paint("ally run uname -n", Tone::Info)
+    );
     eprintln!();
 
     Ok(0)

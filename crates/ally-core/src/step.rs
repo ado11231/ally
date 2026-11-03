@@ -78,7 +78,7 @@ impl Step {
             false => eprintln!(
                 "{} {}",
                 style.status(pad(&text.to_string()), tone),
-                style.dim(elapsed(took))
+                elapsed(took)
             ),
         }
     }

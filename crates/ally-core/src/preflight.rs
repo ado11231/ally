@@ -64,7 +64,7 @@ pub fn report(checks: &[Check]) -> bool {
         };
         eprintln!("{}", style.status(&check.label, tone));
         if let Some(fix) = &check.fix {
-            eprintln!("  {} {fix}", style.dim("Fix:"));
+            eprintln!("  {} {fix}", style.heading("Fix:"));
         }
     }
 

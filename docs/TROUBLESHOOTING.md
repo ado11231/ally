@@ -7,15 +7,13 @@
 1. [Starting The Agent](#starting-the-agent)
 2. [Starting By Itself](#starting-by-itself)
 3. [Linking](#linking)
-4. [Setting Up Tools](#setting-up-tools)
-5. [Reaching The Agent](#reaching-the-agent)
-6. [Running Commands](#running-commands)
-7. [Syncing Files](#syncing-files)
-8. [Jobs And GPU](#jobs-and-gpu)
-9. [Projects](#projects)
-10. [The Menu Bar App](#the-menu-bar-app)
-11. [Removing Ally](#removing-ally)
-12. [Getting Help](#getting-help)
+4. [Reaching The Agent](#reaching-the-agent)
+5. [Running Commands](#running-commands)
+6. [Syncing Files](#syncing-files)
+7. [Jobs And GPU](#jobs-and-gpu)
+8. [The Menu Bar App](#the-menu-bar-app)
+9. [Removing Ally](#removing-ally)
+10. [Getting Help](#getting-help)
 
 ## Starting The Agent
 
@@ -63,18 +61,6 @@
 | `Another machine is pairing right now` | The Agent pairs with one machine at a time. | Wait a few seconds and link again. |
 | `That does not look like a pairing code` | A code has three parts separated by colons, such as `192.168.1.9:7433:K7QW9ZR2`. | Copy the whole code. |
 
-## Setting Up Tools
-
-| Message | Meaning | Fix |
-| --- | --- | --- |
-| `Could not set up tools on archbox` | Linking worked. Only the tools step failed, for the reason after the message. | Fix it, then run `ally tools`. |
-| `No install command for brew. Install it on the Agent yourself`, or `No package manager found` | Ally only runs install commands it trusts on that Agent. | Install the tool by its own instructions, such as inside `ally attach`. |
-| `Docker is still missing. Check the output above, then run ally tools again` | An install failed, or the tool landed outside the login PATH, `~/.local/bin`, and `~/.cargo/bin`. | Fix the install error, or add the tool's folder to PATH in the Agent's `~/.profile` or `~/.bash_profile`. Then `ally tools` again. |
-| `Sign in to Codex did not finish` | The sign in was cancelled or failed. The tool is still installed. | Run the command in the message inside `ally attach`. For Codex, keep port 1455 free on the Client. |
-| `! Ollama is not running on archbox` | Ollama is installed, but its server is stopped, so no model can run. | Run the fix printed, such as `sudo systemctl enable --now ollama`, or `brew services start ollama` on macOS. |
-| `! Ollama on archbox runs models on the CPU only, not the GPU` | This Ollama build has no CUDA support, such as the plain `ollama` package on Arch Linux. Models run, but slowly. | Run the fix printed, such as `sudo pacman -S ollama-cuda`, then `sudo systemctl restart ollama`. |
-| `permission denied while trying to connect to the Docker daemon socket` | The account is not in the `docker` group, or was added after sessions and the service started. | `sudo usermod -aG docker <user>` if needed, then restart the machine. `ally run` sees it at once, sessions after the restart. |
-
 ## Reaching The Agent
 
 * Ally tries the local network, then the tailnet, then iroh. The message says why the last try failed.
@@ -96,11 +82,12 @@
 
 | Message | Meaning | Fix |
 | --- | --- | --- |
-| `No project found` | `sync` and `env` need a project. `attach` works anywhere. | Move into a Git repository, or a folder with `Cargo.toml`, `package.json`, `pyproject.toml`, `requirements.txt`, or `ally.toml`. |
+| `No project found` | `sync` needs a project. `run` and `attach` work anywhere. | Move into a Git repository, or a folder with `Cargo.toml`, `package.json`, `pyproject.toml`, `requirements.txt`, or `ally.toml`. |
 | `Lost connection to archbox`, then `The Agent stops the run once it notices` | A run stops when its connection drops. | `ally ps --all` shows it as `Lost connection`. Use `ally attach` for long work. |
-| `cargo was not found on the Agent. Check the name, or install it there`, exit 127 | The program is not on the Agent, or the name has a typo. | Check the name, or run `ally tools` to install it. |
+| `cargo was not found on the Agent. Check the name, or install it there`, exit 127 | The program is not on the Agent, or the name has a typo. | Check the name, or install the program on the Agent, such as inside `ally attach`. |
 | `./build.sh is not allowed to run on the Agent. Check that it is executable`, exit 126 | The file exists but is not executable. | `chmod +x build.sh` on the Client, then run again. The sync copies the change. |
-| `command not found` in a session, for a tool the Client has | Sessions use only tools on the Agent. | Run `ally tools`. |
+| `command not found` in a session, for a tool the Client has | Sessions use only tools on the Agent. | Install the tool on the Agent. Programs in `~/.local/bin`, `~/.cargo/bin`, and `~/.opencode/bin` are always found. |
+| `permission denied while trying to connect to the Docker daemon socket` | The account is not in the `docker` group, or was added after sessions and the service started. | `sudo usermod -aG docker <user>` if needed, then restart the machine. `ally run` sees it at once, sessions after the restart. |
 | `Lost connection to archbox. The session keeps running there` | The session still runs on the Agent. | Run `ally attach` to return. |
 | `! Did not bring back edits: NOTES.md changed on both this machine and archbox` | The same files changed in both places. Both versions are kept. | Follow the conflict row under [Syncing Files](#syncing-files), then `ally sync --pull`. |
 | `RAM is 92% used` or `Only 1.2 GiB free on the Agent workspace disk` | A warning. The run still starts, but may be slow or fail. | Free memory or disk on the Agent. |
@@ -116,11 +103,12 @@
 
 | Message | Meaning | Fix |
 | --- | --- | --- |
-| `NOTES.md changed on both this machine and archbox`, or `3 files changed on both this machine and archbox` | A conflict: the same files changed differently on both machines. Nothing was copied. | Compare with `ally sync --check` and `ally sync --pull --check`. Keep one side with `ally sync --overwrite` or `ally sync --pull --overwrite`, which back up the replaced files. Or make the files match by hand and sync again. |
+| `NOTES.md changed on both this machine and archbox`, or `3 files changed on both this machine and archbox` | A conflict: the same files changed differently on both machines. Nothing was copied. | Keep one side with `ally sync --overwrite` or `ally sync --pull --overwrite`, which back up the replaced files. Or make the files match by hand and sync again. |
 | `NOTES.md and notes.md differ only in case` | This machine's disk treats both names as one, as a Mac does, so pulling both would overwrite one. Nothing changed. | Rename or remove one on the Agent, then sync again. |
 | `An interrupted sync of app needs recovery. Run ally sync to recover it` | A sync stopped partway, such as when the connection dropped. | Run `ally sync`. It finishes or undoes the earlier one. |
 | `Could not recover an interrupted sync. Backups are in ...` | The sync could not be finished or undone. | Make each listed file match its backup, or delete it, then sync again. |
 | `This project has no copy on the Agent yet. Run ally sync first` | A pull needs a copy on the Agent. | Run `ally sync` once. |
+| `app has a run in progress (job 3f9c2a)`, or `a session in progress` | The project is in use. A sync waits for a run, and `unlink` waits for a run or session. | Stop it with the `ally stop` command in the message, or wait. |
 | `Unsupported source path` or `Unsafe source link` | A name or link cannot be copied safely, such as a link outside the project. | Remove it, or add it to `.gitignore`. |
 | `Message is too large. The project may have too many files` | The file list is over the limit. | Leave out large generated or data folders with `.gitignore` or `sync.exclude`. |
 | `sync.exclude in ally.toml cannot contain negated patterns` | Patterns starting with `!` are not allowed. | Remove them. |
@@ -133,16 +121,6 @@
 | `GPU reporting unavailable, because nvidia-smi is not installed` | A warning. GPU use is read with `nvidia-smi`, which comes with the NVIDIA driver. | Nothing without an NVIDIA GPU. With one, install the driver and `ally start` again. |
 | `NVIDIA driver and library versions differ` | The driver was updated, but the old one is still loaded. | Restart the Agent. |
 | `No GPU data available` | No NVIDIA card, or no `nvidia-smi`. | Nothing. Ally works without a GPU. |
-
-## Projects
-
-| Message | Meaning | Fix |
-| --- | --- | --- |
-| `No project named web on archbox` | No copy on the Agent has that name. | Check the name with `ally projects`. |
-| `2 projects are named app on archbox. Use the ID of the one you mean` | Two Clients each have a project with this name. | Run the command again with the ID from the message. |
-| `app has no copy on archbox` | The current project was never synced to this Agent. | Nothing to clean or remove. `ally sync` copies it. |
-| `app has a run in progress`, or `a session in progress` | The project is in use. | Stop it with the `ally stop` command in the message, or wait. |
-| `Run ally projects remove in a terminal to confirm, since it deletes files` | It asks first, and a script cannot answer. | Run it in a terminal. |
 
 ## The Menu Bar App
 

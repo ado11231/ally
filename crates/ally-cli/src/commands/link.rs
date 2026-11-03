@@ -97,11 +97,6 @@ pub async fn link(code: String, name: Option<String>) -> anyhow::Result<i32> {
     }
     presentation::detail("Saved", home_path(&saved));
 
-    if let Err(error) = super::tools::offer(config.resolve(Some(&name))?).await {
-        presentation::warning(format!(
-            "Could not set up tools on {name}: {error:#}. Run ally tools to try again"
-        ));
-    }
     if let Err(error) = super::menubar::offer(&name).await {
         presentation::warning(format!(
             "Could not add {name} to the menu bar: {error:#}. Run ally menubar to try again"

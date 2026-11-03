@@ -9,7 +9,7 @@ use crate::project::{self, Local};
 use crate::route;
 use ally_core::config::Agent;
 use ally_core::control::{ProjectInfo, ProjectRef, Request, Response, Snapshot};
-use ally_core::presentation::{self, Style, Tone};
+use ally_core::presentation::{self, Style};
 use ally_core::source::{self, Manifest, Rules};
 use ally_core::step::Step;
 use ally_core::storage;
@@ -82,28 +82,6 @@ async fn recover_local(local: &Local, id: &str) -> anyhow::Result<()> {
     let state = StateDir::new(state_dir(id)?);
     let root = local.root.clone();
     tokio::task::spawn_blocking(move || sync::recover(&root, &state)).await?
-}
-
-/// Preview a sync without taking a lease or changing anything.
-pub async fn preview(
-    opened: &mut ProjectSession,
-    agent: &Agent,
-    local: &Local,
-    direction: Direction,
-) -> anyhow::Result<Plan> {
-    let (plan, sender, receiver) = planned(opened, local, direction).await?;
-    print!(
-        "{}",
-        preview_text(
-            &plan,
-            &sender,
-            &receiver,
-            &agent.name,
-            direction,
-            Style::stdout()
-        )
-    );
-    Ok(plan)
 }
 
 /// The files a sync in `direction` would find changed on both machines, without changing
@@ -434,10 +412,6 @@ fn conflict_message(paths: &[String], agent: &str) -> String {
     }
     lines.push("  Nothing was changed on either machine.".to_string());
     for (label, command) in [
-        (
-            "Compare",
-            "ally sync --check, then ally sync --pull --check",
-        ),
         ("Keep mine", "ally sync --overwrite"),
         ("Keep theirs", "ally sync --pull --overwrite"),
     ] {
@@ -619,64 +593,6 @@ async fn with_heartbeat(
     }
 }
 
-/// A readable preview of a plan. Words, not symbols, say what would happen.
-fn preview_text(
-    plan: &Plan,
-    sender: &Manifest,
-    receiver: &Manifest,
-    agent: &str,
-    direction: Direction,
-    style: Style,
-) -> String {
-    let (from, to) = match direction {
-        Direction::Push => ("this machine".to_string(), agent.to_string()),
-        Direction::Pull => (agent.to_string(), "this machine".to_string()),
-    };
-    let mut output = format!(
-        "\n{}\n\n",
-        style.heading(format!("Sync preview from {from} to {to}"))
-    );
-    if plan.changes.is_empty() && plan.conflicts.is_empty() && plan.kept.is_empty() {
-        output.push_str(&format!("  {to} already matches {from}\n"));
-        return output;
-    }
-    for name in &plan.changes {
-        let action = match (sender.contains_key(name), receiver.contains_key(name)) {
-            (true, false) => format!("{:<9}", "Add"),
-            (false, _) => style.paint(format!("{:<9}", "Delete"), Tone::Warning),
-            (true, true) => format!("{:<9}", "Update"),
-        };
-        output.push_str(&format!("  {action} {name}\n"));
-    }
-    for name in &plan.conflicts {
-        output.push_str(&format!(
-            "  {} {name}\n",
-            style.paint(format!("{:<9}", "Conflict"), Tone::Error)
-        ));
-    }
-    for name in &plan.kept {
-        output.push_str(&format!(
-            "  {:<9} {name} {}\n",
-            "Keep",
-            style.dim(format!("(changed only on {to})"))
-        ));
-    }
-    output.push_str(&format!(
-        "\n  {}\n",
-        style.dim(format!(
-            "{} would be applied. Nothing was changed",
-            presentation::plural(plan.changes.len(), "change")
-        ))
-    ));
-    if !plan.conflicts.is_empty() {
-        output.push_str(&format!(
-            "  {} must be resolved first\n",
-            presentation::plural(plan.conflicts.len(), "conflict")
-        ));
-    }
-    output
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -698,7 +614,6 @@ mod tests {
             [
                 "NOTES.md changed on both this machine and archbox",
                 "  Nothing was changed on either machine.",
-                "  Compare      ally sync --check, then ally sync --pull --check",
                 "  Keep mine    ally sync --overwrite",
                 "  Keep theirs  ally sync --pull --overwrite",
             ]
@@ -738,43 +653,6 @@ mod tests {
             ["f1.rs", "f2.rs", "f3.rs", "f4.rs", "f5.rs", "and 2 more"]
         );
         assert_eq!(named(&paths[..2]), ["f1.rs", "f2.rs"]);
-    }
-
-    #[test]
-    fn previews_name_every_action_in_words() {
-        let base = Manifest::from([
-            ("old".into(), file("a")),
-            ("same".into(), file("a")),
-            ("both".into(), file("a")),
-        ]);
-        let sender = Manifest::from([
-            ("new".into(), file("n")),
-            ("same".into(), file("b")),
-            ("both".into(), file("b")),
-        ]);
-        let receiver = Manifest::from([
-            ("old".into(), file("a")),
-            ("same".into(), file("a")),
-            ("both".into(), file("c")),
-            ("mine".into(), file("m")),
-        ]);
-        let plan = sync::plan(&base, &sender, &receiver);
-        let text = preview_text(
-            &plan,
-            &sender,
-            &receiver,
-            "archbox",
-            Direction::Push,
-            Style::new(false),
-        );
-        assert!(text.contains("Sync preview from this machine to archbox"));
-        assert!(text.contains("Add       new"));
-        assert!(text.contains("Delete    old"));
-        assert!(text.contains("Update    same"));
-        assert!(text.contains("Conflict  both"));
-        assert!(text.contains("Keep      mine (changed only on archbox)"));
-        assert!(text.contains("3 changes would be applied. Nothing was changed"));
-        assert!(!text.contains('\x1b'));
     }
 
     #[test]

@@ -1,5 +1,5 @@
-//! Every TCP port listening on the Agent, and who opened it, for port forwarding and
-//! `ally ports`. Sockets come from `ss` on Linux and `lsof` on macOS, and belong to a job
+//! Every TCP port listening on the Agent, and who opened it, for port forwarding.
+//! Sockets come from `ss` on Linux and `lsof` on macOS, and belong to a job
 //! when one of its processes holds them. Ports that Docker containers publish come from
 //! `docker ps`, since Docker's own processes hold them outside any job.
 

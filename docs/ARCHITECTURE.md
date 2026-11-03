@@ -94,7 +94,7 @@ flowchart LR
 | Traffic | How It Travels | Purpose |
 | --- | --- | --- |
 | **Pairing** | JSON over TCP port 7433 | Trades a one time code for access. |
-| **Control** | `ssh` starts `ally internal-control` | Short requests: health, jobs, sync plans, sessions, environment files, tools. |
+| **Control** | `ssh` starts `ally internal-control` | Short requests: health, jobs, sync plans, sessions, ports. |
 | **Work** | `ssh` starts `ally internal-run`, or joins `tmux` | Runs your command in a real terminal. |
 | **Files** | `rsync` through `ally internal-rsh` | Copies changed source files either way. |
 
@@ -113,7 +113,7 @@ flowchart LR
 * A code works once, expires after 10 minutes, and is burned after 3 wrong tries. A guess only counts when sent to the Agent.
 * An Agent with linked Clients prints a code only when Enter is pressed.
 * The boot service runs `ally internal-daemon`, which has no pairing port. An `ally start` beside it pairs in its own process, so the code never reaches the daemon. Pairing only writes `authorized_keys` and the iroh Client list, which the daemon reads fresh.
-* `ally unlink` reverses pairing: removes the key, deletes the Client's environment files, and forgets the Agent.
+* `ally unlink` reverses pairing: removes the key, deletes any environment files older versions stored for the Client, and forgets the Agent.
 
 ### Control
 
@@ -162,7 +162,7 @@ sequenceDiagram
 
 ## Keeping Files In Step
 
-* `ally-core/src/source.rs` decides what counts as source. It follows `.gitignore`, and always leaves out `.git`, build output, and environment files. Left out files are never copied, pulled, previewed, or backed up.
+* `ally-core/src/source.rs` decides what counts as source. It follows `.gitignore`, and always leaves out `.git`, build output, and environment files. Left out files are never copied, pulled, or backed up.
 
 1. Each machine lists its source files with a fingerprint of each.
 2. Each list is compared with the baseline.
@@ -171,8 +171,7 @@ sequenceDiagram
 5. `rsync` copies changed files into a staging folder.
 6. The receiving side checks every staged file, then applies them all at once, or restores the previous state if anything fails.
 
-* `--pull` runs the same steps the other way. `--check` shows the plan only.
-* `ally env add` stores environment files outside the source copy. Their contents never appear in arguments.
+* `--pull` runs the same steps the other way.
 
 ## Build Output
 
@@ -249,7 +248,7 @@ jobs/                  one record per run or session
 projects/<project id>/
 ├── source/            the source copy
 ├── artifacts/         build output, such as target, node_modules, and the pip cache
-├── environment/       files added with ally env
+├── environment/       files older versions stored, which unlink removes
 └── state/             the baseline, staging, and backups
 ```
 
@@ -280,19 +279,18 @@ ally/
 | --- | --- | --- | --- |
 | `lib.rs` | Lists the modules. | none | the other crates |
 | `protocol.rs` | Pairing messages and the SPAKE2 handshake, hardware details, and health values. | none | `config`, `control`, `telemetry`, Agent `lib`, several Client commands |
-| `control.rs` | Versioned control messages, job records, and message reading and writing. | `protocol`, `source`, `tools` | Agent `service`, `jobs`, `ports`, `projects`, `runner`; Client `client`, `transfer`, most commands |
+| `control.rs` | Versioned control messages, job records, and message reading and writing. | `protocol`, `source` | Agent `service`, `jobs`, `ports`, `projects`, `runner`; Client `client`, `transfer`, most commands |
 | `config.rs` | The Client's saved Agents: loading, saving, and choosing one. | `network`, `protocol` | `keys` and nearly every Client file |
 | `network.rs` | Tells local, tailnet, and other addresses apart. | none | `config`, Agent `lib`, Client `route` |
 | `tunnel.rs` | What both machines share for iroh: the connection name and a saved identity. | `storage`, `source` | Agent `lib`, `clients`, `tunnel`; Client `route`, `tunnel`, `link` |
 | `keys.rs` | Names the installed ssh key and reads this machine's ssh identity. | `config`, `storage` | Agent `lib`; Client `keys`, `link`, `unlink`, `transfer` |
 | `storage.rs` | Private folders, IDs, safe file writes, and file locks. | none | `source`, `sync`, `keys`, `tunnel`, and many files in both other crates |
-| `source.rs` | Decides which files are source, and fingerprints them. | `storage` | `control`, `sync`, `tunnel`, Agent `projects`, Client `transfer`, `env`, `menubar` |
+| `source.rs` | Decides which files are source, and fingerprints them. | `storage` | `control`, `sync`, `tunnel`, Agent `projects`, Client `transfer`, `menubar` |
 | `sync.rs` | Three way sync: planning, conflicts, staging, and safe apply with rollback. | `source`, `storage` | Agent `projects`, Client `transfer` |
-| `stack.rs` | Recognizes Rust, Node, and Python projects. | none | `artifacts`, `tools` |
+| `stack.rs` | Recognizes Rust, Node, and Python projects. | none | `artifacts`, Agent `projects`, Client `project`, `run` |
 | `artifacts.rs` | Where each kind of project keeps its build output on the Agent. | `stack` | Agent `projects`, Client `run` |
-| `telemetry.rs` | Reads hardware details and live use with `sysinfo` and `nvidia-smi`. | `presentation`, `protocol` | `preflight`, `tools`, Agent `lib`, `ports`, Client `health`, `transfer`, `watch` |
-| `preflight.rs` | Setup checks that print the fix, and the package manager's install command. | `presentation`, `telemetry` | `tools`, Agent `lib`, `jobs`, `ports`, `service`; Client `link`, `transfer` |
-| `tools.rs` | The tools Ally can set up on the Agent, how to find them, and their install commands. | `preflight`, `stack`, `telemetry` | `control`, Agent `service`, Client `tools` |
+| `telemetry.rs` | Reads hardware details and live use with `sysinfo` and `nvidia-smi`. | `presentation`, `protocol` | `preflight`, Agent `lib`, `ports`, `service`, Client `health`, `menubar`, `transfer`, `watch` |
+| `preflight.rs` | Setup checks that print the fix, and the package manager's install command. | `presentation`, `telemetry` | Agent `lib`, `jobs`, `ports`; Client `forward`, `link`, `transfer` |
 | `presentation.rs` | The shared output style: symbols, colors, rows, and sizes. | none | `step`, `preflight`, `telemetry`, every command |
 | `step.rs` | A spinner for slow work, then a finished line with the time taken. | `presentation` | Agent `lib`; Client `client`, `transfer`, `run`, `link`, `ps`, `unlink` |
 
@@ -301,8 +299,8 @@ ally/
 | File | Purpose | Uses | Used By |
 | --- | --- | --- | --- |
 | `lib.rs` | `ally start`: setup checks, the start screen, pairing, and starting the other parts. `ally internal-daemon`: the same without pairing, for the boot service. | `awake`, `clients`, `service`, `tunnel` | Client `lib` |
-| `service.rs` | The private control socket, the `internal-control` helper that reaches it, and the tools probe run in the login shell. | `clients`, `jobs`, `ports`, `projects` | `lib`, `runner`, Client `lib` |
-| `projects.rs` | Project storage: source copies, sync locks, build output, and environment files. Lists, cleans, and removes copies. | `jobs` | `service`, `jobs`, `runner`, `uninstall` |
+| `service.rs` | The private control socket, and the `internal-control` helper that reaches it. | `clients`, `jobs`, `ports`, `projects` | `lib`, `runner`, Client `lib` |
+| `projects.rs` | Project storage: source copies, sync locks, and build output. Removes environment files older versions stored. | `jobs` | `service`, `jobs`, `runner`, `uninstall` |
 | `jobs.rs` | Job records, `tmux` sessions, the processes each job owns, and safe stopping. | `projects` | `service`, `ports`, `projects`, `runner` |
 | `ports.rs` | The TCP ports that jobs and Docker containers listen on, found with `ss` on Linux and `lsof` on macOS, for port forwarding. | `jobs` | `service` |
 | `runner.rs` | `ally internal-run`: runs one command in the project copy with a real terminal. | `jobs`, `projects`, `service` | Client `lib` |
@@ -322,9 +320,9 @@ ally/
 | `main.rs` | The `ally` program. Calls `lib`. | `lib` | none, it is the entry point |
 | `build.rs` | Puts the build's commit into `--version`, using `git` when present. | `git` | `lib` |
 | `client.rs` | The pairing connection, and the `Control` connection over `ssh`. | `route`, `ssh`, `tunnel` | `forward`, `transfer`, `watch`, most commands |
-| `route.rs` | Chooses the path: local network, tailnet, or iroh. Prints the `▶` location line. | none | `client`, `ssh`, `transfer`, `watch`, `run`, `attach`, `tools` |
+| `route.rs` | Chooses the path: local network, tailnet, or iroh. Prints the `▶` location line. | none | `client`, `ssh`, `transfer`, `watch`, `run`, `attach`, `forward` command |
 | `ssh.rs` | Builds every `ssh` call, with safe quoting and a connection shared on every route. | `route`, `tunnel`, `source` | `client`, `forward`, `run`, `attach`, `unlink` |
-| `forward.rs` | Port forwarding while `run` or `attach` is connected: asks the Agent for ports, adds and removes them on the shared ssh connection, and claims each one so only one command forwards it. Each claim records where its port opens here. | `client`, `ssh`, `storage`, `preflight` | `run`, `attach`, `forward` command, `ports` |
+| `forward.rs` | Port forwarding while `run` or `attach` is connected: asks the Agent for ports, adds and removes them on the shared ssh connection, and claims each one so only one command forwards it. Each claim records where its port opens here. | `client`, `ssh`, `storage`, `preflight` | `run`, `attach`, `forward` command, `watch` |
 | `tunnel.rs` | `ally internal-tunnel`: the Client's end of an iroh connection. | `project` | `client`, `ssh` |
 | `transfer.rs` | Performs a sync: lists files, plans, calls `rsync`, and reports. | `client`, `project`, `route` | `run`, `attach`, `sync` |
 | `project.rs` | Finds the current project and its ID on each Agent. | none | `transfer`, `tunnel`, most commands |
@@ -340,20 +338,16 @@ ally/
 
 | File | Command | Uses |
 | --- | --- | --- |
-| `link.rs` | `ally link` | `client`, `keys`, `project`, `menubar`, `tools` |
-| `tools.rs` | `ally tools`, and the tools step of `link` | `client`, `project`, `route`, `ssh`, `run` |
+| `link.rs` | `ally link` | `client`, `keys`, `project`, `menubar` |
 | `uninstall.rs` | `ally uninstall`: the Client's settings, key, app, and links, plus the Agent's part on an Agent | `keys`, `menubar`, `unlink`, Agent `uninstall` |
 | `unlink.rs` | `ally unlink` | `client`, `project`, `ssh` |
 | `run.rs` | `ally run` | `client`, `forward`, `project`, `route`, `ssh`, `transfer` |
 | `attach.rs` | `ally attach` | `client`, `forward`, `project`, `route`, `ssh`, `transfer`, `run` |
 | `sync.rs` | `ally sync` | `project`, `transfer` |
-| `env.rs` | `ally env` | `client`, `project` |
-| `projects.rs` | `ally projects`, `clean`, and `remove` | `client`, `project`, `ps` |
 | `ps.rs` | `ally ps` and `ally stop` | `client` |
 | `forward.rs` | `ally forward` | `forward`, `route`, `ssh` |
-| `ports.rs` | `ally ports` | `client`, `forward`, `ssh` |
 | `health.rs` | `ally health`, jobs in `--watch`, and the thresholds `watch` shares | `client`, `live`, `ps` |
-| `menubar.rs` | `ally menubar`, and the offer at the end of `link` | `project`, `ssh`, `tools` |
+| `menubar.rs` | `ally menubar`, and the offer at the end of `link` | `project`, `ssh` |
 
 ### Tests
 

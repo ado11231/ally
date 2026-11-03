@@ -7,20 +7,16 @@
 
 use crate::protocol::Health;
 use crate::source::Manifest;
-use crate::tools::{OllamaProblem, Tool};
 use anyhow::{Context, ensure};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 /// Wire version of this control protocol. Both machines must agree on it, so any change
 /// to a request or response shape has to raise it.
-pub const VERSION: u32 = 17;
+pub const VERSION: u32 = 18;
 
 /// Largest frame in either direction. Manifests for very large projects are the limit.
 pub const MAX_FRAME: u32 = 16 * 1024 * 1024;
-
-/// Largest environment file accepted by `ally env add`.
-pub const MAX_ENVIRONMENT_FILE: usize = 1024 * 1024;
 
 /// This build's release, such as `0.1.0`, sent beside the protocol so a mismatch can name
 /// both. Builds from before it was added send none.
@@ -75,7 +71,7 @@ pub enum Request {
         excludes: Vec<String>,
         pull: bool,
     },
-    /// Describe the Agent source without taking a lease, for previews.
+    /// Describe the Agent source without taking a lease, to list conflicts before `--overwrite` asks.
     Inspect {
         project: String,
         excludes: Vec<String>,
@@ -102,40 +98,15 @@ pub enum Request {
     Stop {
         job: String,
     },
-    EnvAdd {
-        project: String,
-        target: String,
-        contents: Vec<u8>,
-        replace: bool,
-    },
-    EnvList {
-        project: String,
-    },
-    EnvRemove {
-        project: String,
-        target: String,
-    },
     /// Remove environment files for these projects and stop accepting this Client over
     /// iroh. Source and backups stay.
     Unlink {
         client: String,
         projects: Vec<String>,
     },
-    /// Which developer tools a session on the Agent would find.
-    Tools,
     /// What the running daemon calls itself and whether iroh reaches it, for a second
     /// `ally start` on the same account.
     Status,
-    /// Every project copy on the Agent, from any Client.
-    Projects,
-    /// Remove a project's build output. The next build or install makes it again.
-    CleanProject {
-        project: String,
-    },
-    /// Delete a project's copy, build output, and environment files from the Agent.
-    RemoveProject {
-        project: String,
-    },
     /// Every TCP port listening on the Agent, and who opened it.
     Ports,
 }
@@ -154,12 +125,8 @@ pub enum Response {
     Session(SessionInfo),
     Jobs(Vec<Job>),
     Job(Job),
-    EnvironmentFiles(Vec<String>),
     Unlinked { environment_files: usize },
-    Tools(AgentTools),
     Status(AgentStatus),
-    Projects(Vec<ProjectSummary>),
-    Cleaned { bytes: u64 },
     Ports(Vec<Listening>),
 }
 
@@ -197,22 +164,6 @@ impl Source {
     }
 }
 
-/// One project copy on the Agent, as `ally projects` lists it.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProjectSummary {
-    pub id: String,
-    pub name: String,
-    pub client: String,
-    /// Bytes in the source copy, without build output.
-    pub copy: u64,
-    /// Bytes of build output, including a Python `.venv`.
-    pub build: u64,
-    /// When the copy last matched the Client, or `None` before the first sync.
-    pub synced: Option<u64>,
-    /// Files changed on the Agent that no pull has brought back yet.
-    pub waiting: usize,
-}
-
 /// The running daemon, as a second `ally start` on the same account shows it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentStatus {
@@ -221,30 +172,6 @@ pub struct AgentStatus {
     pub release: String,
     /// Whether an iroh relay has answered, which makes the Agent reachable from other networks.
     pub online: bool,
-}
-
-/// The developer tools on the Agent, and what installing more of them needs there.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AgentTools {
-    pub installed: Vec<Tool>,
-    /// The package manager found on the Agent, such as `pacman`.
-    pub manager: Option<String>,
-    /// The account's login shell, which runs install commands so they see a session's PATH.
-    pub shell: String,
-    /// Whether this account can write npm's global folder, so Codex installs without
-    /// `sudo`. `None` when npm is not installed yet.
-    #[serde(default)]
-    pub npm_writable: Option<bool>,
-    /// Installed tools that are not signed in, so the Client can offer to sign in.
-    #[serde(default)]
-    pub signed_out: Vec<Tool>,
-    /// Whether this account can use `sudo`. `None` when the Agent did not say, which is
-    /// treated as yes.
-    #[serde(default)]
-    pub admin: Option<bool>,
-    /// Why an installed Ollama cannot serve models on the GPU yet.
-    #[serde(default)]
-    pub ollama: Vec<OllamaProblem>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -472,31 +399,5 @@ mod tests {
         let mismatch = error.downcast_ref::<Mismatch>().unwrap();
         assert!(!mismatch.other_is_older());
         assert_eq!(mismatch.release.as_deref(), Some("9.9.9"));
-    }
-
-    #[tokio::test]
-    async fn the_tools_reply_round_trips() {
-        let (mut a, mut b) = tokio::io::duplex(1024);
-        let reply = Response::Tools(AgentTools {
-            installed: vec![Tool::Git, Tool::ClaudeCode],
-            manager: Some("pacman".into()),
-            shell: "/usr/bin/bash".into(),
-            npm_writable: Some(false),
-            signed_out: vec![Tool::Codex],
-            admin: Some(false),
-            ollama: vec![OllamaProblem::CpuOnly],
-        });
-        write_frame(&mut a, &reply).await.unwrap();
-
-        let Some(Response::Tools(back)) = read_frame(&mut b).await.unwrap() else {
-            panic!("expected a tools reply");
-        };
-        assert_eq!(back.installed, vec![Tool::Git, Tool::ClaudeCode]);
-        assert_eq!(back.manager.as_deref(), Some("pacman"));
-        assert_eq!(back.shell, "/usr/bin/bash");
-        assert_eq!(back.npm_writable, Some(false));
-        assert_eq!(back.signed_out, vec![Tool::Codex]);
-        assert_eq!(back.admin, Some(false));
-        assert_eq!(back.ollama, vec![OllamaProblem::CpuOnly]);
     }
 }

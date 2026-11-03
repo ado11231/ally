@@ -3,7 +3,6 @@
 use crate::route::{self, Route};
 use crate::tunnel;
 use ally_core::config;
-use ally_core::presentation::Style;
 use ally_core::source;
 use anyhow::Context;
 use shell_words::join;
@@ -99,8 +98,6 @@ pub struct RemoteCommand {
     pub shared: Option<PathBuf>,
     /// Whether to ask for a terminal on the Agent. See `wants_terminal`.
     pub tty: bool,
-    /// A port on the Agent to reach at the same port on this machine while the command runs.
-    pub forward: Option<u16>,
     /// Send the program's own output to `/dev/null` on the Agent. tmux draws through the
     /// terminal it reads from, so for `attach` this hides only its `[detached]` line.
     pub quiet: bool,
@@ -131,7 +128,6 @@ impl RemoteCommand {
             known_hosts: agent.known_hosts.clone(),
             host_key_alias: Some(agent.host.clone()),
             tty: wants_terminal(),
-            forward: None,
             quiet: false,
             program,
             args,
@@ -324,13 +320,6 @@ impl RemoteCommand {
             argv.push("-t".to_string());
         }
 
-        if let Some(port) = self.forward {
-            argv.push("-o".to_string());
-            argv.push("ExitOnForwardFailure=yes".to_string());
-            argv.push("-L".to_string());
-            argv.push(format!("{port}:localhost:{port}"));
-        }
-
         argv.push(self.destination());
         argv
     }
@@ -374,39 +363,6 @@ impl RemoteCommand {
 
         ended(status.code().unwrap_or(EXIT_SIGNALLED), &log)
     }
-
-    /// Run without a terminal, showing each line of output dimmed under a bar, so it reads
-    /// as part of the step around it and cannot clear the screen. Only for commands that
-    /// need no input, with their errors sent to standard output too.
-    pub async fn framed(&self) -> anyhow::Result<i32> {
-        use tokio::io::{AsyncBufReadExt, BufReader};
-
-        let log = SshLog::create()?;
-        let mut child = Command::new("ssh")
-            .arg("-E")
-            .arg(&log.0)
-            .args(self.to_ssh_args())
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
-            .kill_on_drop(true)
-            .spawn()
-            .context("Could not start ssh. Check that it is installed and on PATH")?;
-        let style = Style::stderr();
-        if let Some(stdout) = child.stdout.take() {
-            let mut reader = BufReader::new(stdout);
-            let mut line = Vec::new();
-            while reader.read_until(b'\n', &mut line).await? > 0 {
-                eprintln!(
-                    "  {}",
-                    style.dim(framed_line(&String::from_utf8_lossy(&line)))
-                );
-                line.clear();
-            }
-        }
-        let status = child.wait().await.context("Waiting for ssh failed")?;
-        ended(status.code().unwrap_or(EXIT_SIGNALLED), &log)
-    }
 }
 
 /// What names a shared connection: who logs in, through which address or iroh key, and on
@@ -416,17 +372,6 @@ fn share_route(user: &str, through: &str, port: Option<u16>) -> String {
         Some(port) => format!("{user}@{through}:{port}"),
         None => format!("{user}@{through}"),
     }
-}
-
-/// One line of framed output. A progress bar redraws its line with carriage returns, so
-/// only what it drew last is kept.
-fn framed_line(line: &str) -> String {
-    let shown = line
-        .trim_end_matches(['\n', '\r'])
-        .rsplit('\r')
-        .next()
-        .unwrap_or("");
-    format!("│ {}", shown.trim_end())
 }
 
 /// The remote exit code, or `Disconnected` when ssh itself failed. ssh's own messages are
@@ -601,7 +546,6 @@ mod tests {
             proxy: None,
             shared: None,
             tty: false,
-            forward: None,
             quiet: false,
             program: "echo".to_string(),
             args: args.iter().map(|s| s.to_string()).collect(),
@@ -712,28 +656,6 @@ mod tests {
 
         assert!(argv.contains(&"-t".to_string()), "argv was: {argv:?}");
         assert_eq!(argv.last().unwrap(), "echo hi");
-    }
-
-    #[test]
-    fn a_forwarded_port_fails_loudly_when_it_is_taken() {
-        assert!(!remote(&["hi"]).to_ssh_args().contains(&"-L".to_string()));
-
-        let mut command = remote(&["hi"]);
-        command.forward = Some(1455);
-
-        let argv = command.to_ssh_args();
-        let at = argv.iter().position(|arg| arg == "-L").unwrap();
-
-        assert_eq!(argv[at + 1], "1455:localhost:1455");
-        assert!(argv.contains(&"ExitOnForwardFailure=yes".to_string()));
-        assert_eq!(argv.last().unwrap(), "echo hi");
-    }
-
-    #[test]
-    fn framed_output_keeps_the_last_redraw_of_a_progress_line() {
-        assert_eq!(framed_line("Installing...\n"), "│ Installing...");
-        assert_eq!(framed_line(" 10%\r 55%\r100%  \n"), "│ 100%");
-        assert_eq!(framed_line("\n"), "│ ");
     }
 
     #[test]

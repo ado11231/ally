@@ -8,11 +8,11 @@
 2. [Install](#install)
 3. [Set Up](#set-up)
 4. [Run Work](#run-work)
-5. [Keep Files In Step](#keep-files-in-step)
-6. [Environment Files](#environment-files)
-7. [Check On The Agent](#check-on-the-agent)
-8. [Manage Jobs](#manage-jobs)
-9. [Manage Projects](#manage-projects)
+5. [Use Local Models](#use-local-models)
+6. [Keep Files In Step](#keep-files-in-step)
+7. [Environment Files](#environment-files)
+8. [Check On The Agent](#check-on-the-agent)
+9. [Manage Jobs](#manage-jobs)
 10. [The Menu Bar App](#the-menu-bar-app)
 11. [More Than One Agent](#more-than-one-agent)
 12. [Project Settings](#project-settings)
@@ -77,29 +77,9 @@ ally link 192.168.1.9:7433:K7QW9ZR2
 * Each Client links under its own name, such as `MacBook-Pro-3f9c2a`. Linking again keeps it.
 * `--name <name>` saves the Agent under your own name.
 
-### Set Up Tools On The Agent
+### Tools On The Agent
 
-```sh
-ally tools
-```
-
-* `link` runs this at the end. It offers each tool the Client has and the Agent lacks, plus what the project needs.
-
-| Tool | Installed With |
-| --- | --- |
-| Git, Node and npm, Python | The package manager |
-| Docker | The package manager, then starts it and adds you to the `docker` group |
-| Rust | `rustup` |
-| Claude Code | Its official installer |
-| Codex | `npm` |
-| Ollama | Its official installer, which adds a system service. Offered when the Agent has a GPU. |
-| OpenCode | Its official installer |
-
-* Lists every command, then asks once. `sudo` commands run in your terminal so you can type your password.
-* Then signs in to Claude Code and Codex. Accounts are never copied from the Client.
-* Warns when the Agent's Ollama is not running, or on an NVIDIA Agent runs on the CPU only, with the fix.
-* For Codex, open the printed link on the Client. Ally forwards port 1455 for it.
-* Without `sudo`, it installs what it can and lists the rest under "Ask an admin to run".
+* Commands run with the Agent's own tools. Install what you need there, such as inside `ally attach`.
 * `~/.local/bin`, `~/.cargo/bin`, and `~/.opencode/bin` are on the PATH of everything Ally starts.
 * Versions are not matched. `.nvmrc` or `rust-toolchain.toml` still decide them.
 
@@ -151,11 +131,18 @@ ally attach [path]
 | Command | Effect |
 | --- | --- |
 | `ally forward <port>` | Opens one Agent port at `localhost` until Ctrl C, for a server left running after leaving its session, or one Ally did not start. |
-| `ally ports` | Lists every port listening on the Agent, who opened it, and where it opens here. |
 
-* In `ally ports`, FROM is a job ID from `ally ps`, `Docker`, `outside Ally` for another program on the Agent account, or `other account` for the system and other accounts.
-* An open forward is green. Ports not forwarded and rows from other accounts are dimmed.
-* A macOS Agent cannot see other accounts' ports, so it shows only its own.
+## Use Local Models
+
+* Ally has no model commands. Install [Ollama](https://ollama.com) on the Agent, then use it through a session or a forwarded port.
+
+| Want | How |
+| --- | --- |
+| Chat in the terminal | Run `ollama run <model>` inside `ally attach`. |
+| A coding agent on a local model | Run OpenCode inside `ally attach`, and choose an Ollama model in it. |
+| A chat window in your browser | Start Open WebUI with `ally run docker run -p 3000:8080 ...` from its own instructions. It opens at `localhost:3000` while the run is connected. |
+
+* Models use the Agent's GPU when Ollama was built for it. On Arch Linux that is the `ollama-cuda` package.
 
 ## Keep Files In Step
 
@@ -165,7 +152,6 @@ ally attach [path]
 | --- | --- |
 | `ally sync` | Copies your changes to the Agent. |
 | `ally sync --pull` | Copies the Agent's changes back. |
-| `--check` | Shows what would change. |
 | `--overwrite` | Keeps this side in a conflict, with a backup, after asking. |
 
 * Edits made on one machine only are kept.
@@ -174,20 +160,8 @@ ally attach [path]
 
 ## Environment Files
 
-* `.env` files are never synced. Add them on purpose. They are stored outside the project copy.
-
-```sh
-ally env add .env
-ally env list
-ally env remove .env
-```
-
-| Option For `env add` | Effect |
-| --- | --- |
-| `--target <path>` | Where it appears, such as `api/.env.local`. |
-| `--replace` | Replace a stored file. |
-
-* The target must be an environment file name. Each file can be up to 1 MiB.
+* `.env`, `.env.*`, `*.env`, and `.envrc` files are never synced.
+* Make the ones the Agent needs there, such as inside `ally attach`, in `~/Ally/<project>`.
 
 ## Check On The Agent
 
@@ -205,20 +179,6 @@ ally env remove .env
 | `ally stop <id>` | Stops a job, forced after five seconds. A short ID works. |
 
 * Finished runs show `Completed`, `Failed`, `Stopped`, `Interrupted`, or `Lost connection`.
-
-## Manage Projects
-
-| Command | Effect |
-| --- | --- |
-| `ally projects` | Lists each project on the Agent: its Client, copy size, build output size, last sync, and edits waiting. |
-| `ally projects clean [project]` | Removes the project's build output, including a Python `.venv`. The next build or install makes it again. |
-| `ally projects remove [project]` | Deletes the project from the Agent, after listing it and asking. Default is No. |
-
-* Name a project as the list shows it, or leave it out for the current project.
-* If two Clients have a project with the same name, use its ID from the error message.
-* Edits waiting are files changed on the Agent that `ally sync --pull` has not brought back. Pull them before `remove` to keep them.
-* `clean` and `remove` wait until the project has no run or session.
-* The project on the Client is never touched.
 
 ## The Menu Bar App
 
@@ -260,7 +220,7 @@ exclude = ["data/", "*.mp4"]
 
 | Command | Run On | Effect |
 | --- | --- | --- |
-| `ally unlink` | Client | Removes this Client's key and environment files from the Agent. |
+| `ally unlink` | Client | Removes this Client's key from the Agent, and any environment files older versions of Ally stored. |
 | `ally uninstall` | Either | Lists everything Ally added, asks once, then removes it. Default is No. |
 | `cargo uninstall ally-cli` | Either | Removes the program, after `uninstall`. |
 

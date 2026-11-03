@@ -106,9 +106,6 @@ enum Commands {
     #[command(about = "Remove everything Ally keeps on this machine, after listing it and asking")]
     Uninstall,
 
-    #[command(about = "Install the developer tools this machine uses on the Agent, after asking")]
-    Tools,
-
     /// `trailing_var_arg` stops clap parsing after `run`, so flags like `--release`
     /// reach the remote program untouched rather than being claimed by ally.
     #[command(about = "Sync the project, then run a command on the Agent")]
@@ -129,29 +126,13 @@ enum Commands {
         #[arg(long)]
         pull: bool,
 
-        /// Show what would change without changing anything.
-        #[arg(long)]
-        check: bool,
-
         /// Settle files changed on both machines with the sending side's version, after
         /// listing them and asking once.
-        #[arg(long, conflicts_with = "check")]
+        #[arg(long)]
         overwrite: bool,
 
         /// Project folder. Defaults to the current project.
         path: Option<PathBuf>,
-    },
-
-    #[command(about = "Manage environment files kept on the Agent")]
-    Env {
-        #[command(subcommand)]
-        action: EnvAction,
-    },
-
-    #[command(about = "List the projects copied to the Agent, and free their space")]
-    Projects {
-        #[command(subcommand)]
-        action: Option<ProjectsAction>,
     },
 
     #[command(about = "Reach one Agent port at localhost on this machine until Ctrl C")]
@@ -159,9 +140,6 @@ enum Commands {
         /// The port on the Agent, such as 8080.
         port: u16,
     },
-
-    #[command(about = "List the ports listening on the Agent, and where each opens here")]
-    Ports,
 
     #[command(about = "List Ally runs and sessions on the Agent")]
     Ps {
@@ -188,47 +166,6 @@ enum Commands {
         /// Quit the app, stop it starting at login, and delete it.
         #[arg(long)]
         remove: bool,
-    },
-}
-
-#[derive(Subcommand)]
-enum EnvAction {
-    #[command(about = "Store a local environment file for this project on the Agent")]
-    Add {
-        /// The local file to upload. Its contents are never printed.
-        file: PathBuf,
-
-        /// Where it appears in the Agent copy, such as .env or api/.env.local. Defaults to
-        /// the file's own place in the project.
-        #[arg(long)]
-        target: Option<String>,
-
-        /// Replace an existing file at the same target.
-        #[arg(long)]
-        replace: bool,
-    },
-
-    #[command(about = "List environment file names for this project")]
-    List,
-
-    #[command(about = "Remove an environment file from the Agent")]
-    Remove { target: String },
-}
-
-#[derive(Subcommand)]
-enum ProjectsAction {
-    #[command(
-        about = "Remove a project's build output on the Agent. The next build makes it again"
-    )]
-    Clean {
-        /// The project name or ID from ally projects. Defaults to the current project.
-        project: Option<String>,
-    },
-
-    #[command(about = "Delete a project from the Agent, after asking")]
-    Remove {
-        /// The project name or ID from ally projects. Defaults to the current project.
-        project: Option<String>,
     },
 }
 
@@ -291,35 +228,14 @@ pub async fn run() {
         Commands::Link { code, name } => commands::link::link(code, name).await,
         Commands::Unlink => commands::unlink::unlink(cli.agent).await,
         Commands::Uninstall => commands::uninstall::uninstall().await,
-        Commands::Tools => commands::tools::tools(cli.agent).await,
         Commands::Run { cmd } => commands::run::run(cli.agent, cmd).await,
         Commands::Attach { path } => commands::attach::attach(cli.agent, path).await,
         Commands::Sync {
             pull,
-            check,
             overwrite,
             path,
-        } => commands::sync::sync(cli.agent, path, pull, check, overwrite).await,
-        Commands::Env { action } => match action {
-            EnvAction::Add {
-                file,
-                target,
-                replace,
-            } => commands::env::add(cli.agent, file, target, replace).await,
-            EnvAction::List => commands::env::list(cli.agent).await,
-            EnvAction::Remove { target } => commands::env::remove(cli.agent, target).await,
-        },
-        Commands::Projects { action } => match action {
-            None => commands::projects::list(cli.agent).await,
-            Some(ProjectsAction::Clean { project }) => {
-                commands::projects::clean(cli.agent, project).await
-            }
-            Some(ProjectsAction::Remove { project }) => {
-                commands::projects::remove(cli.agent, project).await
-            }
-        },
+        } => commands::sync::sync(cli.agent, path, pull, overwrite).await,
         Commands::Forward { port } => commands::forward::forward(cli.agent, port).await,
-        Commands::Ports => commands::ports::ports(cli.agent).await,
         Commands::Ps { all } => commands::ps::ps(cli.agent, all).await,
         Commands::Stop { id } => commands::ps::stop(cli.agent, id).await,
         Commands::Health { watch } => commands::health::health(cli.agent, watch).await,
@@ -459,12 +375,11 @@ mod tests {
 
     #[test]
     fn sync_and_env_commands_parse() {
-        let cli = Cli::try_parse_from(["ally", "sync", "--pull", "--check", "app"]).unwrap();
+        let cli = Cli::try_parse_from(["ally", "sync", "--pull", "app"]).unwrap();
         assert!(matches!(
             cli.command,
             Commands::Sync {
                 pull: true,
-                check: true,
                 overwrite: false,
                 path: Some(_)
             }
@@ -478,30 +393,7 @@ mod tests {
                 ..
             }
         ));
-        assert!(Cli::try_parse_from(["ally", "sync", "--overwrite", "--check"]).is_err());
-        let cli = Cli::try_parse_from([
-            "ally",
-            "env",
-            "add",
-            "local.env",
-            "--target",
-            "api/.env",
-            "--replace",
-        ])
-        .unwrap();
-        assert!(matches!(
-            cli.command,
-            Commands::Env {
-                action: EnvAction::Add { replace: true, .. }
-            }
-        ));
-        let cli = Cli::try_parse_from(["ally", "env", "add", ".env"]).unwrap();
-        assert!(matches!(
-            cli.command,
-            Commands::Env {
-                action: EnvAction::Add { target: None, .. }
-            }
-        ));
+        assert!(Cli::try_parse_from(["ally", "sync", "--check"]).is_err());
         assert!(Cli::try_parse_from(["ally", "stop"]).is_err());
     }
 

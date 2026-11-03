@@ -2,15 +2,16 @@
 
 * What works, what was tested, and what comes next.
 * A feature is complete only after it ran on real machines.
-* Last updated October 29, 2026.
+* Last updated November 2, 2026.
 
 ## Contents
 
 1. [Status](#status)
 2. [Complete](#complete)
-3. [Planned](#planned)
-4. [Known Limitations](#known-limitations)
-5. [Test Record](#test-record)
+3. [Removed](#removed)
+4. [Planned](#planned)
+5. [Known Limitations](#known-limitations)
+6. [Test Record](#test-record)
 
 ## Status
 
@@ -21,7 +22,7 @@
 | 3 | Source copies, sync, sessions, jobs, environment files, and live health | Complete |
 | 4 | Reaching the Agent from any network | Complete |
 | 5 | Menu bar app, notifications, and port forwarding | In progress |
-| 6 | Local AI models, pairing across networks, and more platforms | Planned |
+| 6 | Pairing across networks, and more platforms | Planned |
 | 7 | Installers, packages, and a public release | Planned |
 
 ## Complete
@@ -61,20 +62,29 @@
 | Menu bar app | CPU, RAM, GPU, VRAM, and workspace space; an offline screen with the cause, fix, and Try again; always a login item; follows a new `ally` by itself; moves to a better connection within a minute; lists forwarded ports, and a click opens one. `ally menubar` builds, signs, installs, and removes it. |
 | Notifications | Finished, failed, and interrupted runs; the Agent going offline or returning; low memory, low disk, or a hot GPU; a server starting in a run or session, which opens on a click. Shown with the Ally icon. |
 | Sessions | `attach` from anywhere. Syncs first, and pulls edits back on leaving. Login shell, full color, `UTF-8`, mouse scrolling, a colored bar, `~/Ally/<project>`, and the user folders on PATH. Works from terminals the Agent may not know, such as Kitty. |
-| Tools | `link` ends by offering the Client's tools on the Agent, including OpenCode, and Ollama when the Agent has a GPU, then signs in to Claude Code and Codex. Warns when Ollama is stopped or runs on the CPU only. `ally tools` repeats it, offers sign in when signed out, and lists `sudo` steps for an admin on accounts without it. |
 | Starting | A systemd user service with linger, or a launchd agent, offered on the first `ally start`. On Linux, a polkit rule keeps an Agent that can sleep awake with nobody logged in. `--boot` and `--remove` manage it. Moves to the next free port when the pairing port is taken. Warns when Docker is unusable, and says when sleep is off. |
 | Sync | `--overwrite` keeps one side of a conflict, with a backup. Pulls refuse names that differ only in case. A Python `.venv` works on the Agent. |
-| Output | Problems on one line with dimmed fixes. `link` and `tools` in sections. Stopped runs are not failed, and `ps --all` shows `Lost connection`. Version errors name the older machine. |
+| Output | Problems on one line with dimmed fixes. `link` in sections. Stopped runs are not failed, and `ps --all` shows `Lost connection`. Version errors name the older machine. |
 | Removal | `ally uninstall` lists everything on a Client or Agent, asks once with No as the default, and keeps the owner's own files and keys. |
-| Port forwarding | While `run` or `attach` is connected, every port that Ally's work listens on, and every port a Docker container publishes, opens at `localhost` on the Client. A taken port moves to the next free one. Sessions show ports in the bar. `ally forward` opens any Agent port until Ctrl C, and `ally ports` lists every port with who opened it. |
-| Projects | `ally projects` lists each copy on the Agent with its size, build output, last sync, and edits waiting. `clean` frees build output, and `remove` deletes a copy after asking. |
+| Port forwarding | While `run` or `attach` is connected, every port that Ally's work listens on, and every port a Docker container publishes, opens at `localhost` on the Client. A taken port moves to the next free one. Sessions show ports in the bar. `ally forward` opens any Agent port until Ctrl C. |
+
+## Removed
+
+* On November 2, 2026, Ally was narrowed to running work, sessions, sync, port forwarding, and the menu bar. These were removed:
+
+| Removed | Instead |
+| --- | --- |
+| `ally projects`, `clean`, and `remove` | Nothing. Copies stay on the Agent until `ally uninstall`. |
+| `ally ports` | Forwarding still opens ports by itself, and the menu bar lists them. |
+| `ally tools`, and the tools step of `link` | Install tools on the Agent yourself. |
+| `ally env` | Make environment files on the Agent yourself. `unlink` still removes any that older versions stored. |
+| `ally sync --check` | Nothing. `--overwrite` still lists the files it would replace before asking. |
 
 ## Planned
 
 | Phase | Work | Issue |
 | --- | --- | --- |
 | 5 | A notification when a session waits for input | [#136](https://github.com/ado11231/ally/issues/136) |
-| 6 | Local AI models through Ollama | [#20](https://github.com/ado11231/ally/issues/20) |
 | 6 | Pairing across networks, keeping the code safe through a relay | [#19](https://github.com/ado11231/ally/issues/19) |
 | 6 | Watching several Agents from the menu bar | [#109](https://github.com/ado11231/ally/issues/109) |
 | 6 | A setting to use your own iroh relay, and stronger Linux Client support | |
@@ -89,15 +99,11 @@
 * Starting by itself on a macOS Agent is untested.
 * After a power loss, the first iroh connection is untested. A crash is tested below.
 * Edits in a session whose connection dropped stay on the Agent until `ally sync --pull`.
-* The tools step installs Docker only with `pacman`, `apt`, `dnf`, and `zypper`, and Git, Node, and Python only with package managers it knows.
 * Untested: file watchers in sessions, two Clients on one Agent account at once, and large Node and Python projects.
 * `ally.toml` supports only `sync.exclude`.
 * Linking needs a shared network or tailnet.
 * The back online notification and resource warnings have not been seen on real machines.
 * `ally stop` on a `docker run` whose container ignores the stop signal ends the run but leaves the container running. Stop it with `docker stop <name>` ([#144](https://github.com/ado11231/ally/issues/144)).
-* The tools step on an account without `sudo` is checked only by unit tests.
-* Installing Ollama and OpenCode through the tools step is checked only by unit tests. On archbox, the step found both already installed.
-* The tools step warning for a stopped or CPU only Ollama was checked on archbox with a stand in `ollama` program, not with the real service stopped.
 
 ## Test Record
 

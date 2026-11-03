@@ -5,7 +5,6 @@ use crate::projects;
 use ally_core::control::{Job, JobKind, JobState, SessionInfo};
 use ally_core::preflight;
 use ally_core::storage;
-use ally_core::tools;
 use anyhow::{Context, bail, ensure};
 use std::collections::HashMap;
 use std::fs;
@@ -279,6 +278,28 @@ fn session_terminal() -> &'static str {
     }
 }
 
+/// Folders in the home folder where installers put programs for one user, such as Claude
+/// Code in `~/.local/bin`. Login shells that are not interactive often leave them off PATH,
+/// so Ally adds them to everything it starts on the Agent instead of editing any file.
+const USER_FOLDERS: [&str; 3] = [".local/bin", ".cargo/bin", ".opencode/bin"];
+
+/// `path` with each folder of `USER_FOLDERS` under `home` added in front, unless it is
+/// already there, for programs started without a shell.
+pub fn with_user_folders(path: &str, home: &Path) -> String {
+    let current: Vec<&str> = path.split(':').filter(|part| !part.is_empty()).collect();
+    let added: Vec<String> = USER_FOLDERS
+        .iter()
+        .map(|folder| home.join(folder).display().to_string())
+        .filter(|folder| !current.contains(&folder.as_str()))
+        .collect();
+    added
+        .iter()
+        .map(String::as_str)
+        .chain(current)
+        .collect::<Vec<&str>>()
+        .join(":")
+}
+
 /// Variables every new session gets. Programs inside draw box and emoji characters only
 /// with a UTF-8 locale, and use full color only when told the terminal supports it. PATH
 /// gets the per user folders as runs do, because tools such as Claude Code install there
@@ -287,7 +308,7 @@ fn session_environment(home: &Path) -> Vec<(String, String)> {
     let path = std::env::var("PATH").unwrap_or_default();
     let mut variables = vec![
         ("COLORTERM".to_string(), "truecolor".to_string()),
-        ("PATH".to_string(), tools::with_user_folders(&path, home)),
+        ("PATH".to_string(), with_user_folders(&path, home)),
     ];
     let locale = ["LC_ALL", "LC_CTYPE", "LANG"]
         .iter()
@@ -630,6 +651,24 @@ pub fn signal_group(pid: u32, start: u64, signal: i32) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn user_folders_go_in_front_once() {
+        let home = Path::new("/home/me");
+
+        assert_eq!(
+            with_user_folders("/usr/local/bin:/usr/bin", home),
+            "/home/me/.local/bin:/home/me/.cargo/bin:/home/me/.opencode/bin:/usr/local/bin:/usr/bin"
+        );
+        assert_eq!(
+            with_user_folders("/home/me/.cargo/bin:/usr/bin", home),
+            "/home/me/.local/bin:/home/me/.opencode/bin:/home/me/.cargo/bin:/usr/bin"
+        );
+        assert_eq!(
+            with_user_folders("", home),
+            "/home/me/.local/bin:/home/me/.cargo/bin:/home/me/.opencode/bin"
+        );
+    }
 
     /// A run whose leader has another start time is a reused PID, which owns nothing.
     #[test]

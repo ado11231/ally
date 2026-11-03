@@ -93,7 +93,7 @@ impl Style {
     }
 
     /// A symbol and the first line, which says what happened. Any later lines are the
-    /// details and fixes under it, dimmed so the first line is what the eye finds.
+    /// details and fixes under it, plain, because only the symbol carries color.
     pub fn status(self, text: impl std::fmt::Display, tone: Tone) -> String {
         let label = match tone {
             Tone::Good => "✓",
@@ -101,14 +101,7 @@ impl Style {
             Tone::Error => "✗",
             Tone::Info => "▶",
         };
-        let text = text.to_string();
-        let mut lines = text.lines();
-        let mut shown = format!("{} {}", self.paint(label, tone), lines.next().unwrap_or(""));
-        for line in lines {
-            shown.push('\n');
-            shown.push_str(&self.dim(line));
-        }
-        shown
+        format!("{} {text}", self.paint(label, tone))
     }
 }
 
@@ -167,9 +160,13 @@ pub fn section(title: &str) {
     eprintln!("\n{}", Style::stderr().heading(title));
 }
 
-/// A dim `label   value` line under a step, for facts worth keeping but not reading first.
+/// A `label   value` line under a step, with the label bold like a table heading.
 pub fn detail(label: &str, value: impl std::fmt::Display) {
-    eprintln!("{}", Style::stderr().dim(row(label, value).trim_end()));
+    eprintln!("{}", detail_line(Style::stderr(), label, value));
+}
+
+fn detail_line(style: Style, label: &str, value: impl std::fmt::Display) -> String {
+    format!("  {} {value}", style.heading(format!("{label:<12}")))
 }
 
 /// A byte count in MiB, shown as MiB or GiB depending on size.
@@ -222,7 +219,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn only_the_first_line_of_a_status_stands_out() {
+    fn only_the_symbol_of_a_status_is_colored() {
         let text = "Lost connection to archbox\n  See how      ally ps --all";
         assert_eq!(
             Style::new(false).status(text, Tone::Error),
@@ -230,7 +227,19 @@ mod tests {
         );
         assert_eq!(
             Style::new(true).status(text, Tone::Error),
-            "\x1b[31m✗\x1b[0m Lost connection to archbox\n\x1b[2m  See how      ally ps --all\x1b[0m"
+            "\x1b[31m✗\x1b[0m Lost connection to archbox\n  See how      ally ps --all"
+        );
+    }
+
+    #[test]
+    fn a_detail_has_a_bold_label_and_a_plain_value() {
+        assert_eq!(
+            detail_line(Style::new(false), "Return", "ally attach"),
+            "  Return       ally attach"
+        );
+        assert_eq!(
+            detail_line(Style::new(true), "Return", "ally attach"),
+            "  \x1b[1mReturn      \x1b[0m ally attach"
         );
     }
 

@@ -230,7 +230,7 @@ exclude = ["data/", "*.mp4"]
 | Project | Build Output |
 | --- | --- |
 | Rust | `target` goes to Agent storage. |
-| Node | `node_modules` links to Agent storage. |
+| Node | `node_modules` stays in the Agent's copy. |
 | Python | `.venv` stays in the Agent's copy. |
 
 ## Remove Ally

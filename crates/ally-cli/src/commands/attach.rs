@@ -9,6 +9,7 @@ use crate::ssh::{self, RemoteCommand};
 use crate::transfer::{self, Conflicts, Direction};
 use ally_core::config::{Agent, Config};
 use ally_core::control::{Request, Response, SessionInfo};
+use ally_core::keys;
 use ally_core::presentation::{self, Style};
 
 pub async fn attach(
@@ -86,12 +87,13 @@ pub async fn attach(
     Ok(code)
 }
 
-/// The bar at the bottom of a session, colored like a `▶` line. The route is the Client's
-/// to know, so it is set on every attach. `#` starts tmux formatting, so it is dropped.
+/// The bar at the bottom of a session, a cyan band naming the Agent in bold, so it is
+/// always clear the terminal is on the Agent. The route is the Client's to know, so it is
+/// set on every attach. `#` starts tmux formatting, so it is dropped.
 fn bar_label(agent: &str, route: &str, place: &str, color: bool) -> String {
     let place = place.replace('#', "");
     match color {
-        true => format!("#[fg=cyan]▶ {agent}#[default] via #[fg=cyan]{route}#[default] · {place}"),
+        true => format!("#[bold]▶ {agent}#[nobold] via {route} · {place}"),
         false => format!("▶ {agent} via {route} · {place}"),
     }
 }
@@ -146,15 +148,19 @@ fn still_running(answer: Option<Response>, session: &str) -> bool {
 }
 
 fn say_left(target: &Agent, running: bool) {
+    presentation::success(left_line(&target.name, &keys::client_name(), running));
+    if running {
+        presentation::detail("Return", "ally attach");
+    }
+}
+
+/// Names the machine the terminal is back on, so nobody types the next command thinking
+/// it still runs on the Agent. The `.local` network ending macOS adds is dropped.
+fn left_line(agent: &str, here: &str, running: bool) -> String {
+    let here = here.strip_suffix(".local").unwrap_or(here);
     match running {
-        true => {
-            presentation::success(format!(
-                "Left the session on {}. It keeps running",
-                target.name
-            ));
-            presentation::detail("Return", "ally attach");
-        }
-        false => presentation::success(format!("The session on {} ended", target.name)),
+        true => format!("Back on {here}. The session on {agent} keeps running"),
+        false => format!("Back on {here}. The session on {agent} ended"),
     }
 }
 
@@ -288,7 +294,7 @@ mod tests {
         );
         assert_eq!(
             bar_label("archbox", "iroh", "app", true),
-            "#[fg=cyan]▶ archbox#[default] via #[fg=cyan]iroh#[default] · app"
+            "#[bold]▶ archbox#[nobold] via iroh · app"
         );
     }
 
@@ -323,5 +329,21 @@ mod tests {
         assert!(pulls_after(0));
         assert!(!pulls_after(255));
         assert!(!pulls_after(1));
+    }
+
+    #[test]
+    fn leaving_names_the_machine_the_terminal_is_back_on() {
+        assert_eq!(
+            left_line("archbox", "laptop", true),
+            "Back on laptop. The session on archbox keeps running"
+        );
+        assert_eq!(
+            left_line("archbox", "laptop", false),
+            "Back on laptop. The session on archbox ended"
+        );
+        assert_eq!(
+            left_line("archbox", "ados-MacBook-Air-2.local", false),
+            "Back on ados-MacBook-Air-2. The session on archbox ended"
+        );
     }
 }

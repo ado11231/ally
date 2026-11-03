@@ -158,9 +158,8 @@ mod tests {
         assert_eq!(stacks_in(&sandbox.root), vec![Stack::Python]);
     }
 
-    /// A tauri app, or a rust api with a node frontend. Missing the second stack
-    /// would leave node_modules in the source copy, which is the whole thing we are
-    /// trying to avoid.
+    /// A tauri app, or a rust api with a node frontend. Missing the first stack would
+    /// leave `target` in the source copy, which is the whole thing we are trying to avoid.
     #[test]
     fn a_polyglot_project_reports_every_stack() {
         let sandbox = Sandbox::new("polyglot");

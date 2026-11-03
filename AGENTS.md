@@ -54,7 +54,7 @@
 ## 3. What Ally Is
 
 * Ally lets a light machine use the CPU, RAM, and GPU of a powerful one.
-* The user keeps their own editor, terminal, and browser. Builds, servers, databases, containers, coding agents, and small AI models run on the powerful machine.
+* The user keeps their own editor, terminal, and browser. Builds, servers, databases, containers, and coding agents run on the powerful machine.
 * It must feel local. There is no virtual machine and no remote desktop.
 * **Goal:** a public open source tool a stranger can install and set up in minutes. Setup friction is a bug.
 * **Name:** Ally. The command is `ally`. It was called Slingshot until October 16, 2026, and borrow until September 22, 2026.
@@ -67,7 +67,7 @@
 
 1. **The Client stays light.** Never move heavy work onto the Client. If a change makes the Client do real work, the change is wrong.
 2. **Always state where work runs.** Every remote command prints its location, such as `▶ Running on archbox via tailnet`.
-3. **Wrap existing tools. Never rebuild them.** Ally wraps `ssh`, `rsync`, `tmux`, `docker`, `ollama`, `nvidia-smi`, and the `iroh` library. Never write your own ssh, file transfer, terminal multiplexer, container engine, inference engine, relay server, or NAT traversal.
+3. **Wrap existing tools. Never rebuild them.** Ally wraps `ssh`, `rsync`, `tmux`, `docker`, `nvidia-smi`, and the `iroh` library. Never write your own ssh, file transfer, terminal multiplexer, container engine, relay server, or NAT traversal.
 4. **Keep setup simple.** One program per machine, one pairing step, one command to use. Reject designs that add setup steps.
 5. **Stay platform neutral.** Describe everything as Client and Agent, never as Mac and Linux. Mac to Linux and Linux to Linux must both work. Only the menu bar app may be macOS specific.
 6. **Design for a stranger.** Anything easy only on the author's machine becomes a setup check or an installer step. Every failed check prints the exact fix. Detect and instruct. Never install without asking: show exactly what will run, then ask once.
@@ -83,10 +83,11 @@
 | --- | --- |
 | Sharing RAM over the network | A network is about a hundred thousand times slower than RAM. |
 | Remote desktop or screen streaming | Sunshine and Moonlight already do this. |
-| Copying or mounting build output | `target/`, `node_modules/`, and caches stay in separate Agent storage. A Python `.venv` stays in the Agent's copy, because `venv` refuses a link, and is never scanned or copied. This is the most important performance rule. |
+| Copying or mounting build output | `target/` and caches stay in separate Agent storage. A Python `.venv` and `node_modules/` stay in the Agent's copy, because `venv` refuses a link and npm replaces one, and are never scanned or copied. This is the most important performance rule. |
 | Treating environment files as source | `.env`, `.env.*`, `*.env`, and `.envrc` never enter a sync, and their contents never appear in arguments. |
 | Assuming a package manager | The main test Agent runs Arch Linux, which uses `pacman`, not `apt`. Detect and instruct. |
 | Fixed system paths in shared code | Never write `/Users/...` or `/home/...`. Use the `directories` crate. |
+| Local model features | Dropped on November 3, 2026. A model or AI agent is a program like any other: install it on the Agent and use it inside `ally attach`. |
 | New operations on the pairing port | The TCP port only pairs. Every other request uses `ally internal-control` over ssh. |
 | A custom way to run commands | ssh carries all work. `run`, `attach`, and `rsync` always go through it. |
 
@@ -311,7 +312,7 @@ swift build -c release --package-path crates/ally-cli/menubar
 ## 15. Current State
 
 * **Phases 1, 3, and 4 are complete.** Phase 5 is in progress: the menu bar app, notifications, port forwarding, and the fixes from the October 7, 2026 fresh install test are built. The notification for a session waiting for input (#136) is not.
-* **Next:** a fresh install on both machines, as a stranger would do it. Local models need no Ally commands; [USAGE.md](docs/USAGE.md#use-local-models) shows how. Every finding from the October 7, 2026 fresh install test is fixed.
+* **Next:** stopping the containers a `docker run` started when its job is stopped (#144). Every finding from the November 3, 2026 fresh install test is fixed.
 * **All tests, formatting, and Clippy pass on `master`.** CI checks every pull request on Linux and macOS.
 * **The renames from borrow and Slingshot have no migration.** Both machines must run `slingshot uninstall`, install Ally, then run `ally link`.
 * Everything under [known limitations](docs/ROADMAP.md#known-limitations) does not work yet. Never describe it as working.

@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey" alt="macOS and Linux">
 </p>
 
-<p align="center">run terminal processes and local models on your stronger computer. use your gaming PC or mini computer as a server.</p>
+<p align="center">run terminal processes on your stronger computer. use your gaming PC or mini computer as a server.</p>
 
 <p align="center"><img src="https://raw.githubusercontent.com/ado11231/ally/master/docs/media/demo.gif" alt="Starting Ally on the powerful machine, linking the laptop, and opening a session" width="830"></p>
 

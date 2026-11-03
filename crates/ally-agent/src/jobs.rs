@@ -346,6 +346,8 @@ fn prepare_server(root: &Path) -> anyhow::Result<PathBuf> {
 /// the prompt shows the project rather than Ally's storage path, and Docker Compose
 /// names the project after it instead of after the copy's `source` folder. An existing
 /// file, or a link to another copy, is never replaced; the short ID is added instead.
+/// A link this copy already has is kept, even when the plain name frees up later, so a
+/// copy never gains a second name.
 pub fn project_link(home: &Path, name: &str, id: &str, target: &Path) -> anyhow::Result<PathBuf> {
     let folder = home.join("Ally");
     fs::create_dir_all(&folder)?;
@@ -360,14 +362,18 @@ pub fn project_link(home: &Path, name: &str, id: &str, target: &Path) -> anyhow:
         "" => "project".to_string(),
         rest => rest.to_string(),
     };
-    for candidate in [clean.clone(), format!("{clean}-{}", storage::short_id(id))] {
-        let link = folder.join(candidate);
+    let candidates = [clean.clone(), format!("{clean}-{}", storage::short_id(id))]
+        .map(|candidate| folder.join(candidate));
+    if let Some(link) = candidates
+        .iter()
+        .find(|link| fs::read_link(link).is_ok_and(|points| points == target))
+    {
+        return Ok(link.clone());
+    }
+    for link in candidates {
         match fs::symlink_metadata(&link) {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                 std::os::unix::fs::symlink(target, &link)?;
-                return Ok(link);
-            }
-            Ok(meta) if meta.file_type().is_symlink() && fs::read_link(&link)? == target => {
                 return Ok(link);
             }
             _ => continue,
@@ -747,6 +753,26 @@ mod tests {
                 .unwrap()
                 .starts_with(home.0.join("Ally"))
         );
+    }
+
+    /// A copy that got the short ID because its name was taken keeps that one link after
+    /// the name frees up, instead of gaining a second.
+    #[test]
+    fn a_copy_keeps_its_link_when_its_plain_name_frees_up() {
+        let home = crate::testing::Root::new();
+        let (old, copy) = (home.0.join("old"), home.0.join("copy"));
+        fs::create_dir(&old).unwrap();
+        fs::create_dir(&copy).unwrap();
+        let taken = project_link(&home.0, "app", "1111111111111111", &old).unwrap();
+        let named = project_link(&home.0, "app", "abcdef0123456789", &copy).unwrap();
+        assert_eq!(named, home.0.join("Ally").join("app-abcdef01"));
+        fs::remove_file(&taken).unwrap();
+
+        assert_eq!(
+            project_link(&home.0, "app", "abcdef0123456789", &copy).unwrap(),
+            named
+        );
+        assert!(fs::symlink_metadata(&taken).is_err());
     }
 
     #[test]

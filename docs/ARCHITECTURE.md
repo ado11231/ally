@@ -180,10 +180,9 @@ sequenceDiagram
 | Project | Found By | What Moves | How |
 | --- | --- | --- | --- |
 | Rust | `Cargo.toml` | `target` | `CARGO_TARGET_DIR` points to Agent storage. |
-| Node | `package.json` | `node_modules` | A link points to Agent storage. |
 | Python | `pyproject.toml` or `requirements.txt` | The pip cache | `PIP_CACHE_DIR` points to Agent storage. |
 
-* A Python `.venv` stays in the source copy, because `python3 -m venv` refuses a link. The scan skips it.
+* A Python `.venv` and `node_modules` stay in the source copy. `python3 -m venv` refuses a link, and npm has no setting to move `node_modules` and replaces a link with a folder. The scan skips both.
 * Detection lives in `ally-core/src/stack.rs`, and the rules in `ally-core/src/artifacts.rs`.
 
 ## Runs And Sessions
@@ -247,7 +246,7 @@ flowchart LR
 jobs/                  one record per run or session
 projects/<project id>/
 ├── source/            the source copy
-├── artifacts/         build output, such as target, node_modules, and the pip cache
+├── artifacts/         build output, such as target and the pip cache
 ├── environment/       files older versions stored, which unlink removes
 └── state/             the baseline, staging, and backups
 ```

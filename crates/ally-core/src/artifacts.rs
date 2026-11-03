@@ -2,7 +2,7 @@
 //! Source copies stay small because build output is redirected to separate storage.
 
 use crate::stack::{Project, Stack};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// A project's source copy and the separate folder its build output is sent to.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -17,14 +17,12 @@ pub enum Rule {
     /// Set an environment variable and the tool writes elsewhere by itself. The
     /// tidiest kind, because nothing appears in the project at all.
     Env { key: &'static str, value: PathBuf },
-
-    /// Link a required project directory to Agent storage.
-    Redirect { name: &'static str, target: PathBuf },
 }
 
-/// Combine split rules for every detected stack. A Python `.venv` is the one exception and
-/// stays in the source copy: `python3 -m venv` refuses a link, and the scan skips `.venv`,
-/// so it is still never hashed, backed up, or copied.
+/// Combine split rules for every detected stack. A Python `.venv` and Node's `node_modules`
+/// stay in the source copy: `python3 -m venv` refuses a link, npm has no setting to move it
+/// and replaces a link with a folder, and the scan skips both, so neither is ever hashed,
+/// backed up, or copied.
 pub fn rules(project: &Project, layout: &Layout) -> Vec<Rule> {
     let mut rules = Vec::new();
 
@@ -35,10 +33,7 @@ pub fn rules(project: &Project, layout: &Layout) -> Vec<Rule> {
                 value: layout.artifacts.join("target"),
             }),
 
-            Stack::Node => rules.push(Rule::Redirect {
-                name: "node_modules",
-                target: layout.artifacts.join("node_modules"),
-            }),
+            Stack::Node => {}
 
             Stack::Python => rules.push(Rule::Env {
                 key: "PIP_CACHE_DIR",
@@ -54,21 +49,7 @@ pub fn rules(project: &Project, layout: &Layout) -> Vec<Rule> {
 pub fn variables(rules: &[Rule]) -> Vec<(String, String)> {
     rules
         .iter()
-        .filter_map(|rule| match rule {
-            Rule::Env { key, value } => Some((key.to_string(), value.display().to_string())),
-            Rule::Redirect { .. } => None,
-        })
-        .collect()
-}
-
-/// The directories the Agent has to create and link before the command runs.
-pub fn redirects(rules: &[Rule]) -> Vec<(&'static str, &Path)> {
-    rules
-        .iter()
-        .filter_map(|rule| match rule {
-            Rule::Redirect { name, target } => Some((*name, target.as_path())),
-            Rule::Env { .. } => None,
-        })
+        .map(|Rule::Env { key, value }| (key.to_string(), value.display().to_string()))
         .collect()
 }
 
@@ -121,22 +102,13 @@ mod tests {
                 "/data/projects/1/artifacts/target".to_string()
             )]
         );
-        assert!(redirects(&rules).is_empty());
     }
 
-    /// npm has no environment variable for this, so a link is the only way.
+    /// npm has no setting to move `node_modules`, and npm 12 replaces a link with a real
+    /// folder, so it stays in the source copy, where the scan skips it.
     #[test]
-    fn node_needs_a_link_because_npm_has_no_setting() {
-        let rules = rules(&project(vec![Stack::Node]), &layout());
-
-        assert!(variables(&rules).is_empty());
-        assert_eq!(
-            redirects(&rules),
-            vec![(
-                "node_modules",
-                Path::new("/data/projects/1/artifacts/node_modules")
-            )]
-        );
+    fn node_gets_no_rule_because_npm_has_no_setting() {
+        assert!(rules(&project(vec![Stack::Node]), &layout()).is_empty());
     }
 
     /// `python3 -m venv .venv` fails when `.venv` is a link, so only the pip cache moves.
@@ -151,7 +123,6 @@ mod tests {
                 "/data/projects/1/artifacts/pip-cache".to_string()
             )]
         );
-        assert!(redirects(&rules).is_empty());
     }
 
     /// The rule that keeps source copies small. Build output must never land inside
@@ -166,16 +137,8 @@ mod tests {
 
         for (key, value) in variables(&rules) {
             assert!(
-                !Path::new(&value).starts_with(&layout.source),
+                !std::path::Path::new(&value).starts_with(&layout.source),
                 "{key} points at {value}, which is inside the source copy"
-            );
-        }
-
-        for (name, target) in redirects(&rules) {
-            assert!(
-                !target.starts_with(&layout.source),
-                "{name} points at {}, which is inside the source copy",
-                target.display()
             );
         }
     }

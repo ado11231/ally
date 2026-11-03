@@ -140,6 +140,7 @@ cargo test --workspace
 | Copying or mounting build output | `target`, `node_modules`, virtual environments, and caches stay on the Agent. Copying them makes Ally too slow. |
 | Syncing environment files as source | `.env`, `.env.*`, `*.env`, and `.envrc` often hold secrets. |
 | Requiring an account or VPN | A VPN is used when present, never required. iroh needs no account and no open router port. |
+| Local model features | A model or AI agent is a program like any other. Install it on the Agent and use it inside `ally attach`. |
 | Custom `ssh`, `rsync`, `tmux`, or relay servers | Ally wraps these tools and never replaces them. |
 
 ## Reporting A Problem

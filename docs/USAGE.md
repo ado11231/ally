@@ -8,17 +8,16 @@
 2. [Install](#install)
 3. [Set Up](#set-up)
 4. [Run Work](#run-work)
-5. [Use Local Models](#use-local-models)
-6. [Keep Files In Step](#keep-files-in-step)
-7. [Environment Files](#environment-files)
-8. [Check On The Agent](#check-on-the-agent)
-9. [Manage Jobs](#manage-jobs)
-10. [Free Space On The Agent](#free-space-on-the-agent)
-11. [The Menu Bar App](#the-menu-bar-app)
-12. [More Than One Agent](#more-than-one-agent)
-13. [Project Settings](#project-settings)
-14. [What Ally Copies](#what-ally-copies)
-15. [Remove Ally](#remove-ally)
+5. [Keep Files In Step](#keep-files-in-step)
+6. [Environment Files](#environment-files)
+7. [Check On The Agent](#check-on-the-agent)
+8. [Manage Jobs](#manage-jobs)
+9. [Free Space On The Agent](#free-space-on-the-agent)
+10. [The Menu Bar App](#the-menu-bar-app)
+11. [More Than One Agent](#more-than-one-agent)
+12. [Project Settings](#project-settings)
+13. [What Ally Copies](#what-ally-copies)
+14. [Remove Ally](#remove-ally)
 
 ## Words Used Here
 
@@ -135,18 +134,6 @@ ally attach [path]
 | --- | --- |
 | `ally forward <port>` | Opens one Agent port at `localhost` until Ctrl C, for a server left running after leaving its session, or one Ally did not start. |
 
-## Use Local Models
-
-* Ally has no model commands. Install [Ollama](https://ollama.com) on the Agent, then use it through a session or a forwarded port.
-
-| Want | How |
-| --- | --- |
-| Chat in the terminal | Run `ollama run <model>` inside `ally attach`. |
-| A coding agent on a local model | Run OpenCode inside `ally attach`, and choose an Ollama model in it. |
-| A chat window in your browser | Start Open WebUI with `ally run docker run -p 3000:8080 ...` from its own instructions. It opens at `localhost:3000` while the run is connected. |
-
-* Models use the Agent's GPU when Ollama was built for it. On Arch Linux that is the `ollama-cuda` package.
-
 ## Keep Files In Step
 
 * `run` and `attach` sync for you. `sync` does it alone.
@@ -230,7 +217,7 @@ exclude = ["data/", "*.mp4"]
 | Project | Build Output |
 | --- | --- |
 | Rust | `target` goes to Agent storage. |
-| Node | `node_modules` links to Agent storage. |
+| Node | `node_modules` stays in the Agent's copy. |
 | Python | `.venv` stays in the Agent's copy. |
 
 ## Remove Ally

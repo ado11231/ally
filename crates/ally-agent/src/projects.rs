@@ -21,6 +21,9 @@ pub struct Paths {
     pub state: PathBuf,
 }
 
+/// Build output folders that may sit inside the source copy rather than in `artifacts`.
+const IN_SOURCE: [&str; 2] = [".venv", "node_modules"];
+
 impl Paths {
     pub fn new(root: &Path, id: &str) -> anyhow::Result<Paths> {
         storage::check_id(id)?;
@@ -60,8 +63,15 @@ impl Paths {
         self.state.join("excludes.json")
     }
 
-    fn venv(&self) -> PathBuf {
-        self.source.join(".venv")
+    /// Build output that sits in the source copy as a real folder: a Python `.venv`, which
+    /// refuses a link, and `node_modules`, which npm turns from Ally's link back into a
+    /// folder. Neither ever syncs, but both count as build output and `clean` removes them.
+    fn output_in_source(&self) -> Vec<PathBuf> {
+        IN_SOURCE
+            .iter()
+            .map(|name| self.source.join(name))
+            .filter(|path| fs::symlink_metadata(path).is_ok_and(|meta| meta.is_dir()))
+            .collect()
     }
 
     fn sync_state(&self) -> StateDir {
@@ -464,7 +474,7 @@ fn summary(
     folder: Option<String>,
     linked: bool,
 ) -> ProjectSummary {
-    let venv = size(&paths.venv());
+    let in_source: u64 = paths.output_in_source().iter().map(|path| size(path)).sum();
     let baseline = paths.sync_state().baseline_file();
     let synced = fs::metadata(&baseline)
         .and_then(|meta| meta.modified())
@@ -478,8 +488,8 @@ fn summary(
         folder,
         linked,
         environment: environment_files(&paths.source, &paths.source),
-        copy: size(&paths.source).saturating_sub(venv),
-        build: size(&paths.artifacts) + venv,
+        copy: size(&paths.source).saturating_sub(in_source),
+        build: size(&paths.artifacts) + in_source,
         waiting: match synced {
             Some(_) => waiting(paths).unwrap_or(0),
             None => 0,
@@ -501,7 +511,7 @@ fn environment_files(top: &Path, dir: &Path) -> Vec<String> {
             continue;
         };
         let name = item.file_name();
-        if kind.is_dir() && name != ".venv" {
+        if kind.is_dir() && !IN_SOURCE.iter().any(|skip| name == *skip) {
             found.extend(environment_files(top, &path));
         } else if kind.is_file()
             && source::is_environment_name(&name.to_string_lossy())
@@ -541,7 +551,8 @@ fn changed(baseline: &Manifest, current: &Manifest) -> usize {
 pub fn clean(root: &Path, id: &str) -> anyhow::Result<u64> {
     let (paths, metadata) = load(root, id)?;
     let _lock = acquire(root, &paths, &metadata, Blocking::AllJobs)?;
-    let bytes = size(&paths.artifacts) + size(&paths.venv());
+    let in_source = paths.output_in_source();
+    let bytes = size(&paths.artifacts) + in_source.iter().map(|path| size(path)).sum::<u64>();
     fs::remove_dir_all(&paths.artifacts)
         .or_else(|e| match e.kind() {
             std::io::ErrorKind::NotFound => Ok(()),
@@ -549,9 +560,9 @@ pub fn clean(root: &Path, id: &str) -> anyhow::Result<u64> {
         })
         .with_context(|| format!("Could not remove the build output of {}", metadata.name))?;
     storage::private_dir(&paths.artifacts)?;
-    if fs::symlink_metadata(paths.venv()).is_ok_and(|meta| meta.is_dir()) {
-        fs::remove_dir_all(paths.venv())
-            .with_context(|| format!("Could not remove .venv in {}", metadata.name))?;
+    for path in in_source {
+        fs::remove_dir_all(&path)
+            .with_context(|| format!("Could not remove {} in {}", path.display(), metadata.name))?;
     }
     Ok(bytes)
 }
@@ -785,14 +796,17 @@ mod tests {
         let unsynced = project(&root.0);
         let paths = initialize(&root.0, &id);
         fs::write(paths.source.join("main.rs"), "12345").unwrap();
-        fs::create_dir(paths.venv()).unwrap();
-        fs::write(paths.venv().join("lib"), "123").unwrap();
+        fs::create_dir(paths.source.join(".venv")).unwrap();
+        fs::write(paths.source.join(".venv").join("lib"), "123").unwrap();
         fs::write(paths.artifacts.join("app"), "1234567").unwrap();
         let list = list(&root.0, None).unwrap();
         let synced = list.iter().find(|p| p.id == id).unwrap();
         assert_eq!(synced.client, "laptop");
-        assert_eq!(synced.build, 7 + size(&paths.venv()));
-        assert_eq!(synced.copy, size(&paths.source) - size(&paths.venv()));
+        assert_eq!(synced.build, 7 + size(&paths.source.join(".venv")));
+        assert_eq!(
+            synced.copy,
+            size(&paths.source) - size(&paths.source.join(".venv"))
+        );
         assert!(synced.synced.is_some());
         assert_eq!(synced.waiting, 1);
         let fresh = list.iter().find(|p| p.id == unsynced).unwrap();
@@ -846,15 +860,35 @@ mod tests {
         let id = project(&root.0);
         let paths = initialize(&root.0, &id);
         fs::write(paths.source.join("main.rs"), "code").unwrap();
-        fs::create_dir(paths.venv()).unwrap();
-        fs::write(paths.venv().join("lib"), "123").unwrap();
+        fs::create_dir(paths.source.join(".venv")).unwrap();
+        fs::write(paths.source.join(".venv").join("lib"), "123").unwrap();
         fs::write(paths.artifacts.join("app"), "1234567").unwrap();
-        let expected = 7 + size(&paths.venv());
+        let expected = 7 + size(&paths.source.join(".venv"));
         assert_eq!(clean(&root.0, &id).unwrap(), expected);
         assert!(paths.artifacts.is_dir());
         assert_eq!(fs::read_dir(&paths.artifacts).unwrap().count(), 0);
-        assert!(!paths.venv().exists());
+        assert!(!paths.source.join(".venv").exists());
         assert!(paths.source.join("main.rs").exists());
+    }
+
+    /// npm replaces Ally's `node_modules` link with a real folder. It is still build
+    /// output: counted as such, removed by clean, and never searched for environment files.
+    #[test]
+    fn a_node_modules_folder_in_the_copy_is_build_output() {
+        let root = Root::new();
+        let id = project(&root.0);
+        let paths = initialize(&root.0, &id);
+        let modules = paths.source.join("node_modules");
+        fs::create_dir_all(modules.join("pkg")).unwrap();
+        fs::write(modules.join("pkg/.env.example"), "1234567890").unwrap();
+        fs::write(paths.source.join("index.js"), "1").unwrap();
+        let held = size(&modules);
+        let listed = &list(&root.0, None).unwrap()[0];
+        assert_eq!(listed.build, held);
+        assert!(listed.environment.is_empty());
+        assert_eq!(clean(&root.0, &id).unwrap(), held);
+        assert!(!modules.exists());
+        assert!(paths.source.join("index.js").exists());
     }
 
     #[test]

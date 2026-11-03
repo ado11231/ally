@@ -223,35 +223,35 @@ pub fn explain(name: &str, error: &str) -> Problem {
             command: command.to_string(),
         })
     };
+    let unavailable = format!("{name} is unavailable");
     if has(&["no agent configured"]) {
         problem(
-            "No Agent linked yet".to_string(),
-            "Run ally start on the Agent, then link this machine with the code it prints."
-                .to_string(),
+            "No Agent linked".to_string(),
+            "Link this machine with the code from ally start.".to_string(),
             run(Machine::Client, "ally link <code>"),
         )
     } else if has(&["no longer accepts"]) {
         problem(
-            format!("{name} no longer accepts this machine"),
-            format!("Link again from the same network as {name}."),
+            unavailable,
+            "It no longer knows this machine.".to_string(),
             run(Machine::Client, "ally link <code>"),
         )
     } else if has(&["not running on the agent", "connection refused"]) {
         problem(
-            format!("Ally isn't running on {name}"),
-            format!("{name} is on, but ally start has stopped."),
+            unavailable,
+            "Ally stopped there.".to_string(),
             run(Machine::Agent, "ally start"),
         )
     } else if has(&["cannot reach iroh's relays"]) {
         problem(
-            "This machine is offline".to_string(),
-            "Check the internet connection, then try again.".to_string(),
+            "You're offline".to_string(),
+            "Ally reconnects when the internet is back.".to_string(),
             None,
         )
     } else if has(&["versions differ", "update ally"]) {
         problem(
-            "Ally versions differ".to_string(),
-            format!("Update Ally on this machine and on {name}."),
+            unavailable,
+            "Update Ally on both machines.".to_string(),
             None,
         )
     } else if has(&[
@@ -261,12 +261,12 @@ pub fn explain(name: &str, error: &str) -> Problem {
         "no route to host",
     ]) {
         problem(
-            format!("{name} is off or asleep"),
-            "Nothing answered on the local network, tailnet, or iroh. Wake it and check that ally start is running.".to_string(),
-            run(Machine::Agent, "ally start"),
+            unavailable,
+            "It's off or asleep. Ally reconnects by itself.".to_string(),
+            None,
         )
     } else {
-        problem(format!("Can't reach {name}"), error.to_string(), None)
+        problem(unavailable, error.to_string(), None)
     }
 }
 
@@ -427,58 +427,70 @@ mod tests {
         let cases = [
             (
                 "Could not reach archbox: Ally is not running on the Agent. Run ally start there: Connection refused (os error 111)",
-                "Ally isn't running on archbox",
+                "archbox is unavailable",
+                "Ally stopped there.",
                 Some((Machine::Agent, "ally start")),
             ),
             (
                 "archbox is not reachable. It may be off or asleep, or ally start is not running there",
-                "archbox is off or asleep",
-                Some((Machine::Agent, "ally start")),
+                "archbox is unavailable",
+                "It's off or asleep. Ally reconnects by itself.",
+                None,
             ),
             (
                 "archbox did not answer in time",
-                "archbox is off or asleep",
-                Some((Machine::Agent, "ally start")),
+                "archbox is unavailable",
+                "It's off or asleep. Ally reconnects by itself.",
+                None,
             ),
             (
                 "archbox no longer accepts this machine. Run ally link again from the same network as archbox",
-                "archbox no longer accepts this machine",
+                "archbox is unavailable",
+                "It no longer knows this machine.",
                 Some((Machine::Client, "ally link <code>")),
             ),
             (
                 "No Agent configured yet\n\nOn the Agent:   ally start",
-                "No Agent linked yet",
+                "No Agent linked",
+                "Link this machine with the code from ally start.",
                 Some((Machine::Client, "ally link <code>")),
             ),
             (
                 "Could not reach archbox, because this machine cannot reach iroh's relays. Check its internet connection",
-                "This machine is offline",
+                "You're offline",
+                "Ally reconnects when the internet is back.",
                 None,
             ),
             (
                 "Ally versions differ between the machines (protocol 4 and 5). Update Ally on both machines",
-                "Ally versions differ",
+                "archbox is unavailable",
+                "Update Ally on both machines.",
                 None,
             ),
-            ("something new", "Can't reach archbox", None),
+            (
+                "something new",
+                "archbox is unavailable",
+                "something new",
+                None,
+            ),
         ];
-        for (error, title, fix) in cases {
+        for (error, title, detail, fix) in cases {
             let problem = explain("archbox", error);
             assert_eq!(problem.title, title, "{error}");
+            assert_eq!(problem.detail, detail, "{error}");
             assert_eq!(
                 problem.fix.map(|fix| (fix.machine, fix.command)),
                 fix.map(|(machine, command)| (machine, command.to_string())),
                 "{error}"
             );
         }
-        assert_eq!(explain("archbox", "something new").detail, "something new");
     }
 
     #[test]
     fn an_offline_line_carries_the_problem() {
         let event = Event::Status(Status::offline(
             "archbox",
-            "archbox did not answer in time".to_string(),
+            "Could not reach archbox: Ally is not running on the Agent".to_string(),
         ));
         let line = serde_json::to_value(Line {
             version: VERSION,
@@ -486,10 +498,13 @@ mod tests {
         })
         .unwrap();
         assert_eq!(line["online"], false);
-        assert_eq!(line["problem"]["title"], "archbox is off or asleep");
+        assert_eq!(line["problem"]["title"], "archbox is unavailable");
         assert_eq!(line["problem"]["fix"]["machine"], "agent");
         assert_eq!(line["problem"]["fix"]["command"], "ally start");
-        assert_eq!(line["error"], "archbox did not answer in time");
+        assert_eq!(
+            line["error"],
+            "Could not reach archbox: Ally is not running on the Agent"
+        );
     }
 
     #[test]

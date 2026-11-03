@@ -25,7 +25,7 @@
 | --- | --- |
 | **Client** | The machine you work on. |
 | **Agent** | The powerful machine that does the work. |
-| **Project** | A folder in a Git repository, or with a `Cargo.toml`, `package.json`, `pyproject.toml`, `requirements.txt`, or `ally.toml`. |
+| **Project** | A folder in a Git repository, or with a `Cargo.toml`, `package.json`, `pyproject.toml`, `requirements.txt`, `compose.yaml`, `docker-compose.yml`, `Dockerfile`, or `ally.toml`. |
 | **Job** | One run or session on the Agent. |
 
 ## Install
@@ -95,7 +95,7 @@ ally run cargo build
 * The first line says where it runs: `▶ Running on archbox via local network · app · target → Agent disk`.
 * Typing, colors, and Ctrl C work as usual. The last line shows time and exit code.
 * Ally's options go before `run`: `ally --agent archbox run cargo test`.
-* Outside a project, nothing is copied and it runs in the Agent's home folder.
+* Outside a project, nothing is copied and it runs in the Agent's home folder. The first line ends with `· ~ · not a project, nothing synced`.
 * A run stops if the connection drops. Use a session for long work.
 
 ### Open A Session

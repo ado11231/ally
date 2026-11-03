@@ -82,7 +82,7 @@
 
 | Message | Meaning | Fix |
 | --- | --- | --- |
-| `No project found` | `sync` needs a project. `run` and `attach` work anywhere. | Move into a Git repository, or a folder with `Cargo.toml`, `package.json`, `pyproject.toml`, `requirements.txt`, or `ally.toml`. |
+| `No project found` | `sync` needs a project. `run` and `attach` work anywhere. | Move into a Git repository, or a folder with `Cargo.toml`, `package.json`, `pyproject.toml`, `requirements.txt`, a compose file, a `Dockerfile`, or `ally.toml`. |
 | `Lost connection to archbox`, then `The Agent stops the run once it notices` | A run stops when its connection drops. | `ally ps --all` shows it as `Lost connection`. Use `ally attach` for long work. |
 | `cargo was not found on the Agent. Check the name, or install it there`, exit 127 | The program is not on the Agent, or the name has a typo. | Check the name, or install the program on the Agent, such as inside `ally attach`. |
 | `./build.sh is not allowed to run on the Agent. Check that it is executable`, exit 126 | The file exists but is not executable. | `chmod +x build.sh` on the Client, then run again. The sync copies the change. |

@@ -68,7 +68,7 @@ pub async fn unlink(agent: Option<String>) -> anyhow::Result<i32> {
     ally_core::keys::forget_host(&target.host, target.port)?;
 
     config.remove(&target.name)?;
-    let saved = config.save()?;
+    config.save()?;
     if complete {
         project::forget_agent(&client_root, &target.name)?;
     }
@@ -77,14 +77,6 @@ pub async fn unlink(agent: Option<String>) -> anyhow::Result<i32> {
     presentation::detail(
         "Kept",
         format!("source copies and backups on {}", target.name),
-    );
-    presentation::detail(
-        "Config",
-        format!(
-            "{}, without {}",
-            presentation::home_path(&saved),
-            target.name
-        ),
     );
     if !complete {
         presentation::warning(
@@ -97,7 +89,7 @@ pub async fn unlink(agent: Option<String>) -> anyhow::Result<i32> {
 
 fn removed_line(environment_files: usize, agent: &str) -> String {
     match environment_files {
-        0 => format!("No environment files to remove on {agent}"),
+        0 => format!("Cleaned up on {agent}"),
         count => format!(
             "Removed {} on {agent}",
             presentation::plural(count, "environment file")
@@ -124,11 +116,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn nothing_to_remove_is_said_plainly() {
-        assert_eq!(
-            removed_line(0, "archbox"),
-            "No environment files to remove on archbox"
-        );
+    fn environment_files_are_named_only_when_some_were_removed() {
+        assert_eq!(removed_line(0, "archbox"), "Cleaned up on archbox");
         assert_eq!(
             removed_line(2, "archbox"),
             "Removed 2 environment files on archbox"

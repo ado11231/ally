@@ -75,6 +75,8 @@ fn output(program: &str, args: &[&str], package: &str) -> anyhow::Result<String>
 /// Lines of `ss -Hltnp`, such as
 /// `LISTEN 0 511 127.0.0.1:5173 0.0.0.0:* users:(("node",pid=7417,fd=23))`.
 /// ss names processes only for this account. A socket without one belongs to another.
+/// Node 26 names its main thread `node-MainThread`, and ss reports that name, so the
+/// ending is dropped to show the program a person started.
 fn from_ss(text: &str) -> Vec<Socket> {
     let mut sockets = Vec::new();
     for line in text.lines() {
@@ -103,7 +105,13 @@ fn from_ss(text: &str) -> Vec<Socket> {
                 sockets.push(Socket {
                     address: address.clone(),
                     port,
-                    process: Some((pid, program.to_string())),
+                    process: Some((
+                        pid,
+                        program
+                            .strip_suffix("-MainThread")
+                            .unwrap_or(program)
+                            .to_string(),
+                    )),
                 });
             }
         }
@@ -266,6 +274,7 @@ LISTEN 0      4096                 100.67.90.119:48074 0.0.0.0:*
 LISTEN 0      5                        127.0.0.1:8765  0.0.0.0:* users:((\"python\",pid=7417,fd=3))
 LISTEN 0      511                              *:5173        *:* users:((\"node\",pid=88,fd=20),(\"node\",pid=89,fd=20))
 LISTEN 0      511                          [::1]:3000     [::]:* users:((\"next-server\",pid=12,fd=21))
+LISTEN 0      511                              *:5199        *:* users:((\"node-MainThread\",pid=7622,fd=21))
 LISTEN 0      128                           [::]:22       [::]:*
 ";
         assert_eq!(
@@ -276,6 +285,7 @@ LISTEN 0      128                           [::]:22       [::]:*
                 socket("0.0.0.0", 5173, 88, "node"),
                 socket("0.0.0.0", 5173, 89, "node"),
                 socket("::1", 3000, 12, "next-server"),
+                socket("0.0.0.0", 5199, 7622, "node"),
                 hidden("::", 22),
             ]
         );

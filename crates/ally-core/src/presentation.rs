@@ -165,7 +165,7 @@ pub fn detail(label: &str, value: impl std::fmt::Display) {
     eprintln!("{}", detail_line(Style::stderr(), label, value));
 }
 
-fn detail_line(style: Style, label: &str, value: impl std::fmt::Display) -> String {
+pub fn detail_line(style: Style, label: &str, value: impl std::fmt::Display) -> String {
     format!("  {} {value}", style.heading(format!("{label:<12}")))
 }
 

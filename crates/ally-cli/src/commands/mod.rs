@@ -5,6 +5,7 @@ pub mod link;
 pub mod menubar;
 pub mod ps;
 pub mod run;
+pub mod storage;
 pub mod sync;
 pub mod uninstall;
 pub mod unlink;

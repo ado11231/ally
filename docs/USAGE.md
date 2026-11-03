@@ -166,8 +166,9 @@ ally attach [path]
 | --- | --- |
 | `ally ps` | Lists running jobs. |
 | `ally ps --all` | Adds the last 100 finished jobs. |
-| `ally stop <id>` | Stops a job, forced after five seconds. A short ID works. |
+| `ally stop <id>` | Stops a job, forced after five seconds, then the containers its `docker run` commands started. A short ID works. |
 
+* A container another job could also have started is left running, with the `docker stop` command to stop it.
 * Finished runs show `Completed`, `Failed`, `Stopped`, `Interrupted`, or `Lost connection`.
 
 ## Free Space On The Agent

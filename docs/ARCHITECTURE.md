@@ -300,7 +300,8 @@ ally/
 | `lib.rs` | `ally start`: setup checks, the start screen, pairing, and starting the other parts. `ally internal-daemon`: the same without pairing, for the boot service. | `awake`, `clients`, `service`, `tunnel` | Client `lib` |
 | `service.rs` | The private control socket, and the `internal-control` helper that reaches it. | `clients`, `jobs`, `ports`, `projects` | `lib`, `runner`, Client `lib` |
 | `projects.rs` | Project storage: source copies, sync locks, and build output. Lists, cleans, and removes copies for `ally storage`. Removes environment files older versions stored. | `jobs` | `service`, `jobs`, `runner`, `uninstall` |
-| `jobs.rs` | Job records, `tmux` sessions, the processes each job owns, and safe stopping. | `projects` | `service`, `ports`, `projects`, `runner` |
+| `containers.rs` | Finds the containers a job's `docker run` commands started, with `docker events`, and stops them when the job stops. | Core `telemetry`, `storage` | `jobs` |
+| `jobs.rs` | Job records, `tmux` sessions, the processes each job owns, and safe stopping. | `containers`, `projects` | `service`, `ports`, `projects`, `runner` |
 | `ports.rs` | The TCP ports that jobs and Docker containers listen on, found with `ss` on Linux and `lsof` on macOS, for port forwarding. | `jobs` | `service` |
 | `runner.rs` | `ally internal-run`: runs one command in the project copy with a real terminal. | `jobs`, `projects`, `service` | Client `lib` |
 | `clients.rs` | The Clients allowed over iroh, and their names for the start screen. | none | `lib`, `service`, `tunnel` |

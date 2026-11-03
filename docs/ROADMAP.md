@@ -103,7 +103,6 @@
 * `ally.toml` supports only `sync.exclude`.
 * Linking needs a shared network or tailnet.
 * The resource warnings for memory, disk, and GPU heat have not been seen on real machines.
-* `ally stop` on a `docker run` whose container ignores the stop signal ends the run but leaves the container running. Stop it with `docker stop <name>` ([#144](https://github.com/ado11231/ally/issues/144)).
 
 ## Test Record
 
@@ -246,3 +245,4 @@
 7. `ally storage` listed each copy, `clean` freed its build output, and `remove` listed what exists only on the Agent before asking.
 8. The menu bar showed `archbox is unavailable` while archbox could not be reached, and the unavailable and back online banners appeared.
 9. Found and fixed: `uninstall` named a config file it then deleted, the forward line said `node-MainThread`, a folder with only a compose file was not a project, the session bar was gray, linking again lost project copies, output had dimmed and indented lines, npm replaced the `node_modules` link with a folder, and a copy could gain a second `~/Ally` link.
+10. `ally stop` on `docker run --rm -t --name ally144 alpine sleep 300` printed `Stopped container ally144`, and the container was gone from `docker ps`. It took 15 seconds, because `sleep` ignores the stop signal (#144).

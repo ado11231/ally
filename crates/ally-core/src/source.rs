@@ -51,7 +51,7 @@ const GENERATED: &[&str] = &[
 ];
 
 /// `.env`, `.env.local`, `.env.example`, `prod.env`, and `.envrc`, including templates.
-fn is_environment_name(name: &str) -> bool {
+pub fn is_environment_name(name: &str) -> bool {
     name == ".env" || name.starts_with(".env.") || name.ends_with(".env") || name == ".envrc"
 }
 

@@ -247,6 +247,18 @@ fn respond(root: &Path, name: &str, request: Request) -> anyhow::Result<Response
             crate::clients::forget(root, &client)?;
             Response::Unlinked { environment_files }
         }
+        Request::Projects => {
+            let home = directories::BaseDirs::new().map(|dirs| dirs.home_dir().to_path_buf());
+            Response::Projects(projects::list(root, home.as_deref())?)
+        }
+        Request::CleanProject { project } => Response::Cleaned {
+            bytes: projects::clean(root, &project)?,
+        },
+        Request::RemoveProject { project } => {
+            let home = directories::BaseDirs::new().map(|dirs| dirs.home_dir().to_path_buf());
+            projects::remove(root, home.as_deref(), &project)?;
+            Response::Done
+        }
         Request::Ports => Response::Ports(ports::list(root)?),
         Request::Ping
         | Request::Status

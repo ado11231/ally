@@ -64,8 +64,8 @@ impl Paths {
     }
 
     /// Build output that sits in the source copy as a real folder: a Python `.venv`, which
-    /// refuses a link, and `node_modules`, which npm turns from Ally's link back into a
-    /// folder. Neither ever syncs, but both count as build output and `clean` removes them.
+    /// refuses a link, and `node_modules`, which npm has no setting to move. Neither ever
+    /// syncs, but both count as build output and `clean` removes them.
     fn output_in_source(&self) -> Vec<PathBuf> {
         IN_SOURCE
             .iter()
@@ -371,17 +371,6 @@ pub fn prepare_artifacts(paths: &Paths) -> anyhow::Result<Vec<(String, String)>>
     storage::private_dir(&paths.artifacts)?;
     for (key, value) in artifacts::variables(&rules) {
         fs::create_dir_all(&value).with_context(|| format!("Could not prepare {key}"))?;
-    }
-    for (name, target) in artifacts::redirects(&rules) {
-        fs::create_dir_all(target)?;
-        let link = paths.source.join(name);
-        match fs::symlink_metadata(&link) {
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                std::os::unix::fs::symlink(target, &link)?
-            }
-            Err(e) => return Err(e.into()),
-            Ok(_) => {}
-        }
     }
     Ok(artifacts::variables(&rules))
 }
@@ -871,7 +860,7 @@ mod tests {
         assert!(paths.source.join("main.rs").exists());
     }
 
-    /// npm replaces Ally's `node_modules` link with a real folder. It is still build
+    /// `node_modules` is a real folder in the copy. It is still build
     /// output: counted as such, removed by clean, and never searched for environment files.
     #[test]
     fn a_node_modules_folder_in_the_copy_is_build_output() {

@@ -9,7 +9,7 @@ use crate::project::{self, Local};
 use crate::route;
 use ally_core::config::Agent;
 use ally_core::control::{ProjectInfo, ProjectRef, Request, Response, Snapshot};
-use ally_core::presentation::{self, Style};
+use ally_core::presentation;
 use ally_core::source::{self, Manifest, Rules};
 use ally_core::step::Step;
 use ally_core::storage;
@@ -228,9 +228,8 @@ pub fn finish(step: Step, outcome: &SyncResult, direction: Direction, agent: &st
                 "Brought back {} from {agent}",
                 presentation::plural(count, "edit")
             ));
-            let style = Style::stderr();
             for line in named(&outcome.pulled) {
-                eprintln!("  {}", style.dim(line));
+                eprintln!("  {line}");
             }
         }
     }

@@ -136,7 +136,8 @@
 | Panel: `Can't find the ally program` | The saved path to `ally` was moved, deleted, or never saved. | Run `ally menubar`, and again after moving `ally`. |
 | `! The app will run <path>, which cargo clean deletes` | `ally menubar` ran from a build in a cargo `target` folder. | Run `cargo install --path crates/ally-cli`, then `ally menubar` again. |
 | `Could not take the app out of login items` | `--remove` could not start the app to leave login items. | Turn off Ally in System Settings, General, Login Items, then `ally menubar --remove` again. |
-| No message: shown as offline | The app cannot reach the Agent. | Open the panel for the cause and fix. It updates by itself, or press Try again. |
+| Panel: `archbox is unavailable` | The app cannot reach the Agent. The line under it says why. | Run the command it shows, if any. It reconnects by itself, or press Try again. |
+| Panel: `You're offline` | This machine has no internet connection. | Check the connection. It reconnects by itself. |
 | No message: no notifications | Notifications are off, or nothing needed one. Runs under 10 seconds never notify, and each warning is sent once until it clears. | Turn them on in System Settings, Notifications, Ally. |
 
 ## Removing Ally

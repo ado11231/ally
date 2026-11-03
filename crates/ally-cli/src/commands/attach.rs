@@ -10,7 +10,7 @@ use crate::transfer::{self, Conflicts, Direction};
 use ally_core::config::{Agent, Config};
 use ally_core::control::{Request, Response, SessionInfo};
 use ally_core::keys;
-use ally_core::presentation::{self, Style};
+use ally_core::presentation::{self, Style, Tone};
 
 pub async fn attach(
     agent: Option<String>,
@@ -45,10 +45,7 @@ pub async fn attach(
             style
         )
     );
-    eprintln!(
-        "  {}",
-        style.dim("Detach with Ctrl B then D, or your tmux prefix then D")
-    );
+    eprintln!("  Detach with Ctrl B then D, or your tmux prefix then D");
 
     let label = bar_label(
         &target.name,
@@ -150,7 +147,10 @@ fn still_running(answer: Option<Response>, session: &str) -> bool {
 fn say_left(target: &Agent, running: bool) {
     presentation::success(left_line(&target.name, &keys::client_name(), running));
     if running {
-        presentation::detail("Return", "ally attach");
+        eprintln!(
+            "  Return with {}",
+            Style::stderr().paint("ally attach", Tone::Info)
+        );
     }
 }
 

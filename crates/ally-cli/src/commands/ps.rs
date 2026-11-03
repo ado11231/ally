@@ -3,7 +3,7 @@
 use crate::client::{self, unexpected};
 use ally_core::config::Config;
 use ally_core::control::{Job, JobKind, JobState, Request, Response};
-use ally_core::presentation::{self, Style, Tone};
+use ally_core::presentation::{Style, Tone};
 use ally_core::step;
 use ally_core::storage;
 
@@ -57,7 +57,6 @@ pub async fn stop(agent: Option<String>, id: String) -> anyhow::Result<i32> {
         job.command,
         storage::short_id(&job.id)
     ));
-    presentation::detail("Kept", "source and build output");
     Ok(0)
 }
 
@@ -99,7 +98,7 @@ pub fn render(
         "{:<8}  {:<7}  {:<STATE_WIDTH$}  {:<16}  {:<9}  {}",
         "ID", "KIND", "STATE", "PROJECT", "STARTED", "COMMAND"
     );
-    output.push_str(&format!("  {}\n", style.dim(header)));
+    output.push_str(&format!("  {}\n", style.heading(header)));
     for job in jobs {
         let kind = match job.kind {
             JobKind::Run => "Run",
@@ -114,7 +113,7 @@ pub fn render(
         let state = state_label(job);
         let project = match &job.project_name {
             Some(name) => format!("{:<16}", name.chars().take(16).collect::<String>()),
-            None => style.dim(format!("{:<16}", "home")),
+            None => format!("{:<16}", "home"),
         };
         output.push_str(&format!(
             "  {:<8}  {:<7}  {}  {}  {:<9}  {}\n",

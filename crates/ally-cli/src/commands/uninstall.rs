@@ -64,7 +64,7 @@ pub async fn uninstall() -> anyhow::Result<i32> {
         presentation::detail("Program", format!("remove it with {REMOVE_PROGRAM}"));
         return Ok(0);
     }
-    eprintln!("\n  This removes Ally from this machine:\n");
+    eprintln!("\nThis removes Ally from this machine:\n");
     for line in listing(&found) {
         eprintln!("{line}");
     }
@@ -112,10 +112,7 @@ fn listing(found: &Found) -> Vec<String> {
     let mut lines = Vec::new();
     for (index, agent) in found.agents.iter().enumerate() {
         let label = if index == 0 { "Links" } else { "" };
-        lines.push(row(
-            label,
-            format!("{agent}: this machine's key and environment files there"),
-        ));
+        lines.push(row(label, format!("{agent}: this machine's key there")));
     }
     if let Some(app) = &found.menubar {
         lines.push(row(
@@ -138,7 +135,7 @@ fn listing(found: &Found) -> Vec<String> {
 }
 
 fn row(label: &str, value: String) -> String {
-    presentation::Style::stderr().dim(presentation::row(label, value).trim_end())
+    presentation::detail_line(presentation::Style::stderr(), label, value)
 }
 
 fn remove(path: &Path) -> anyhow::Result<()> {
@@ -180,8 +177,8 @@ mod tests {
         assert_eq!(
             lines,
             [
-                "  Links        archbox: this machine's key and environment files there",
-                "               devbox: this machine's key and environment files there",
+                "  Links        archbox: this machine's key there",
+                "               devbox: this machine's key there",
                 "  Access       2 linked machines lose access (their lines in ~/.ssh/authorized_keys)",
                 "  Settings     /x/ally/config.toml",
                 "  Key          /x/k",

@@ -77,13 +77,6 @@ impl Style {
         self.color
     }
 
-    pub fn dim(self, text: impl std::fmt::Display) -> String {
-        match self.color {
-            true => format!("\x1b[2m{text}\x1b[0m"),
-            false => text.to_string(),
-        }
-    }
-
     /// Bold rather than colored, so color stays reserved for things that need attention.
     pub fn heading(self, text: impl std::fmt::Display) -> String {
         match self.color {

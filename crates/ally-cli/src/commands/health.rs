@@ -55,12 +55,11 @@ pub async fn fetch(control: &mut Control) -> anyhow::Result<Health> {
 pub fn render(name: &str, specs: Option<&Specs>, health: &Health, style: Style) -> String {
     let mut output = match specs {
         Some(specs) => format!(
-            "\n{}  {}\n\n",
+            "\n{}  {} · {} ({} cores)\n\n",
             style.heading(name),
-            style.dim(format!(
-                "{} · {} ({} cores)",
-                specs.os, specs.cpu, specs.cores
-            ))
+            specs.os,
+            specs.cpu,
+            specs.cores
         ),
         None => format!("\n{}\n\n", style.heading(name)),
     };
@@ -126,11 +125,10 @@ fn workspace(free_mib: u64, style: Style) -> String {
     }
 }
 
-/// Color only a value that needs attention. A healthy one stays plain, with its rating
-/// dimmed so the number stands out.
+/// Color only a value that needs attention. A healthy one stays plain, rating included.
 fn mark(value: String, label: &str, tone: Tone, style: Style) -> String {
     match tone {
-        Tone::Good => format!("{value}  {}", style.dim(label)),
+        Tone::Good => format!("{value}  {label}"),
         tone => style.paint(format!("{value}  {label}"), tone),
     }
 }
@@ -267,7 +265,7 @@ mod tests {
     fn temperature_thresholds() {
         let mut health = sample();
         for (temperature, expected) in [
-            (74, "  74°C  \x1b[2mNormal"),
+            (74, "  74°C  Normal\n"),
             (75, "  \x1b[33m75°C  Warm"),
             (84, "  \x1b[33m84°C  Warm"),
             (85, "  \x1b[31m85°C  Hot"),

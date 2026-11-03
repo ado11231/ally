@@ -5,7 +5,7 @@
 use super::event::{self, Machine, Notice, NoticeKind};
 use crate::commands::health::{MEMORY, TEMPERATURE};
 use ally_core::control::{Job, JobKind, JobState, Listening, Source};
-use ally_core::presentation::{capacity, plural};
+use ally_core::presentation::capacity;
 use ally_core::protocol::Health;
 use ally_core::telemetry::DISK_WARNING_MIB;
 use std::collections::{HashMap, HashSet};
@@ -82,13 +82,13 @@ impl Watch {
             kind: NoticeKind::Back,
             title: format!("{} is back", self.name),
             subtitle: None,
-            body: format!("Connected via {path}."),
+            body: format!("Via {path}"),
             open: None,
         }]
     }
 
     /// The Agent did not answer, for the reason in `error`. The notice uses the same plain
-    /// words as the offline screen rather than the raw error.
+    /// words as the offline screen rather than the raw error, plus the fix when there is one.
     pub fn failed(&mut self, error: &str) -> Vec<Notice> {
         self.failures += 1;
         if self.unreachable || self.failures < FAILURES_BEFORE_UNREACHABLE {
@@ -98,7 +98,8 @@ impl Watch {
         let problem = event::explain(&self.name, error);
         let body = match problem.fix {
             Some(fix) => format!(
-                "Run {} on {}.",
+                "{} Run {} on {}.",
+                problem.detail,
                 fix.command,
                 match fix.machine {
                     Machine::Agent => self.name.as_str(),
@@ -109,8 +110,8 @@ impl Watch {
         };
         vec![Notice {
             kind: NoticeKind::Unreachable,
-            title: format!("{} went offline", self.name),
-            subtitle: Some(problem.title),
+            title: problem.title,
+            subtitle: None,
             body,
             open: None,
         }]
@@ -206,11 +207,7 @@ impl Watch {
             ) {
                 notices.push(resource(
                     format!("{} is low on memory", self.name),
-                    format!(
-                        "{} of {} in use ({percent:.0}%).",
-                        capacity(used),
-                        capacity(total)
-                    ),
+                    format!("{percent:.0}% in use"),
                 ));
             }
         }
@@ -221,8 +218,8 @@ impl Watch {
             free >= DISK_RECOVERED_MIB,
         ) {
             notices.push(resource(
-                format!("{} is low on disk space", self.name),
-                format!("{} left for projects and build output.", capacity(free)),
+                format!("{} is low on disk", self.name),
+                format!("{} left", capacity(free)),
             ));
         }
         for (index, gpu) in health.gpus.iter().enumerate() {
@@ -236,8 +233,8 @@ impl Watch {
                 value < TEMPERATURE.warning,
             ) {
                 notices.push(resource(
-                    format!("{}'s GPU is running hot", self.name),
-                    format!("{} is at {celsius}°C.", gpu.name),
+                    format!("{}'s GPU is hot", self.name),
+                    format!("{celsius}°C"),
                 ));
             }
         }
@@ -273,7 +270,7 @@ fn notice(name: &str, job: &Job) -> Option<Notice> {
     let place = job
         .project_name
         .as_ref()
-        .map(|project| format!(" in {project}"))
+        .map(|project| format!(" · {project}"))
         .unwrap_or_default();
     let what = match job.kind {
         JobKind::Run => short(&job.command),
@@ -284,23 +281,20 @@ fn notice(name: &str, job: &Job) -> Option<Notice> {
         (_, JobState::Interrupted) => (
             NoticeKind::JobInterrupted,
             format!("Interrupted on {name}"),
-            format!(
-                "Stopped after {}{place}. The connection dropped or {name} restarted.",
-                spoken(took)
-            ),
+            format!("Connection dropped or {name} restarted"),
         ),
         (JobKind::Run, _) if took < WORTH_NOTICING => return None,
         (JobKind::Run, JobState::Completed) => (
             NoticeKind::JobFinished,
             format!("Finished on {name}"),
-            format!("Took {}{place}.", spoken(took)),
+            format!("{}{place}", brief(took)),
         ),
         (JobKind::Run, JobState::Failed) => (
             NoticeKind::JobFailed,
             format!("Failed on {name}"),
             match job.exit_code {
-                Some(code) => format!("Exit code {code} after {}{place}.", spoken(took)),
-                None => format!("Failed after {}{place}.", spoken(took)),
+                Some(code) => format!("Exit {code} · {}{place}", brief(took)),
+                None => format!("{}{place}", brief(took)),
             },
         ),
         _ => return None,
@@ -328,11 +322,11 @@ fn ready(name: &str, port: &Listening, job: Option<&Job>, local: Option<u16>) ->
     let number = port.port;
     let (body, open) = match local {
         Some(local) => (
-            format!("Open localhost:{local}"),
+            format!("localhost:{local}"),
             Some(format!("http://localhost:{local}")),
         ),
         None => (
-            format!("Listening on {name}:{number}. Run ally forward {number} to open it here."),
+            format!("{name}:{number} · Run ally forward {number} to open it here"),
             None,
         ),
     };
@@ -345,18 +339,14 @@ fn ready(name: &str, port: &Listening, job: Option<&Job>, local: Option<u16>) ->
     }
 }
 
-/// `12 seconds`, `3 minutes`, or `1 hour 5 minutes`, as a sentence would say it.
-fn spoken(seconds: u64) -> String {
+/// `12 sec`, `3 min`, or `1 hr 5 min`, short enough for a notification.
+fn brief(seconds: u64) -> String {
     let (hours, minutes) = (seconds / 3600, seconds % 3600 / 60);
     match (hours, minutes) {
-        (0, 0) => plural(seconds as usize, "second"),
-        (0, minutes) => plural(minutes as usize, "minute"),
-        (hours, 0) => plural(hours as usize, "hour"),
-        (hours, minutes) => format!(
-            "{} {}",
-            plural(hours as usize, "hour"),
-            plural(minutes as usize, "minute")
-        ),
+        (0, 0) => format!("{seconds} sec"),
+        (0, minutes) => format!("{minutes} min"),
+        (hours, 0) => format!("{hours} hr"),
+        (hours, minutes) => format!("{hours} hr {minutes} min"),
     }
 }
 
@@ -454,7 +444,7 @@ mod tests {
                 kind: NoticeKind::ServerReady,
                 title: "Server ready on archbox".to_string(),
                 subtitle: Some("cargo build --release · app".to_string()),
-                body: "Open localhost:8766".to_string(),
+                body: "localhost:8766".to_string(),
                 open: Some("http://localhost:8766".to_string()),
             }]
         );
@@ -472,7 +462,7 @@ mod tests {
         let notices = watch.servers(&ports, &jobs, &HashMap::new());
         assert_eq!(
             notices[0].body,
-            "Listening on archbox:5173. Run ally forward 5173 to open it here."
+            "archbox:5173 · Run ally forward 5173 to open it here"
         );
         assert_eq!(notices[0].open, None);
     }
@@ -513,7 +503,7 @@ mod tests {
             notices[0].subtitle.as_deref(),
             Some("cargo build --release")
         );
-        assert_eq!(notices[0].body, "Took 3 minutes in app.");
+        assert_eq!(notices[0].body, "3 min · app");
         assert!(watch.jobs(&[run("a", JobState::Completed, 192)]).is_empty());
     }
 
@@ -524,7 +514,7 @@ mod tests {
         let notices = watch.jobs(&[run("a", JobState::Failed, 12)]);
         assert_eq!(notices[0].kind, NoticeKind::JobFailed);
         assert_eq!(notices[0].title, "Failed on archbox");
-        assert_eq!(notices[0].body, "Exit code 101 after 12 seconds in app.");
+        assert_eq!(notices[0].body, "Exit 101 · 12 sec · app");
     }
 
     #[test]
@@ -559,10 +549,7 @@ mod tests {
         );
         assert_eq!(notices[0].title, "Interrupted on archbox");
         assert_eq!(notices[0].subtitle.as_deref(), Some("Session"));
-        assert_eq!(
-            notices[1].body,
-            "Stopped after 1 second in app. The connection dropped or archbox restarted."
-        );
+        assert_eq!(notices[1].body, "Connection dropped or archbox restarted");
     }
 
     #[test]
@@ -574,7 +561,7 @@ mod tests {
         let lost = run("b", JobState::Interrupted, 30);
         let notices = watch.jobs(&[ctrl_c, lost]);
         assert_eq!(notices.len(), 1);
-        assert!(notices[0].body.contains("The connection dropped"));
+        assert!(notices[0].body.contains("Connection dropped"));
     }
 
     #[test]
@@ -586,12 +573,12 @@ mod tests {
     }
 
     #[test]
-    fn durations_are_spoken() {
-        assert_eq!(spoken(1), "1 second");
-        assert_eq!(spoken(48), "48 seconds");
-        assert_eq!(spoken(192), "3 minutes");
-        assert_eq!(spoken(3600), "1 hour");
-        assert_eq!(spoken(3900), "1 hour 5 minutes");
+    fn durations_are_brief() {
+        assert_eq!(brief(1), "1 sec");
+        assert_eq!(brief(48), "48 sec");
+        assert_eq!(brief(192), "3 min");
+        assert_eq!(brief(3600), "1 hr");
+        assert_eq!(brief(3900), "1 hr 5 min");
     }
 
     #[test]
@@ -602,16 +589,16 @@ mod tests {
         assert!(watch.failed(refused).is_empty());
         let notices = watch.failed(refused);
         assert_eq!(notices[0].kind, NoticeKind::Unreachable);
-        assert_eq!(notices[0].title, "archbox went offline");
+        assert_eq!(notices[0].title, "archbox is unavailable");
+        assert_eq!(notices[0].subtitle, None);
         assert_eq!(
-            notices[0].subtitle.as_deref(),
-            Some("Ally isn't running on archbox")
+            notices[0].body,
+            "Ally stopped there. Run ally start on archbox."
         );
-        assert_eq!(notices[0].body, "Run ally start on archbox.");
         assert!(watch.failed(refused).is_empty());
         let notices = watch.reached("tailnet");
         assert_eq!(notices[0].kind, NoticeKind::Back);
-        assert_eq!(notices[0].body, "Connected via tailnet.");
+        assert_eq!(notices[0].body, "Via tailnet");
         assert!(watch.reached("tailnet").is_empty());
     }
 
@@ -620,7 +607,7 @@ mod tests {
         let mut watch = Watch::new("archbox");
         watch.failed("something new");
         let notices = watch.failed("something new");
-        assert_eq!(notices[0].subtitle.as_deref(), Some("Can't reach archbox"));
+        assert_eq!(notices[0].title, "archbox is unavailable");
         assert_eq!(notices[0].body, "something new");
     }
 
@@ -639,7 +626,7 @@ mod tests {
         let notices = watch.health(&health(95, PLENTY, 60));
         assert_eq!(notices.len(), 1);
         assert_eq!(notices[0].title, "archbox is low on memory");
-        assert_eq!(notices[0].body, "95.0 MiB of 100.0 MiB in use (95%).");
+        assert_eq!(notices[0].body, "95% in use");
         assert!(watch.health(&health(95, PLENTY, 60)).is_empty());
         assert!(watch.health(&health(80, PLENTY, 60)).is_empty());
         assert!(watch.health(&health(92, PLENTY, 60)).is_empty());
@@ -652,18 +639,9 @@ mod tests {
         let mut watch = Watch::new("archbox");
         let notices = watch.health(&health(10, 1024, 90));
         let titles: Vec<_> = notices.iter().map(|notice| notice.title.as_str()).collect();
-        assert_eq!(
-            titles,
-            [
-                "archbox is low on disk space",
-                "archbox's GPU is running hot"
-            ]
-        );
-        assert_eq!(
-            notices[0].body,
-            "1.0 GiB left for projects and build output."
-        );
-        assert_eq!(notices[1].body, "RTX 3090 is at 90°C.");
+        assert_eq!(titles, ["archbox is low on disk", "archbox's GPU is hot"]);
+        assert_eq!(notices[0].body, "1.0 GiB left");
+        assert_eq!(notices[1].body, "90°C");
         assert!(watch.health(&health(10, DISK_WARNING_MIB, 80)).is_empty());
         assert!(watch.health(&health(10, 1024, 90)).is_empty());
         assert!(watch.health(&health(10, DISK_RECOVERED_MIB, 70)).is_empty());

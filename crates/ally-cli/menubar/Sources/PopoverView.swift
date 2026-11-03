@@ -401,76 +401,59 @@ struct ProblemView: View {
     let retry: (() -> Void)?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                Text(title)
-                    .font(.callout.weight(.semibold))
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.callout.weight(.semibold))
+                .fixedSize(horizontal: false, vertical: true)
             Text(detail)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .textSelection(.enabled)
             if let fix {
-                CommandBox(
-                    label: fix.machine == "agent" ? "Run on \(agent ?? "the Agent")" : "Run on this machine",
-                    command: fix.command
+                FixLine(
+                    command: fix.command,
+                    place: fix.machine == "agent" ? "on \(agent ?? "the Agent")" : "on this machine"
                 )
             }
             if let retry {
-                Button(action: retry) {
-                    HStack(spacing: 6) {
-                        if retrying {
-                            ProgressView().controlSize(.mini)
-                        }
-                        Text(retrying ? "Trying…" : "Try again")
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .controlSize(.regular)
-                .disabled(retrying)
+                Button(retrying ? "Trying…" : "Try again", action: retry)
+                    .buttonStyle(.link)
+                    .font(.caption)
+                    .disabled(retrying)
+                    .padding(.top, 4)
             }
         }
     }
 }
 
-/// A command shown as code, with a button that copies it.
-struct CommandBox: View {
-    let label: String
+/// One plain line naming the command that fixes the problem, with a small button that
+/// copies it.
+struct FixLine: View {
     let command: String
+    let place: String
     @State private var copied = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            HStack {
-                Text(command)
-                    .font(.system(.callout, design: .monospaced))
-                    .textSelection(.enabled)
-                Spacer()
-                Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(command, forType: .string)
-                    copied = true
-                    Task {
-                        try? await Task.sleep(for: .seconds(1.5))
-                        copied = false
-                    }
-                } label: {
-                    Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                        .foregroundStyle(copied ? Color.green : Color.secondary)
+        HStack(spacing: 4) {
+            Text("Run \(Text(command).font(.system(.caption, design: .monospaced))) \(place)")
+                .font(.caption)
+                .textSelection(.enabled)
+            Button {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(command, forType: .string)
+                copied = true
+                Task {
+                    try? await Task.sleep(for: .seconds(1.5))
+                    copied = false
                 }
-                .buttonStyle(.borderless)
-                .help("Copy")
+            } label: {
+                Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                    .font(.caption)
+                    .foregroundStyle(copied ? Color.green : Color.secondary)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.06)))
+            .buttonStyle(.borderless)
+            .help("Copy")
         }
     }
 }

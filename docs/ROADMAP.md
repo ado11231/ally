@@ -64,7 +64,7 @@
 | Sessions | `attach` from anywhere. Syncs first, and pulls edits back on leaving. Login shell, full color, `UTF-8`, mouse scrolling, a colored bar, `~/Ally/<project>`, and the user folders on PATH. Works from terminals the Agent may not know, such as Kitty. |
 | Starting | A systemd user service with linger, or a launchd agent, offered on the first `ally start`. On Linux, a polkit rule keeps an Agent that can sleep awake with nobody logged in. `--boot` and `--remove` manage it. Moves to the next free port when the pairing port is taken. Warns when Docker is unusable, and says when sleep is off. |
 | Sync | `--overwrite` keeps one side of a conflict, with a backup. Pulls refuse names that differ only in case. A Python `.venv` works on the Agent. |
-| Output | Problems on one line with dimmed fixes. `link` in sections. Stopped runs are not failed, and `ps --all` shows `Lost connection`. Version errors name the older machine. |
+| Output | Problems on one line with their fixes. `link` in sections. Stopped runs are not failed, and `ps --all` shows `Lost connection`. Version errors name the older machine. |
 | Removal | `ally uninstall` lists everything on a Client or Agent, asks once with No as the default, and keeps the owner's own files and keys. |
 | Port forwarding | While `run` or `attach` is connected, every port that Ally's work listens on, and every port a Docker container publishes, opens at `localhost` on the Client. A taken port moves to the next free one. Sessions show ports in the bar. `ally forward` opens any Agent port until Ctrl C. |
 
@@ -102,7 +102,7 @@
 * Untested: file watchers in sessions, two Clients on one Agent account at once, and large Node and Python projects.
 * `ally.toml` supports only `sync.exclude`.
 * Linking needs a shared network or tailnet.
-* The back online notification and resource warnings have not been seen on real machines.
+* The resource warnings for memory, disk, and GPU heat have not been seen on real machines.
 * `ally stop` on a `docker run` whose container ignores the stop signal ends the run but leaves the container running. Stop it with `docker stop <name>` ([#144](https://github.com/ado11231/ally/issues/144)).
 
 ## Test Record
@@ -234,3 +234,15 @@
 2. The tools probe found nothing wrong with archbox's Ollama, and reported a stopped server and a CPU only build for a stand in `ollama` program. `ally tools` showed no warning (#152).
 3. ssh through `ally internal-tunnel` on iroh 1.4.1 reached archbox in 0.76 seconds, with both machines on the same network.
 4. `cargo publish --workspace --dry-run --locked` passed for all three crates.
+
+### Fresh Install And Full Test: November 3, 2026
+
+1. Both machines were uninstalled, then installed from the README on `master` and linked.
+2. Passed: `ally run uname -n`, exit code 127 for a missing program, `cargo build --release`, a Vite dev server opened at `localhost`, `sudo pacman` through `ally run`, and a reboot of archbox with nobody logged in.
+3. `docker compose up` through `ally run` opened its port on the Mac, and Ctrl C stopped its containers.
+4. Claude Code edited a file in `ally attach`, and the edit came back on leaving. A `.env` file stayed on the Agent.
+5. The cyan session bar stayed for the whole session, and leaving printed `Back on <machine>`.
+6. Linking again reused the existing project copy.
+7. `ally storage` listed each copy, `clean` freed its build output, and `remove` listed what exists only on the Agent before asking.
+8. The menu bar showed `archbox is unavailable` while archbox could not be reached, and the unavailable and back online banners appeared.
+9. Found and fixed: `uninstall` named a config file it then deleted, the forward line said `node-MainThread`, a folder with only a compose file was not a project, the session bar was gray, linking again lost project copies, output had dimmed and indented lines, npm replaced the `node_modules` link with a folder, and a copy could gain a second `~/Ally` link.

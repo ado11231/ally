@@ -742,9 +742,8 @@ fn show(agent: &Agent, addresses: &[SocketAddr], release: &str, linked: &[String
     let style = Style::stderr();
     eprintln!();
     eprintln!(
-        "{} Ally {} is running on {}",
+        "{} Ally is running on {} · {release}",
         style.paint("▶", Tone::Info),
-        style.dim(release),
         style.paint(&agent.name, Tone::Info)
     );
     let token = agent
@@ -757,9 +756,9 @@ fn show(agent: &Agent, addresses: &[SocketAddr], release: &str, linked: &[String
         Some(token) => announce(addresses, &token, mode),
         None => {
             eprintln!();
-            eprint!("{}", presentation::row("Linked", linked.join(", ")));
+            presentation::detail("Linked", linked.join(", "));
             eprintln!();
-            eprintln!("  {}", style.dim(ask_for_code(mode)));
+            eprintln!("{}", ask_for_code(mode));
             eprintln!();
         }
     }
@@ -767,7 +766,7 @@ fn show(agent: &Agent, addresses: &[SocketAddr], release: &str, linked: &[String
 
 fn code_footer(mode: Mode) -> String {
     format!(
-        "The code works once and expires in {} minutes. Press Enter for a new code, or {}",
+        "The code works once and expires in {} minutes.\nPress Enter for a new code, or {}.",
         CODE_LIFETIME.as_secs() / 60,
         mode.ctrl_c()
     )
@@ -775,7 +774,7 @@ fn code_footer(mode: Mode) -> String {
 
 fn ask_for_code(mode: Mode) -> String {
     format!(
-        "Press Enter for a code to link another machine, or {}",
+        "Press Enter for a code to link another machine, or {}.",
         mode.ctrl_c()
     )
 }
@@ -794,11 +793,11 @@ fn announce(addresses: &[SocketAddr], token: &str, mode: Mode) {
     eprintln!();
 
     if offered.is_empty() {
-        eprintln!("  No address to pair on");
+        eprintln!("No address to pair on");
         return;
     }
 
-    eprintln!("  To pair, run this on a machine on the same network or tailnet:");
+    eprintln!("To link a machine on the same network or tailnet, run one of these on it:");
     eprintln!();
 
     let commands: Vec<(String, &str)> = offered
@@ -815,14 +814,13 @@ fn announce(addresses: &[SocketAddr], token: &str, mode: Mode) {
 
     for (command, label) in &commands {
         eprintln!(
-            "    {}   {}",
-            style.paint(format!("{command:<width$}"), Tone::Info),
-            style.dim(label)
+            "  {}   {label}",
+            style.paint(format!("{command:<width$}"), Tone::Info)
         );
     }
 
     eprintln!();
-    eprintln!("  {}", style.dim(code_footer(mode)));
+    eprintln!("{}", code_footer(mode));
     eprintln!();
 }
 
@@ -902,8 +900,8 @@ mod tests {
 
     #[test]
     fn leaving_beside_the_daemon_says_it_keeps_running() {
-        assert!(code_footer(Mode::Daemon).ends_with("Ctrl C to stop"));
-        assert!(ask_for_code(Mode::Beside).ends_with("Ally keeps running"));
+        assert!(code_footer(Mode::Daemon).ends_with("Ctrl C to stop."));
+        assert!(ask_for_code(Mode::Beside).ends_with("Ally keeps running."));
     }
 
     #[test]

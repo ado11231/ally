@@ -84,7 +84,7 @@ pub async fn offer(_name: &str) -> anyhow::Result<()> {
 
 #[cfg(target_os = "macos")]
 pub async fn offer(name: &str) -> anyhow::Result<()> {
-    use ally_core::presentation::Style;
+    use ally_core::presentation::{Style, Tone};
     use ally_core::telemetry;
 
     let style = Style::stderr();
@@ -98,27 +98,18 @@ pub async fn offer(name: &str) -> anyhow::Result<()> {
             show(name, None).await?;
         }
         Offer::Later(how) => {
-            eprintln!(
-                "  {}",
-                style.dim(format!("Keep {name} in your menu bar. {how}"))
-            );
+            eprintln!("Keep {name} in your menu bar. {how}");
         }
         Offer::Ask => {
             eprintln!(
-                "  The menu bar app shows {name}'s CPU, RAM, and GPU, and notifies you when a run finishes."
-            );
-            eprintln!(
-                "  {}",
-                style.dim(
-                    "It is built with Swift into ~/Applications/Ally.app and starts at login."
-                )
+                "The menu bar app shows {name}'s CPU, RAM, and GPU, and notifies you when a run finishes."
             );
             if ally_core::presentation::confirm("Add it to your menu bar now?".to_string()).await? {
                 show(name, None).await?;
             } else {
                 eprintln!(
-                    "  {}",
-                    style.dim("Run ally menubar any time to do this later")
+                    "Run {} any time to do this later",
+                    style.paint("ally menubar", Tone::Info)
                 );
             }
         }

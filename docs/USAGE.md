@@ -105,6 +105,8 @@ ally attach [path]
 ```
 
 * In a project, opens a session in `~/Ally/<project>`. Anywhere else, in the Agent's home folder.
+* A cyan bar at the bottom names the Agent for as long as you are in the session.
+* Leaving says which machine you are back on, such as `✓ Back on laptop. The session on archbox keeps running`.
 * Every `attach` in a project copies your edits first. Leaving brings the Agent's edits back.
 * A conflict is a warning, and nothing is overwritten.
 * A lost connection brings nothing back. Run `ally sync --pull` when done.

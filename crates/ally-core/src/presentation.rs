@@ -77,13 +77,6 @@ impl Style {
         self.color
     }
 
-    pub fn dim(self, text: impl std::fmt::Display) -> String {
-        match self.color {
-            true => format!("\x1b[2m{text}\x1b[0m"),
-            false => text.to_string(),
-        }
-    }
-
     /// Bold rather than colored, so color stays reserved for things that need attention.
     pub fn heading(self, text: impl std::fmt::Display) -> String {
         match self.color {
@@ -165,7 +158,7 @@ pub fn detail(label: &str, value: impl std::fmt::Display) {
     eprintln!("{}", detail_line(Style::stderr(), label, value));
 }
 
-fn detail_line(style: Style, label: &str, value: impl std::fmt::Display) -> String {
+pub fn detail_line(style: Style, label: &str, value: impl std::fmt::Display) -> String {
     format!("  {} {value}", style.heading(format!("{label:<12}")))
 }
 

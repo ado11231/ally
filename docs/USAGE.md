@@ -222,7 +222,7 @@ exclude = ["data/", "*.mp4"]
 
 | Command | Run On | Effect |
 | --- | --- | --- |
-| `ally unlink` | Client | Removes this Client's key from the Agent, and any environment files older versions of Ally stored. |
+| `ally unlink` | Client | Removes this Client's key from the Agent, and any environment files older versions of Ally stored. Project copies stay, and linking again uses them. |
 | `ally uninstall` | Either | Lists everything Ally added, asks once, then removes it. Default is No. |
 | `cargo uninstall ally-cli` | Either | Removes the program, after `uninstall`. |
 

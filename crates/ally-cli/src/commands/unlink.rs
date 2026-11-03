@@ -69,9 +69,6 @@ pub async fn unlink(agent: Option<String>) -> anyhow::Result<i32> {
 
     config.remove(&target.name)?;
     config.save()?;
-    if complete {
-        project::forget_agent(&client_root, &target.name)?;
-    }
 
     presentation::success(format!("Forgot {}", target.name));
     presentation::detail(

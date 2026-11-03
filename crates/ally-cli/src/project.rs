@@ -102,17 +102,6 @@ pub fn for_agent(dir: &Path, agent: &str) -> anyhow::Result<Vec<Registered>> {
         .collect())
 }
 
-pub fn forget_agent(dir: &Path, agent: &str) -> anyhow::Result<()> {
-    if !dir.exists() {
-        return Ok(());
-    }
-    let _guard = storage::lock(&dir.join("projects.lock"))?;
-    let file = dir.join("projects.json");
-    let mut registry: Registry = storage::read_json(&file)?;
-    registry.projects.retain(|p| p.agent != agent);
-    storage::write_json(&file, &registry)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -144,8 +133,6 @@ mod tests {
         assert_ne!(identify(&state, &b, "archbox").unwrap(), first);
         assert_ne!(identify(&state, &a, "laptop").unwrap(), first);
         assert_eq!(for_agent(&state, "archbox").unwrap().len(), 2);
-        forget_agent(&state, "archbox").unwrap();
-        assert!(for_agent(&state, "archbox").unwrap().is_empty());
         assert_eq!(for_agent(&state, "laptop").unwrap().len(), 1);
     }
 

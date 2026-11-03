@@ -150,7 +150,7 @@
 
 ### Formats And Versions
 
-* **Control messages:** any change to a `Request` or `Response` shape in `ally-core/src/control.rs` raises `control::VERSION`, currently 18.
+* **Control messages:** any change to a `Request` or `Response` shape in `ally-core/src/control.rs` raises `control::VERSION`, currently 20.
 * **Menu bar lines:** if a field in `ally-cli/src/watch/event.rs` changes meaning or is removed, raise `watch::event::VERSION` and change `ally-cli/menubar/Sources/Model.swift` in the same commit.
 * **Pairing messages:** a change to the pairing messages in `ally-core/src/protocol.rs` means both machines must update before the next link. A change to `Specs` or `Health`, which are saved or sent after pairing, forces every user to link again. Say which one explicitly.
 
@@ -312,7 +312,7 @@ swift build -c release --package-path crates/ally-cli/menubar
 ## 15. Current State
 
 * **Phases 1, 3, and 4 are complete.** Phase 5 is in progress: the menu bar app, notifications, port forwarding, and the fixes from the October 7, 2026 fresh install test are built. The notification for a session waiting for input (#136) is not.
-* **Next:** stopping the containers a `docker run` started when its job is stopped (#144). Every finding from the November 3, 2026 fresh install test is fixed.
+* **Next:** the notification for a session waiting for input (#136), the last part of Phase 5. Every finding from the November 3, 2026 fresh install test is fixed.
 * **All tests, formatting, and Clippy pass on `master`.** CI checks every pull request on Linux and macOS.
 * **The renames from borrow and Slingshot have no migration.** Both machines must run `slingshot uninstall`, install Ally, then run `ally link`.
 * Everything under [known limitations](docs/ROADMAP.md#known-limitations) does not work yet. Never describe it as working.

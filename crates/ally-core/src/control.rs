@@ -13,7 +13,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 /// Wire version of this control protocol. Both machines must agree on it, so any change
 /// to a request or response shape has to raise it.
-pub const VERSION: u32 = 19;
+pub const VERSION: u32 = 20;
 
 /// Largest frame in either direction. Manifests for very large projects are the limit.
 pub const MAX_FRAME: u32 = 16 * 1024 * 1024;
@@ -131,14 +131,26 @@ pub enum Response {
     Warnings(Vec<String>),
     Project(ProjectInfo),
     Snapshot(Snapshot),
-    Synced { changed: usize },
+    Synced {
+        changed: usize,
+    },
     Session(SessionInfo),
     Jobs(Vec<Job>),
-    Job(Job),
-    Unlinked { environment_files: usize },
+    /// A stopped job, with the containers its `docker run` commands started: those
+    /// stopped, and those that may still run because another job could own them.
+    Stopped {
+        job: Job,
+        containers: Vec<String>,
+        unsure: Vec<String>,
+    },
+    Unlinked {
+        environment_files: usize,
+    },
     Status(AgentStatus),
     Projects(Vec<ProjectSummary>),
-    Cleaned { bytes: u64 },
+    Cleaned {
+        bytes: u64,
+    },
     Ports(Vec<Listening>),
 }
 

@@ -1,6 +1,7 @@
 //! Ally runs and sessions on the Agent: persistent records, reconciliation after a
 //! restart, persistent tmux sessions, and stopping work without trusting stale PIDs.
 
+use crate::containers;
 use crate::projects;
 use ally_core::control::{Job, JobKind, JobState, SessionInfo};
 use ally_core::preflight;
@@ -494,20 +495,27 @@ pub fn session(root: &Path, agent: &str, project: Option<&str>) -> anyhow::Resul
 
 /// Stop a job. Work gets a graceful signal and five seconds, then anything still left
 /// from the same process tree is killed. Every process is matched by PID and start time.
-pub fn stop(root: &Path, query: &str) -> anyhow::Result<Job> {
+/// Stop a job, then the containers its `docker run` commands started, which are found
+/// first, while the job's processes still run. Returns the job, the containers stopped,
+/// and the containers that may still run.
+pub fn stop(root: &Path, query: &str) -> anyhow::Result<(Job, Vec<String>, Vec<String>)> {
     let job = find_active(root, query)?;
     update(root, &job.id, |job| job.stop_requested = true)?;
+    let found = containers::started_by(&processes(root, &job), job.started);
     match job.kind {
         JobKind::Run => stop_run(&job),
         JobKind::Session => stop_session(root, &job),
     }
+    let (stopped, mut unsure) = containers::stop(found.ours);
+    unsure.extend(found.unsure.into_iter().map(|container| container.name));
     let _ = list(root, false);
-    update(root, &job.id, |job| {
+    let job = update(root, &job.id, |job| {
         if job.state.active() {
             job.state = JobState::Stopped;
             job.ended = Some(storage::now());
         }
-    })
+    })?;
+    Ok((job, stopped, unsure))
 }
 
 fn stop_run(job: &Job) {
@@ -866,9 +874,10 @@ mod tests {
         let tree = process_tree(&[pid], Some(pid));
         assert!(tree.len() >= 3, "{tree:?}");
         let started = Instant::now();
-        let stopped = stop(&root.0, storage::short_id(&job.id)).unwrap();
+        let (stopped, containers, unsure) = stop(&root.0, storage::short_id(&job.id)).unwrap();
         let _ = child.wait();
         assert_eq!(stopped.state, JobState::Stopped);
+        assert!(containers.is_empty() && unsure.is_empty());
         assert!(started.elapsed() >= GRACE - Duration::from_millis(200));
         assert!(
             tree.iter()

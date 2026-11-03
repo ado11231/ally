@@ -109,7 +109,8 @@ cargo test --workspace
 * Use `ally-core/src/presentation.rs` and `step.rs`. Never raw color codes.
 * Slow work shows a spinner, then a line such as `✓ Synced 3 files  0.4s`.
 * Symbols: `✓` success, `!` warning, `✗` failure, `▶` remote work. Every remote command says where it runs, such as `▶ Running on archbox via tailnet`.
-* Color marks only what needs attention. Headings are bold, and details dimmed.
+* Color marks only what needs attention. Headings and table labels are bold. Nothing is dimmed.
+* Lines start at the left edge. Only table rows, list rows, and one follow up line are indented.
 * Sentence case. CPU, RAM, GPU, and VRAM are always capitals.
 * Every failed check prints the exact command that fixes it.
 

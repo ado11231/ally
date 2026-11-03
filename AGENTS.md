@@ -196,7 +196,10 @@
 * All output goes through `ally-core/src/presentation.rs` and `ally-core/src/step.rs`.
 * Slow work is a step: a spinner in a terminal, then a line such as `✓ Synced 3 files  0.4s`.
 * Status symbols: `✓`, `!`, `✗`, and `▶`.
-* Color marks only what needs attention: symbols, the Agent and path in `▶` lines, and warning or failing values. Healthy values stay plain, headings are bold, and details are dimmed.
+* Color marks only what needs attention: symbols, the Agent and path in `▶` lines, commands to type, and warning or failing values. Everything else is plain.
+* Never dim text. Headings and table labels are bold.
+* Lines start at the left edge with a symbol or a heading. Only table rows, list rows, and one follow up line under the line it belongs to are indented, by two spaces.
+* Leave out lines nobody acts on, such as file paths Ally saved for itself.
 * Messages use sentence case. CPU, RAM, GPU, and VRAM are always capitals.
 * `--color auto|always|never` controls color. Ally's options come before `run`. Everything after `run` belongs to the user's command.
 

@@ -34,6 +34,21 @@ struct Cli {
 }
 
 #[derive(Subcommand)]
+enum StorageAction {
+    #[command(about = "Free a copy's build output on the Agent. The next build makes it again")]
+    Clean {
+        /// The name from ally storage. Defaults to the current project.
+        project: Option<String>,
+    },
+
+    #[command(about = "Delete a copy from the Agent, after listing it and asking")]
+    Remove {
+        /// The name from ally storage. Defaults to the current project.
+        project: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
 enum Commands {
     /// Relays control messages between SSH and the Agent's private socket.
     #[command(hide = true)]
@@ -154,6 +169,12 @@ enum Commands {
         id: String,
     },
 
+    #[command(about = "List the project copies kept on the Agent, and free their space")]
+    Storage {
+        #[command(subcommand)]
+        action: Option<StorageAction>,
+    },
+
     #[command(about = "Show the Agent's hardware, and its CPU, RAM, GPU, and disk use")]
     Health {
         /// Keep refreshing every two seconds, with running jobs, until Q or Ctrl C.
@@ -238,6 +259,15 @@ pub async fn run() {
         Commands::Forward { port } => commands::forward::forward(cli.agent, port).await,
         Commands::Ps { all } => commands::ps::ps(cli.agent, all).await,
         Commands::Stop { id } => commands::ps::stop(cli.agent, id).await,
+        Commands::Storage { action } => match action {
+            None => commands::storage::list(cli.agent).await,
+            Some(StorageAction::Clean { project }) => {
+                commands::storage::clean(cli.agent, project).await
+            }
+            Some(StorageAction::Remove { project }) => {
+                commands::storage::remove(cli.agent, project).await
+            }
+        },
         Commands::Health { watch } => commands::health::health(cli.agent, watch).await,
         Commands::Menubar { remove } => commands::menubar::menubar(cli.agent, remove).await,
     };

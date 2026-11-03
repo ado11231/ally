@@ -13,11 +13,12 @@
 7. [Environment Files](#environment-files)
 8. [Check On The Agent](#check-on-the-agent)
 9. [Manage Jobs](#manage-jobs)
-10. [The Menu Bar App](#the-menu-bar-app)
-11. [More Than One Agent](#more-than-one-agent)
-12. [Project Settings](#project-settings)
-13. [What Ally Copies](#what-ally-copies)
-14. [Remove Ally](#remove-ally)
+10. [Free Space On The Agent](#free-space-on-the-agent)
+11. [The Menu Bar App](#the-menu-bar-app)
+12. [More Than One Agent](#more-than-one-agent)
+13. [Project Settings](#project-settings)
+14. [What Ally Copies](#what-ally-copies)
+15. [Remove Ally](#remove-ally)
 
 ## Words Used Here
 
@@ -181,6 +182,20 @@ ally attach [path]
 | `ally stop <id>` | Stops a job, forced after five seconds. A short ID works. |
 
 * Finished runs show `Completed`, `Failed`, `Stopped`, `Interrupted`, or `Lost connection`.
+
+## Free Space On The Agent
+
+| Command | Effect |
+| --- | --- |
+| `ally storage` | Lists each project copy on the Agent: source size, build output size, and last sync. |
+| `ally storage clean [project]` | Deletes a copy's build output, such as `target/` or `node_modules/`. The next build makes it again. |
+| `ally storage remove [project]` | Deletes a whole copy, after listing it and asking. The default answer is No. |
+
+* A copy is named by its folder in `~/Ally` on the Agent, such as `webtest` or `webtest-3d651d51`.
+* Without a name, `clean` and `remove` use the current project.
+* `unused` marks a copy no linked machine uses anymore, such as one left by a machine that unlinked.
+* `remove` names anything that exists only on the Agent first, such as `.env` files and edits never brought back.
+* Both refuse while a run or session uses the copy. Stop it with `ally stop <id>` first.
 
 ## The Menu Bar App
 

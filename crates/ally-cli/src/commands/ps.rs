@@ -151,7 +151,7 @@ fn fit(command: &str, room: Option<usize>) -> String {
     }
 }
 
-fn ago(seconds: u64) -> String {
+pub fn ago(seconds: u64) -> String {
     match seconds {
         0..60 => format!("{seconds}s ago"),
         60..3600 => format!("{}m ago", seconds / 60),

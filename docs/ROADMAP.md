@@ -74,7 +74,7 @@
 
 | Removed | Instead |
 | --- | --- |
-| `ally projects`, `clean`, and `remove` | Nothing. Copies stay on the Agent until `ally uninstall`. |
+| `ally projects`, `clean`, and `remove` | Back on November 3, 2026 as `ally storage`, `clean`, and `remove`. |
 | `ally ports` | Forwarding still opens ports by itself, and the menu bar lists them. |
 | `ally tools`, and the tools step of `link` | Install tools on the Agent yourself. |
 | `ally env` | Make environment files on the Agent yourself. `unlink` still removes any that older versions stored. |

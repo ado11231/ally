@@ -13,7 +13,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 /// Wire version of this control protocol. Both machines must agree on it, so any change
 /// to a request or response shape has to raise it.
-pub const VERSION: u32 = 18;
+pub const VERSION: u32 = 19;
 
 /// Largest frame in either direction. Manifests for very large projects are the limit.
 pub const MAX_FRAME: u32 = 16 * 1024 * 1024;
@@ -107,6 +107,16 @@ pub enum Request {
     /// What the running daemon calls itself and whether iroh reaches it, for a second
     /// `ally start` on the same account.
     Status,
+    /// Every project copy on the Agent, from any Client.
+    Projects,
+    /// Remove a project's build output. The next build or install makes it again.
+    CleanProject {
+        project: String,
+    },
+    /// Delete a project's copy and build output from the Agent, with its `~/Ally` link.
+    RemoveProject {
+        project: String,
+    },
     /// Every TCP port listening on the Agent, and who opened it.
     Ports,
 }
@@ -127,6 +137,8 @@ pub enum Response {
     Job(Job),
     Unlinked { environment_files: usize },
     Status(AgentStatus),
+    Projects(Vec<ProjectSummary>),
+    Cleaned { bytes: u64 },
     Ports(Vec<Listening>),
 }
 
@@ -162,6 +174,28 @@ impl Source {
     pub fn forwarded_automatically(&self) -> bool {
         matches!(self, Source::Job(_) | Source::Docker)
     }
+}
+
+/// One project copy on the Agent, as `ally storage` lists it.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectSummary {
+    pub id: String,
+    pub name: String,
+    pub client: String,
+    /// The copy's folder name in `~/Ally`, which tells same named copies apart.
+    pub folder: Option<String>,
+    /// Whether the Client that made the copy is still linked.
+    pub linked: bool,
+    /// Environment files in the copy, by path. They never sync, so they exist only here.
+    pub environment: Vec<String>,
+    /// Bytes in the source copy, without build output.
+    pub copy: u64,
+    /// Bytes of build output, including a Python `.venv`.
+    pub build: u64,
+    /// When the copy last matched the Client, or `None` before the first sync.
+    pub synced: Option<u64>,
+    /// Files changed on the Agent that no pull has brought back yet.
+    pub waiting: usize,
 }
 
 /// The running daemon, as a second `ally start` on the same account shows it.

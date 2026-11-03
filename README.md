@@ -208,6 +208,7 @@ Any command works, such as `npm run dev` or `python main.py`.
 | `ally sync --pull` | Brings edits made on the Agent back to the Client. |
 | `ally health` | Shows the Agent's hardware and use. Add `--watch` to keep it live. |
 | `ally ps` | Lists running jobs. `ally stop <id>` stops one. |
+| `ally storage` | Lists the project copies on the Agent. `clean` frees build output, and `remove` deletes a copy. |
 | `ally forward <port>` | Opens a port on the Agent at `localhost` here. Servers that `run` and `attach` start open by themselves. |
 
 Every command and option is in [USAGE.md](https://github.com/ado11231/ally/blob/master/docs/USAGE.md).

@@ -108,7 +108,11 @@
 | `An interrupted sync of app needs recovery. Run ally sync to recover it` | A sync stopped partway, such as when the connection dropped. | Run `ally sync`. It finishes or undoes the earlier one. |
 | `Could not recover an interrupted sync. Backups are in ...` | The sync could not be finished or undone. | Make each listed file match its backup, or delete it, then sync again. |
 | `This project has no copy on the Agent yet. Run ally sync first` | A pull needs a copy on the Agent. | Run `ally sync` once. |
-| `app has a run in progress (job 3f9c2a)`, or `a session in progress` | The project is in use. A sync waits for a run, and `unlink` waits for a run or session. | Stop it with the `ally stop` command in the message, or wait. |
+| `app has a run in progress (job 3f9c2a)`, or `a session in progress` | The project is in use. A sync waits for a run, and `unlink` and `ally storage clean` or `remove` wait for a run or session. | Stop it with the `ally stop` command in the message, or wait. |
+| `No copy named web on archbox` | No copy has that folder name, project name, or ID. | Run `ally storage` and use a name from the `PROJECT` column. |
+| `2 copies are named app on archbox. Use one of these names: ...` | Two copies share a project name. | Use one of the folder names the message lists. |
+| `app has no copy on archbox` | `clean` or `remove` without a name, in a project the Agent has no copy of. | Run `ally storage` to see the copies, and name one. |
+| `Run ally storage remove in a terminal to confirm` | `remove` asks before deleting, and could not ask here. | Run it in a terminal. |
 | `Unsupported source path` or `Unsafe source link` | A name or link cannot be copied safely, such as a link outside the project. | Remove it, or add it to `.gitignore`. |
 | `Message is too large. The project may have too many files` | The file list is over the limit. | Leave out large generated or data folders with `.gitignore` or `sync.exclude`. |
 | `sync.exclude in ally.toml cannot contain negated patterns` | Patterns starting with `!` are not allowed. | Remove them. |

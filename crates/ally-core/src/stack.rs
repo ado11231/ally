@@ -10,9 +10,15 @@ pub enum Stack {
     Python,
 }
 
-/// Project markers. An ally.toml file also marks a project without a known stack.
+/// Project markers. An ally.toml or a container file also marks a project without a
+/// known stack, so a folder holding only a compose file still syncs before a run.
 const MARKERS: &[(&str, Option<Stack>)] = &[
     ("ally.toml", None),
+    ("compose.yaml", None),
+    ("compose.yml", None),
+    ("docker-compose.yml", None),
+    ("docker-compose.yaml", None),
+    ("Dockerfile", None),
     ("Cargo.toml", Some(Stack::Rust)),
     ("package.json", Some(Stack::Node)),
     ("pyproject.toml", Some(Stack::Python)),
@@ -211,5 +217,24 @@ mod tests {
 
         assert_eq!(project.root, sandbox.root);
         assert!(project.stacks.is_empty());
+    }
+
+    #[test]
+    fn a_container_file_alone_marks_a_project() {
+        for marker in [
+            "compose.yaml",
+            "compose.yml",
+            "docker-compose.yml",
+            "docker-compose.yaml",
+            "Dockerfile",
+        ] {
+            let sandbox = Sandbox::new(&format!("container-{marker}"));
+            sandbox.file(marker);
+
+            let project = find(&sandbox.root).expect("a container file should mark a root");
+
+            assert_eq!(project.root, sandbox.root, "{marker}");
+            assert!(project.stacks.is_empty(), "{marker}");
+        }
     }
 }

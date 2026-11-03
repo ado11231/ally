@@ -140,6 +140,7 @@ fn announcement(name: &str, path: &str, local: Option<&Local>, style: Style) -> 
     let mut line = route::announce("Running on", name, path, style);
 
     let Some(local) = local else {
+        line.push_str(" · ~ · not a project, nothing synced");
         return line;
     };
     line.push_str(&format!(" · {}", location(local)));
@@ -176,10 +177,10 @@ mod tests {
     }
 
     #[test]
-    fn outside_a_project_it_only_says_where() {
+    fn outside_a_project_it_says_nothing_was_synced() {
         assert_eq!(
             announcement("archbox", "local network", None, Style::new(false)),
-            "▶ Running on archbox via local network"
+            "▶ Running on archbox via local network · ~ · not a project, nothing synced"
         );
     }
 

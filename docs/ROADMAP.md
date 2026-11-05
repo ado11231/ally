@@ -21,8 +21,8 @@
 | 2 | Project recognition, and build output on the Agent | Complete |
 | 3 | Source copies, sync, sessions, jobs, environment files, and live health | Complete |
 | 4 | Reaching the Agent from any network | Complete |
-| 5 | Menu bar app, notifications, and port forwarding | In progress |
-| 6 | Pairing across networks, and more platforms | Planned |
+| 5 | Menu bar app, notifications, and port forwarding | Complete |
+| 6 | Pairing across networks, and several Agents | After the release |
 | 7 | Ready to run programs, an installer, and a public release | In progress |
 
 ## Complete
@@ -60,13 +60,14 @@
 | Area | What Works |
 | --- | --- |
 | Menu bar app | CPU, RAM, GPU, VRAM, and workspace space; an offline screen with the cause, fix, and Try again; always a login item; follows a new `ally` by itself; moves to a better connection within a minute; lists forwarded ports, and a click opens one. `ally menubar` builds, signs, installs, and removes it. |
-| Notifications | Finished, failed, and interrupted runs; the Agent going offline or returning; low memory, low disk, or a hot GPU; a server starting in a run or session, which opens on a click. Shown with the Ally icon. |
+| Notifications | Finished, failed, and interrupted runs; the Agent going offline or returning; low memory, low disk, or a hot GPU; a server starting in a run or session, which opens on a click. Shown with the Ally icon. More than 3 jobs ending within a minute become one summary. |
 | Sessions | `attach` from anywhere. Syncs first, and pulls edits back on leaving. Login shell, full color, `UTF-8`, mouse scrolling, a colored bar, `~/Ally/<project>`, and the user folders on PATH. Works from terminals the Agent may not know, such as Kitty. |
 | Starting | A systemd user service with linger, or a launchd agent, offered on the first `ally start`. On Linux, a polkit rule keeps an Agent that can sleep awake with nobody logged in. `--boot` and `--remove` manage it. Moves to the next free port when the pairing port is taken. Warns when Docker is unusable, and says when sleep is off. |
 | Sync | `--overwrite` keeps one side of a conflict, with a backup. Pulls refuse names that differ only in case. A Python `.venv` works on the Agent. |
 | Output | Problems on one line with their fixes. `link` in sections. Stopped runs are not failed, and `ps --all` shows `Lost connection`. Version errors name the older machine. |
 | Removal | `ally uninstall` lists everything on a Client or Agent, asks once with No as the default, and keeps the owner's own files and keys. |
 | Port forwarding | While `run` or `attach` is connected, every port that Ally's work listens on, and every port a Docker container publishes, opens at `localhost` on the Client. A taken port moves to the next free one. Sessions show ports in the bar. `ally forward` opens any Agent port until Ctrl C. |
+| Setup | `ally doctor` checks the Agent and the Client, and reaches the Agent over each saved path on its own. `ally --via` picks one path. `ally completions` prints a script for bash, zsh, fish, or elvish. |
 
 ## Removed
 
@@ -82,14 +83,22 @@
 
 ## Planned
 
-| Phase | Work | Issue |
-| --- | --- | --- |
-| 5 | A notification when a session waits for input | [#136](https://github.com/ado11231/ally/issues/136) |
-| 6 | Pairing across networks, keeping the code safe through a relay | [#19](https://github.com/ado11231/ally/issues/19) |
-| 6 | Watching several Agents from the menu bar | [#109](https://github.com/ado11231/ally/issues/109) |
-| 6 | A setting to use your own iroh relay, and stronger Linux Client support | |
-| 7 | The first release, `v0.1.0`, and the README switched to the one line installer | [#122](https://github.com/ado11231/ally/issues/122) |
-| 7 | Publishing to crates.io | [#17](https://github.com/ado11231/ally/issues/17) |
+### Before The Release
+
+| Work | Issue |
+| --- | --- |
+| The first release, `v0.1.0`, and the README switched to the one line installer | [#122](https://github.com/ado11231/ally/issues/122) |
+| A final fresh install, file watchers in a session, and two Clients on one Agent | [#129](https://github.com/ado11231/ally/issues/129) |
+
+### After The Release
+
+| Work | Issue |
+| --- | --- |
+| Notification polish, and a notice when a session waits for input | [#27](https://github.com/ado11231/ally/issues/27) |
+| Watching several Agents from the menu bar | [#109](https://github.com/ado11231/ally/issues/109) |
+| Pairing across networks, and your own iroh relay | [#19](https://github.com/ado11231/ally/issues/19) |
+| Several Clients on one Agent account | [#12](https://github.com/ado11231/ally/issues/12) |
+| Publishing to crates.io | [#17](https://github.com/ado11231/ally/issues/17) |
 
 * Phase 7 is done when a newcomer goes from install to a working `ally run` in under five minutes, with no help.
 * Built for Phase 7: each version tag builds ready to run programs for macOS and Linux, on Intel and ARM, and `install.sh` installs them with no Rust. Neither has run against a real release yet.

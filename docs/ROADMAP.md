@@ -99,14 +99,14 @@
 * Starting by itself on a macOS Agent is untested.
 * After a power loss, the first iroh connection is untested. A crash is tested below.
 * Edits in a session whose connection dropped stay on the Agent until `ally sync --pull`.
-* Untested: file watchers in sessions, two Clients on one Agent account at once, and large Node and Python projects.
+* Untested: file watchers in sessions, and two Clients on one Agent account at once.
 * `ally.toml` supports only `sync.exclude`.
 * Linking needs a shared network or tailnet.
 * The resource warnings for memory, disk, and GPU heat have not been seen on real machines.
 
 ## Test Record
 
-* Every test ran between a Mac Client and an Arch Linux Agent named archbox.
+* Every test ran between a Mac Client and an Arch Linux Agent named archbox, except the November 5 test, where one Mac was both.
 
 ### Phase 3: September 13, 2026, Same Network
 
@@ -246,3 +246,14 @@
 8. The menu bar showed `archbox is unavailable` while archbox could not be reached, and the unavailable and back online banners appeared.
 9. Found and fixed: `uninstall` named a config file it then deleted, the forward line said `node-MainThread`, a folder with only a compose file was not a project, the session bar was gray, linking again lost project copies, output had dimmed and indented lines, npm replaced the `node_modules` link with a folder, and a copy could gain a second `~/Ally` link.
 10. `ally stop` on `docker run --rm -t --name ally144 alpine sleep 300` printed `Stopped container ally144`, and the container was gone from `docker ps`. It took 15 seconds, because `sleep` ignores the stop signal (#144).
+
+### A Mac As The Agent: November 5, 2026
+
+1. One Mac ran `ally start --name thismac` and linked to itself, with Remote Login on and the `rsync` macOS ships.
+2. Passed: `run`, `sync`, `ps --all`, and `health` over the network, the tailnet, and iroh.
+3. A Python web server opened at `localhost:8001`, because 8000 was taken on the same machine, and `ally stop` ended it in 0.3 seconds.
+4. A Rust build kept `target` in Agent storage. The second `cargo run --release` took 0.7 seconds.
+5. A Next.js project kept its 373 MB `node_modules` of 11,050 files on the Agent, and a sync of one changed file took 0.1 seconds.
+6. A Python project kept its 132 MB `.venv` with numpy and pandas on the Agent.
+7. Found and fixed: runs used ssh's bare PATH, so Homebrew tools such as `tmux` were missing from `ally run`. Runs now use the login shell's PATH.
+8. Not tested: `attach`, starting by itself with launchd, and a separate Mac as the Agent.

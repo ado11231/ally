@@ -259,6 +259,7 @@ projects/<project id>/
 ally/
 ├── .github/
 │   ├── workflows/ci.yml       the checks on every push to master and every pull request
+│   ├── workflows/release.yml  the ready to run programs, published as a release for each version tag
 │   ├── dependabot.yml         a weekly pull request for new crate and Action versions
 │   ├── ISSUE_TEMPLATE/        the forms for a problem or an idea
 │   └── pull_request_template.md   the checklist every pull request starts with

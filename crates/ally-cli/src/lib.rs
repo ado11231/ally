@@ -29,6 +29,10 @@ struct Cli {
     #[arg(long, short, global = true)]
     agent: Option<String>,
 
+    /// Reach the Agent by this path instead of the first that answers.
+    #[arg(long, global = true, value_parser = ["local", "tailnet", "iroh"])]
+    via: Option<String>,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -223,6 +227,15 @@ pub async fn run() {
     };
     let matches = Cli::command().color(color).get_matches_from(args);
     let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|error| error.exit());
+    if let Some(via) = cli.via.as_deref()
+        && let Err(error) = route::force(cli.agent.as_deref(), via)
+    {
+        eprintln!(
+            "{}",
+            Style::stderr().status(format!("{error:#}"), Tone::Error)
+        );
+        std::process::exit(1);
+    }
 
     let result = match cli.command {
         Commands::InternalControl => ally_agent::service::bridge().await,
@@ -344,6 +357,18 @@ mod tests {
         };
         assert_eq!(cmd, ["cargo", "--color", "always", "--release"]);
         assert_eq!(cli.color, "never");
+    }
+
+    #[test]
+    fn via_names_one_of_the_three_paths_before_run() {
+        let cli =
+            Cli::try_parse_from(["ally", "--via", "iroh", "run", "cargo", "--via", "x"]).unwrap();
+        let Commands::Run { cmd } = cli.command else {
+            panic!("Expected run")
+        };
+        assert_eq!(cli.via.as_deref(), Some("iroh"));
+        assert_eq!(cmd, ["cargo", "--via", "x"]);
+        assert!(Cli::try_parse_from(["ally", "--via", "wifi", "ps"]).is_err());
     }
 
     #[test]

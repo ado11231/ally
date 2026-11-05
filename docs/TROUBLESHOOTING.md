@@ -75,6 +75,8 @@
 | `! archbox runs Ally 0.1.0 and this machine runs 0.2.0` | They still work together, but the older one lacks fixes. | Update the older machine the same way. |
 | `Ally was not found on the Agent` | The Agent's `ally` program was moved or removed. | Install it on the Agent again, then link again. |
 | `Host key verification failed` | The Agent's ssh identity changed, usually after a reinstall. | Link again. |
+| `archbox did not answer via tailnet` | `--via` chose a path that did not answer, so no other was tried. | Follow the check printed, such as making sure Tailscale runs on both machines, or leave out `--via`. |
+| `archbox has no tailnet address saved` | Linking saved no address on the path `--via` chose. | Run `ally link` again while both machines are on that network, or leave out `--via`. |
 | `No Agent configured yet` | This machine is not linked. | Run `ally start` on the Agent, then `ally link <code>` here. |
 | `Several Agents configured` | More than one Agent is linked, and none is the default. | Add `--agent <name>`, or set `default = "<name>"` in the config file named. |
 

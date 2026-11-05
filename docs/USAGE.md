@@ -134,6 +134,16 @@ ally attach [path]
 | --- | --- |
 | `ally forward <port>` | Opens one Agent port at `localhost` until Ctrl C, for a server left running after leaving its session, or one Ally did not start. |
 
+### Choose The Path
+
+```sh
+ally --via iroh run cargo build
+```
+
+* Ally tries the local network, then the tailnet, then iroh, and takes the first that answers.
+* `--via local`, `--via tailnet`, or `--via iroh` takes that path only, such as to test iroh while the local network works. Syncs take it too.
+* If the chosen path does not answer, Ally stops and says so instead of trying another.
+
 ## Keep Files In Step
 
 * `run` and `attach` sync for you. `sync` does it alone.

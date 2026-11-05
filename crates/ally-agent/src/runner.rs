@@ -77,7 +77,8 @@ pub async fn run(
         .env("PWD", &directory)
         .envs(env);
     if let Some(dirs) = directories::BaseDirs::new() {
-        let path = std::env::var("PATH").unwrap_or_default();
+        let inherited = std::env::var("PATH").unwrap_or_default();
+        let path = login_path(std::env::var("SHELL").ok(), inherited).await;
         child.env("PATH", jobs::with_user_folders(&path, dirs.home_dir()));
     }
     unsafe {
@@ -149,6 +150,44 @@ pub async fn run(
     }
     drop(lock);
     Ok(code)
+}
+
+/// Marks the line holding the login shell's PATH, so anything its startup files print is
+/// ignored.
+const PATH_MARKER: &str = "ALLY_LOGIN_PATH=";
+
+/// A login shell that takes longer than this is skipped, so a slow or waiting startup
+/// file cannot hold up every run.
+const LOGIN_SHELL_LIMIT: Duration = Duration::from_secs(3);
+
+/// The PATH the account's login shell sets up, such as Homebrew's folders from
+/// `~/.zprofile`. ssh starts this helper without reading those files, so tools a session
+/// finds would be missing from runs. `inherited` is kept when the shell fails.
+async fn login_path(shell: Option<String>, inherited: String) -> String {
+    let Some(shell) = shell else {
+        return inherited;
+    };
+    let asked = tokio::process::Command::new(shell)
+        .arg("-l")
+        .arg("-c")
+        .arg(format!("printf '\\n{PATH_MARKER}%s\\n' \"$PATH\""))
+        .stdin(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .kill_on_drop(true)
+        .output();
+    match tokio::time::timeout(LOGIN_SHELL_LIMIT, asked).await {
+        Ok(Ok(out)) => path_from(&String::from_utf8_lossy(&out.stdout)).unwrap_or(inherited),
+        _ => inherited,
+    }
+}
+
+fn path_from(output: &str) -> Option<String> {
+    output
+        .lines()
+        .rev()
+        .find_map(|line| line.strip_prefix(PATH_MARKER))
+        .filter(|path| !path.is_empty())
+        .map(str::to_string)
 }
 
 /// A command that could not start exits the way a shell reports it: 127 when it does not
@@ -289,6 +328,26 @@ mod tests {
             start_folder(None, "web app", "abcdef0123456789", &source, None).unwrap(),
             source
         );
+    }
+
+    #[test]
+    fn the_login_path_is_read_past_anything_startup_files_print() {
+        let output = "Welcome back\nALLY_LOGIN_PATH=not this one\n\nALLY_LOGIN_PATH=/opt/homebrew/bin:/usr/bin\n";
+        assert_eq!(
+            path_from(output).as_deref(),
+            Some("/opt/homebrew/bin:/usr/bin")
+        );
+        assert_eq!(path_from("no marker here\n"), None);
+        assert_eq!(path_from("\nALLY_LOGIN_PATH=\n"), None);
+    }
+
+    #[tokio::test]
+    async fn a_login_shell_gives_its_path_and_a_broken_one_keeps_the_old_path() {
+        let path = login_path(Some("/bin/sh".to_string()), "inherited".to_string()).await;
+        assert!(path.contains("/bin"), "{path}");
+        let kept = login_path(Some("/no/such/shell".to_string()), "inherited".to_string()).await;
+        assert_eq!(kept, "inherited");
+        assert_eq!(login_path(None, "inherited".to_string()).await, "inherited");
     }
 
     #[test]

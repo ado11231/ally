@@ -2,7 +2,7 @@
 //! that answers wins, so an unreachable home address costs one short timeout rather than
 //! one per candidate. When none answers, iroh reaches the Agent from any network.
 
-use ally_core::config::Agent;
+use ally_core::config::{Agent, Config};
 use ally_core::network::Network;
 use ally_core::presentation::{Style, Tone};
 use ally_core::tunnel;
@@ -81,6 +81,54 @@ pub fn assume(agent: &Agent, token: &str) {
         _ => return,
     };
     *CHOSEN.lock().expect("route lock was poisoned") = Some((agent.name.clone(), route));
+}
+
+/// Take the path `--via` names for every later call, after checking once that it works,
+/// so a chosen path that fails says so instead of falling back to another.
+pub fn force(requested: Option<&str>, via: &str) -> anyhow::Result<()> {
+    let config = Config::load()?;
+    let agent = config.resolve(requested)?;
+    let route = off_runtime(|| forced(agent, via))?;
+    *CHOSEN.lock().expect("route lock was poisoned") = Some((agent.name.clone(), route));
+    Ok(())
+}
+
+fn forced(agent: &Agent, via: &str) -> anyhow::Result<Route> {
+    let name = &agent.name;
+    let (wanted, label, hint): (&[Network], _, _) = match via {
+        IROH => {
+            return iroh_key(agent)
+                .map(|key| Route::Iroh { key })
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "{name} has no iroh key saved. Run ally link again, or leave out --via"
+                    )
+                });
+        }
+        "tailnet" => (
+            &[Network::Tailnet],
+            "tailnet",
+            "Check Tailscale runs on both machines",
+        ),
+        _ => (
+            &[Network::Local, Network::ThisMachine],
+            "local network",
+            "Check both machines are on the same network",
+        ),
+    };
+    let Some(host) = agent
+        .candidates()
+        .into_iter()
+        .find(|host| wanted.contains(&Network::of(host)))
+    else {
+        anyhow::bail!(
+            "{name} has no {label} address saved. Run ally link again while both machines are on it, or leave out --via"
+        );
+    };
+    match answers(host, agent.port.unwrap_or(SSH_PORT)) {
+        true => Ok(Route::to(host)),
+        false => anyhow::bail!("{name} did not answer via {label}. {hint}, or leave out --via"),
+    }
 }
 
 /// Probing waits on the network for up to a second.
@@ -303,6 +351,55 @@ mod tests {
             .build()
             .unwrap();
         assert_eq!(single.block_on(async { probe(&target) }), expected);
+    }
+
+    #[test]
+    fn via_iroh_skips_a_direct_address_that_answers() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let target = with_iroh("127.0.0.1", &[], Some(port), Some(KEY));
+
+        assert_eq!(
+            forced(&target, "iroh").unwrap(),
+            Route::Iroh {
+                key: KEY.to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn via_takes_the_address_on_the_chosen_network() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let target = agent("100.64.0.9", &["127.0.0.1"], Some(port));
+
+        assert_eq!(forced(&target, "local").unwrap(), Route::to("127.0.0.1"));
+    }
+
+    #[test]
+    fn via_a_path_the_agent_lacks_says_how_to_fix_it() {
+        let target = agent("192.168.1.20", &[], None);
+        assert_eq!(
+            forced(&target, "tailnet").unwrap_err().to_string(),
+            "archbox has no tailnet address saved. Run ally link again while both machines are on it, or leave out --via"
+        );
+        assert_eq!(
+            forced(&target, "iroh").unwrap_err().to_string(),
+            "archbox has no iroh key saved. Run ally link again, or leave out --via"
+        );
+    }
+
+    #[test]
+    fn via_a_path_that_does_not_answer_fails_instead_of_falling_back() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        drop(listener);
+        let target = with_iroh("127.0.0.1", &[], Some(port), Some(KEY));
+
+        assert_eq!(
+            forced(&target, "local").unwrap_err().to_string(),
+            "archbox did not answer via local network. Check both machines are on the same network, or leave out --via"
+        );
     }
 
     #[test]

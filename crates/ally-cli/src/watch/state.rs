@@ -5,7 +5,7 @@
 use super::event::{self, Machine, Notice, NoticeKind};
 use crate::commands::health::{MEMORY, TEMPERATURE};
 use ally_core::control::{Job, JobKind, JobState, Listening, Source};
-use ally_core::presentation::capacity;
+use ally_core::presentation::{capacity, plural};
 use ally_core::protocol::Health;
 use ally_core::telemetry::DISK_WARNING_MIB;
 use std::collections::{HashMap, HashSet};
@@ -21,6 +21,11 @@ const FAILURES_BEFORE_UNREACHABLE: u32 = 2;
 const DISK_RECOVERED_MIB: u64 = DISK_WARNING_MIB * 2;
 
 const COMMAND_WIDTH: usize = 40;
+
+/// At most this many job notices within `BURST_WINDOW` seconds of each other. The rest
+/// become one summary, so a test loop or a restart does not flood Notification Center.
+const BURST_LIMIT: usize = 3;
+const BURST_WINDOW: u64 = 60;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum Alarm {
@@ -38,6 +43,16 @@ pub struct Watch {
     alarms: HashSet<Alarm>,
     /// Servers in Ally jobs. Empty until the first answer sets the baseline.
     servers: Option<Servers>,
+    /// When each job told within the last `BURST_WINDOW` seconds ended, by the Agent's clock.
+    recent: Vec<u64>,
+}
+
+/// Job notices held back by a burst, counted by how the jobs ended.
+#[derive(Default)]
+struct Held {
+    finished: usize,
+    failed: usize,
+    interrupted: usize,
 }
 
 /// A port a job listens on, by job ID.
@@ -60,6 +75,7 @@ impl Watch {
             unreachable: false,
             alarms: HashSet::new(),
             servers: None,
+            recent: Vec::new(),
         }
     }
 
@@ -125,11 +141,32 @@ impl Watch {
             self.known = Some(finished.iter().map(|job| job.id.clone()).collect());
             return Vec::new();
         };
-        let notices = finished
+        let ended: Vec<&Job> = finished
             .iter()
             .filter(|job| known.insert(job.id.clone()))
-            .filter_map(|job| notice(&self.name, job))
+            .copied()
             .collect();
+        let mut notices = Vec::new();
+        let mut held = Held::default();
+        for job in ended {
+            let Some(notice) = notice(&self.name, job) else {
+                continue;
+            };
+            let at = job.ended.unwrap_or_default();
+            self.recent
+                .retain(|told| at.saturating_sub(*told) < BURST_WINDOW);
+            if self.recent.len() < BURST_LIMIT {
+                self.recent.push(at);
+                notices.push(notice);
+                continue;
+            }
+            match notice.kind {
+                NoticeKind::JobFailed => held.failed += 1,
+                NoticeKind::JobInterrupted => held.interrupted += 1,
+                _ => held.finished += 1,
+            }
+        }
+        notices.extend(summary(&self.name, &held));
         let listed: HashSet<&str> = jobs.iter().map(|job| job.id.as_str()).collect();
         known.retain(|id| listed.contains(id.as_str()));
         notices
@@ -303,6 +340,35 @@ fn notice(name: &str, job: &Job) -> Option<Notice> {
         kind,
         title,
         subtitle: Some(what),
+        body,
+        open: None,
+    })
+}
+
+/// One notice for the jobs a burst held back. Failures come first and are never left out.
+fn summary(name: &str, held: &Held) -> Option<Notice> {
+    let total = held.finished + held.failed + held.interrupted;
+    if total == 0 {
+        return None;
+    }
+    let body = [
+        (held.failed, "failed"),
+        (held.interrupted, "interrupted"),
+        (held.finished, "finished"),
+    ]
+    .iter()
+    .filter(|(count, _)| *count > 0)
+    .map(|(count, word)| format!("{count} {word}"))
+    .collect::<Vec<_>>()
+    .join(" · ");
+    let kind = match held.failed + held.interrupted {
+        0 => NoticeKind::JobFinished,
+        _ => NoticeKind::JobFailed,
+    };
+    Some(Notice {
+        kind,
+        title: format!("{} ended on {name}", plural(total, "more job")),
+        subtitle: None,
         body,
         open: None,
     })
@@ -505,6 +571,76 @@ mod tests {
         );
         assert_eq!(notices[0].body, "3 min · app");
         assert!(watch.jobs(&[run("a", JobState::Completed, 192)]).is_empty());
+    }
+
+    fn ended_at(id: &str, state: JobState, at: u64) -> Job {
+        let mut job = run(id, state, 30);
+        job.ended = Some(at);
+        job
+    }
+
+    #[test]
+    fn a_burst_of_runs_becomes_one_summary_that_counts_failures() {
+        let mut watch = Watch::new("archbox");
+        watch.jobs(&[]);
+        let states = [
+            JobState::Completed,
+            JobState::Completed,
+            JobState::Completed,
+            JobState::Failed,
+            JobState::Completed,
+            JobState::Failed,
+            JobState::Interrupted,
+            JobState::Completed,
+            JobState::Completed,
+            JobState::Completed,
+        ];
+        let jobs: Vec<Job> = states
+            .iter()
+            .enumerate()
+            .map(|(index, state)| ended_at(&index.to_string(), *state, 2_000 + index as u64))
+            .collect();
+        let notices = watch.jobs(&jobs);
+        assert_eq!(notices.len(), BURST_LIMIT + 1);
+        let summary = notices.last().unwrap();
+        assert_eq!(summary.title, "7 more jobs ended on archbox");
+        assert_eq!(summary.body, "2 failed · 1 interrupted · 4 finished");
+        assert_eq!(summary.kind, NoticeKind::JobFailed);
+    }
+
+    #[test]
+    fn runs_ending_far_apart_are_each_told() {
+        let mut watch = Watch::new("archbox");
+        watch.jobs(&[]);
+        let mut seen = Vec::new();
+        for index in 0..5u64 {
+            let job = ended_at(
+                &index.to_string(),
+                JobState::Completed,
+                2_000 + index * BURST_WINDOW,
+            );
+            seen.push(job);
+            let notices = watch.jobs(&seen);
+            assert_eq!(notices.len(), 1);
+            assert_eq!(notices[0].title, "Finished on archbox");
+        }
+    }
+
+    #[test]
+    fn a_burst_across_checks_is_still_held_and_a_quiet_one_has_no_sound() {
+        let mut watch = Watch::new("archbox");
+        watch.jobs(&[]);
+        let first: Vec<Job> = (0..3)
+            .map(|index| ended_at(&format!("a{index}"), JobState::Completed, 2_000 + index))
+            .collect();
+        assert_eq!(watch.jobs(&first).len(), 3);
+        let mut both = first.clone();
+        both.push(ended_at("b", JobState::Completed, 2_010));
+        let notices = watch.jobs(&both);
+        assert_eq!(notices.len(), 1);
+        assert_eq!(notices[0].title, "1 more job ended on archbox");
+        assert_eq!(notices[0].body, "1 finished");
+        assert_eq!(notices[0].kind, NoticeKind::JobFinished);
     }
 
     #[test]

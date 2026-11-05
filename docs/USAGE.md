@@ -17,7 +17,8 @@
 11. [More Than One Agent](#more-than-one-agent)
 12. [Project Settings](#project-settings)
 13. [What Ally Copies](#what-ally-copies)
-14. [Remove Ally](#remove-ally)
+14. [Shell Completions](#shell-completions)
+15. [Remove Ally](#remove-ally)
 
 ## Words Used Here
 
@@ -217,6 +218,7 @@ ally doctor
 * Lists forwarded ports under Ports. A click opens one in the browser.
 * When the Agent is unreachable, shows why and the fix.
 * Notifies when a run of 10 seconds or more ends, a job is cut off by a lost connection or restart, the Agent goes offline or returns, memory, disk, or GPU heat needs attention, or a server starts in a run or session. A click on a ready server opens it.
+* When more than 3 jobs end within a minute, the rest come as one notification, such as `4 more jobs ended on archbox` with how many failed.
 * No notifications? Turn them on in System Settings, Notifications, Ally.
 
 ## More Than One Agent
@@ -253,6 +255,18 @@ exclude = ["data/", "*.mp4"]
 | Rust | `target` goes to Agent storage. |
 | Node | `node_modules` stays in the Agent's copy. |
 | Python | `.venv` stays in the Agent's copy. |
+
+## Shell Completions
+
+* Tab completes Ally's commands and options. Nothing is offered among a run's own arguments.
+* Add the line for your shell to its startup file, then open a new terminal:
+
+| Shell | Line |
+| --- | --- |
+| zsh, in `~/.zshrc` after `compinit` | `source <(ally completions zsh)` |
+| bash, in `~/.bashrc` | `source <(ally completions bash)` |
+| fish | `ally completions fish > ~/.config/fish/completions/ally.fish`, once |
+| elvish, in `~/.config/elvish/rc.elv` | `eval (ally completions elvish \| slurp)` |
 
 ## Remove Ally
 

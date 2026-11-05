@@ -73,6 +73,21 @@ fn internal_helpers_are_hidden_from_help() {
 }
 
 #[test]
+fn completions_offer_the_commands_but_not_the_helpers() {
+    let output = invoke(&["completions", "zsh"], false, "xterm");
+    assert_eq!(output.status.code(), Some(0));
+    let script = String::from_utf8(output.stdout).unwrap();
+    assert!(script.starts_with("#compdef ally"));
+    assert!(script.contains("'attach:"));
+    assert!(script.contains("'run:"));
+    assert!(script.contains("(local tailnet iroh)"));
+    assert!(!script.contains("internal"));
+    let run = script.split("\n(run)\n").nth(1).unwrap();
+    let run = &run[..run.find(";;").unwrap()];
+    assert!(!run.contains("--agent"), "{run}");
+}
+
+#[test]
 fn doctor_on_a_new_machine_says_where_to_start() {
     let home = std::env::temp_dir().join(format!("ally-doctor-{}", std::process::id()));
     std::fs::create_dir_all(&home).unwrap();

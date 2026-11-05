@@ -351,6 +351,7 @@ ally/
 | `forward.rs` | `ally forward` | `forward`, `route`, `ssh` |
 | `health.rs` | `ally health`, jobs in `--watch`, and the thresholds `watch` shares | `client`, `live`, `ps` |
 | `menubar.rs` | `ally menubar`, and the offer at the end of `link` | `project`, `ssh` |
+| `doctor.rs` | `ally doctor`: this machine's checks as an Agent and as a Client, and each saved path | `client`, `route`, Agent `service` and `boot` |
 
 ### Tests
 

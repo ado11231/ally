@@ -88,6 +88,26 @@ fn completions_offer_the_commands_but_not_the_helpers() {
 }
 
 #[test]
+fn doctor_on_a_new_machine_says_where_to_start() {
+    let home = std::env::temp_dir().join(format!("ally-doctor-{}", std::process::id()));
+    std::fs::create_dir_all(&home).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_ally"))
+        .args(["--color", "never", "doctor"])
+        .env("HOME", &home)
+        .env_remove("XDG_CONFIG_HOME")
+        .env_remove("XDG_DATA_HOME")
+        .output()
+        .unwrap();
+    std::fs::remove_dir_all(&home).unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    let error = String::from_utf8(output.stderr).unwrap();
+    assert!(
+        error.contains("This machine is not set up yet. Run ally start on the Agent"),
+        "{error}"
+    );
+}
+
+#[test]
 fn interactive_commands_refuse_without_a_terminal() {
     let output = invoke(&["--color", "never", "attach"], false, "xterm");
     assert_eq!(output.status.code(), Some(1));

@@ -1,4 +1,5 @@
 pub mod attach;
+pub mod doctor;
 pub mod forward;
 pub mod health;
 pub mod link;

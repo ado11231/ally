@@ -212,6 +212,18 @@ ally --via iroh run cargo build
 
 * With one Agent, it is the default. With several, pass `--agent archbox`, or set `default = "archbox"` in Ally's `config.toml`.
 
+### An Agent That Stores Personal Files
+
+* On a machine that keeps photos, backups, or other personal files, link a normal account without `sudo`, not your own.
+* Why: linking lets the Client run anything as that account over ssh. The account is the limit of what Ally can reach. A normal account cannot change the system, and reads only files other accounts may read.
+* Keep personal folders private to their owner, such as with `chmod 700 ~/Photos`. Some systems, such as Ubuntu, let every account read home folders.
+* A storage machine rarely needs new tools, so an account without `sudo` loses little.
+
+1. On the Agent, make a normal account the usual way for its system. On Linux, `sudo useradd -m -s /bin/bash allywork`, then `sudo passwd allywork`, and leave it out of the `sudo` and `wheel` groups. On macOS, add a Standard user in System Settings, Users And Groups.
+2. Log in as that account, install Ally, and run `ally start`.
+3. On the Client, link with a name of your own: `ally link <code> --name photos`.
+4. Reach it with `--agent photos`, such as `ally --agent photos health`.
+
 ## Project Settings
 
 * Optional `ally.toml` in the project's top folder. Patterns work like `.gitignore`, and cannot start with `!`.

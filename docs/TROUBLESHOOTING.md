@@ -14,7 +14,8 @@
 8. [Jobs And GPU](#jobs-and-gpu)
 9. [The Menu Bar App](#the-menu-bar-app)
 10. [Removing Ally](#removing-ally)
-11. [Getting Help](#getting-help)
+11. [Checking The Setup](#checking-the-setup)
+12. [Getting Help](#getting-help)
 
 ## Installing
 
@@ -164,6 +165,15 @@
 | `Ally is running in a terminal on this machine. Stop it with Ctrl C there` | An `ally start` by hand would recreate files as they are removed. | Ctrl C where it runs, then `ally uninstall` again. |
 | `Run ally uninstall in a terminal to confirm, since it deletes files` | It asks first, and a script cannot answer. | Run it in a terminal. |
 | `Could not remove ... Delete it by hand` | A file could not be deleted, such as from its permissions. | Delete it yourself, then `ally uninstall` again. |
+
+## Checking The Setup
+
+| Message | Meaning | Fix |
+| --- | --- | --- |
+| `This machine is not set up yet` | `ally doctor` found no Agent setup and no linked Agent here. | Run `ally start` on the Agent, then `ally link <code>` on the Client. |
+| `archbox did not answer via tailnet` | That one path failed. Other paths may still work. | Follow the fix printed below it. |
+| `No way to reach archbox is saved` | Linking saved no address and no iroh key. | Run `ally link` again. |
+| `! Ally does not start by itself after a restart` | A warning. The Agent stops being reachable after a restart until someone runs `ally start`. | Run `ally start --boot`. |
 
 ## Getting Help
 

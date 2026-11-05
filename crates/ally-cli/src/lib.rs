@@ -186,6 +186,9 @@ enum Commands {
         watch: bool,
     },
 
+    #[command(about = "Check this machine's setup, and print the fix for each problem")]
+    Doctor,
+
     #[command(about = "Show the Agent's live use in the macOS menu bar")]
     Menubar {
         /// Quit the app, stop it starting at login, and delete it.
@@ -283,6 +286,7 @@ pub async fn run() {
         },
         Commands::Health { watch } => commands::health::health(cli.agent, watch).await,
         Commands::Menubar { remove } => commands::menubar::menubar(cli.agent, remove).await,
+        Commands::Doctor => commands::doctor::doctor(cli.agent).await,
     };
 
     match result {

@@ -95,32 +95,17 @@ pub fn force(requested: Option<&str>, via: &str) -> anyhow::Result<()> {
 
 fn forced(agent: &Agent, via: &str) -> anyhow::Result<Route> {
     let name = &agent.name;
-    let (wanted, label, hint): (&[Network], _, _) = match via {
-        IROH => {
-            return iroh_key(agent)
-                .map(|key| Route::Iroh { key })
-                .ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "{name} has no iroh key saved. Run ally link again, or leave out --via"
-                    )
-                });
-        }
-        "tailnet" => (
-            &[Network::Tailnet],
-            "tailnet",
-            "Check Tailscale runs on both machines",
-        ),
-        _ => (
-            &[Network::Local, Network::ThisMachine],
-            "local network",
-            "Check both machines are on the same network",
-        ),
-    };
-    let Some(host) = agent
-        .candidates()
-        .into_iter()
-        .find(|host| wanted.contains(&Network::of(host)))
-    else {
+    if via == IROH {
+        return iroh_key(agent)
+            .map(|key| Route::Iroh { key })
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "{name} has no iroh key saved. Run ally link again, or leave out --via"
+                )
+            });
+    }
+    let (label, hint) = (label(via), hint(via));
+    let Some(host) = address(agent, via) else {
         anyhow::bail!(
             "{name} has no {label} address saved. Run ally link again while both machines are on it, or leave out --via"
         );
@@ -128,6 +113,45 @@ fn forced(agent: &Agent, via: &str) -> anyhow::Result<Route> {
     match answers(host, agent.port.unwrap_or(SSH_PORT)) {
         true => Ok(Route::to(host)),
         false => anyhow::bail!("{name} did not answer via {label}. {hint}, or leave out --via"),
+    }
+}
+
+/// The saved address on the network `via` names, which must not be iroh. Local means any
+/// direct address off the tailnet, including a host name such as `archbox.local`.
+fn address<'a>(agent: &'a Agent, via: &str) -> Option<&'a str> {
+    let wanted: &[Network] = match via {
+        "tailnet" => &[Network::Tailnet],
+        _ => &[Network::ThisMachine, Network::Local, Network::Other],
+    };
+    agent
+        .candidates()
+        .into_iter()
+        .find(|host| wanted.contains(&Network::of(host)))
+}
+
+/// Whether linking saved an address or key for the path `via` names.
+pub fn saved(agent: &Agent, via: &str) -> bool {
+    match via {
+        IROH => iroh_key(agent).is_some(),
+        _ => address(agent, via).is_some(),
+    }
+}
+
+/// How the path `via` names is written in output, as in "via local network".
+pub fn label(via: &str) -> &'static str {
+    match via {
+        IROH => IROH,
+        "tailnet" => Network::Tailnet.name(),
+        _ => Network::Local.name(),
+    }
+}
+
+/// The first thing to check when the path `via` names does not answer.
+pub fn hint(via: &str) -> &'static str {
+    match via {
+        IROH => "Make sure the Agent is on and ally start runs there, and this machine is online",
+        "tailnet" => "Check Tailscale runs on both machines",
+        _ => "Check both machines are on the same network",
     }
 }
 
@@ -374,6 +398,17 @@ mod tests {
         let target = agent("100.64.0.9", &["127.0.0.1"], Some(port));
 
         assert_eq!(forced(&target, "local").unwrap(), Route::to("127.0.0.1"));
+    }
+
+    #[test]
+    fn via_local_takes_a_host_name_but_not_a_tailnet_address() {
+        let named = agent("archbox.local", &["100.64.0.9"], None);
+        assert_eq!(address(&named, "local"), Some("archbox.local"));
+        assert_eq!(address(&named, "tailnet"), Some("100.64.0.9"));
+        let tailnet_only = agent("100.64.0.9", &[], None);
+        assert!(!saved(&tailnet_only, "local"));
+        assert!(saved(&tailnet_only, "tailnet"));
+        assert!(!saved(&tailnet_only, "iroh"));
     }
 
     #[test]

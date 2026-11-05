@@ -171,6 +171,16 @@ ally --via iroh run cargo build
 | `ally health` | System, CPU, RAM, GPU, VRAM, disk, and project space. |
 | `ally health --watch` | The same every two seconds, with jobs. Q leaves. |
 
+### Check The Setup
+
+```sh
+ally doctor
+```
+
+* On an Agent: the tools `ally start` checks, whether Ally runs, and whether it starts by itself.
+* On a Client: `ssh` and `rsync`, then each saved path to the Agent on its own: local network, tailnet, and iroh. Reaching the Agent also proves the key and the version.
+* Every problem prints its fix. It exits with code 1 when anything failed.
+
 ## Manage Jobs
 
 | Command | Effect |

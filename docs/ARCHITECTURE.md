@@ -264,6 +264,7 @@ ally/
 │   ├── ISSUE_TEMPLATE/        the forms for a problem or an idea
 │   └── pull_request_template.md   the checklist every pull request starts with
 ├── Cargo.toml                 the workspace and shared dependency versions
+├── install.sh                 the one line installer, which downloads the release program
 ├── crates/
 │   ├── ally-core/        shared rules and types
 │   ├── ally-agent/       the Agent daemon

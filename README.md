@@ -24,60 +24,23 @@
 
 ### 1. Install On Both Machines
 
-Run the lines for each machine's system. When Rust's installer asks, press Enter, then open a new terminal.
+Install the tools Ally uses:
 
-<details>
-<summary>Arch Linux</summary>
-
-```sh
-sudo pacman -S --needed base-devel rsync tmux openssh rustup
-rustup default stable
-```
-
-</details>
-
-<details>
-<summary>Ubuntu or Debian</summary>
-
-```sh
-sudo apt install rsync tmux curl build-essential
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-```
-
-</details>
-
-<details>
-<summary>Fedora</summary>
-
-```sh
-sudo dnf install rsync tmux gcc
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-```
-
-</details>
-
-<details>
-<summary>macOS</summary>
-
-```sh
-xcode-select --install
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-brew install tmux
-```
-
-Finish the developer tools window before going on. `brew` needs [Homebrew](https://brew.sh).
-
-</details>
-
-<br>
+| System | Command |
+| --- | --- |
+| Arch Linux | `sudo pacman -S --needed rsync tmux openssh` |
+| Ubuntu or Debian | `sudo apt install rsync tmux curl` |
+| Fedora | `sudo dnf install rsync tmux` |
+| macOS | `brew install tmux`, with [Homebrew](https://brew.sh). For the menu bar app, also `xcode-select --install`. |
 
 Then install Ally:
 
 ```sh
-cargo install --locked --git https://github.com/ado11231/ally ally-cli
+curl -fsSL https://raw.githubusercontent.com/ado11231/ally/master/install.sh | sh
 ```
 
-If `ally` is not found, run `echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.zshrc` (or `~/.bashrc`), then open a new terminal.
+* It installs `ally` to `~/.local/bin`, and prints the line to add it to PATH if needed.
+* To build from source instead, with Rust: `cargo install --locked --git https://github.com/ado11231/ally ally-cli`.
 
 ### 2. Start The Agent
 

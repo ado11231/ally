@@ -311,8 +311,8 @@ swift build -c release --package-path crates/ally-cli/menubar
 
 ## 15. Current State
 
-* **Phases 1, 3, and 4 are complete.** Phase 5 is in progress: the menu bar app, notifications, port forwarding, and the fixes from the October 7, 2026 fresh install test are built. The notification for a session waiting for input (#136) is not.
-* **Next:** the notification for a session waiting for input (#136), the last part of Phase 5. Every finding from the November 3, 2026 fresh install test is fixed.
+* **Phases 1, 3, 4, and 5 are complete.** Phase 7 is in progress: the release programs, `install.sh`, `ally doctor`, and shell completions are built.
+* **Next:** the first release, `v0.1.0` (#122), and the final release test (#129). Everything else waits until after the release and is labeled `later` on GitHub.
 * **All tests, formatting, and Clippy pass on `master`.** CI checks every pull request on Linux and macOS.
 * **The renames from borrow and Slingshot have no migration.** Both machines must run `slingshot uninstall`, install Ally, then run `ally link`.
 * Everything under [known limitations](docs/ROADMAP.md#known-limitations) does not work yet. Never describe it as working.

@@ -250,9 +250,10 @@ impl Control {
     }
 }
 
-/// The command that installs or updates Ally. It builds from GitHub until Ally is
-/// published to crates.io (#17).
-const INSTALL: &str = "cargo install --locked --git https://github.com/ado11231/ally ally-cli";
+/// The command that installs or updates Ally: the one line installer, which fetches the
+/// latest release program with no Rust needed.
+const INSTALL: &str =
+    "curl -fsSL https://raw.githubusercontent.com/ado11231/ally/master/install.sh | sh";
 
 /// How to update after a protocol mismatch, naming the machine that runs the older build.
 fn update_advice(name: &str, mismatch: &control::Mismatch) -> String {

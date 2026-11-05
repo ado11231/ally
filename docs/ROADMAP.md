@@ -87,7 +87,6 @@
 
 | Work | Issue |
 | --- | --- |
-| The first release, `v0.1.0`, and the README switched to the one line installer | [#122](https://github.com/ado11231/ally/issues/122) |
 | A final fresh install, file watchers in a session, and two Clients on one Agent | [#129](https://github.com/ado11231/ally/issues/129) |
 
 ### After The Release
@@ -101,7 +100,7 @@
 | Publishing to crates.io | [#17](https://github.com/ado11231/ally/issues/17) |
 
 * Phase 7 is done when a newcomer goes from install to a working `ally run` in under five minutes, with no help.
-* Built for Phase 7: each version tag builds ready to run programs for macOS and Linux, on Intel and ARM, and `install.sh` installs them with no Rust. Neither has run against a real release yet.
+* Released `v0.1.0` on November 5, 2026. The tag built ready to run programs for macOS and Linux, on Intel and ARM, and `install.sh` installed the macOS ARM one from the release in 1.7 seconds, with no Rust.
 * Dropped on November 5, 2026: Homebrew and AUR packages, since the programs and the installer cover both systems.
 
 ## Known Limitations
@@ -268,4 +267,5 @@
 7. Found and fixed: runs used ssh's bare PATH, so Homebrew tools such as `tmux` were missing from `ally run`. Runs now use the login shell's PATH.
 8. `ally --via iroh run echo hi` ran over iroh while the network path also answered, and syncs followed it. `--via tailnet` worked, and `--via local` refused with its fix while no local address was saved.
 9. `ally start --boot` wrote the launchd file and Ally started in 3.3 seconds. It kept running after leaving the start screen, and launchd started it again 2 seconds after it was killed.
-10. Not tested: `attach`, a restart and login, and a separate Mac as the Agent.
+10. The one line installer from the `v0.1.0` release installed `ally 0.1.0` into an empty home folder, and printed the PATH line to add.
+11. Not tested: `attach`, a restart and login, and a separate Mac as the Agent.

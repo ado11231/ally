@@ -82,7 +82,7 @@
 | `Ally is not running on the Agent. Run ally start there` | The Agent is on, but Ally stopped. | Run `ally start` on the Agent. |
 | `archbox no longer accepts this machine` | The Agent no longer knows this Client, usually after an unlink or reset. | Link again from the Agent's network. |
 | `Could not reach archbox, because this machine cannot reach iroh's relays` | The Client has no working internet. | Check this machine's connection. |
-| `archbox runs an older Ally 0.1.0 than this machine (0.2.0)`, or `This machine runs an older Ally (0.1.0) than archbox 0.2.0` | The versions cannot talk. The message names the older one. | Run `cargo install --locked --git https://github.com/ado11231/ally ally-cli` on it, and restart `ally start` if it is the Agent. |
+| `archbox runs an older Ally 0.1.0 than this machine (0.2.0)`, or `This machine runs an older Ally (0.1.0) than archbox 0.2.0` | The versions cannot talk. The message names the older one. | Run `curl -fsSL https://raw.githubusercontent.com/ado11231/ally/master/install.sh \| sh` on it, and restart `ally start` if it is the Agent. |
 | `! archbox runs Ally 0.1.0 and this machine runs 0.2.0` | They still work together, but the older one lacks fixes. | Update the older machine the same way. |
 | `Ally was not found on the Agent` | The Agent's `ally` program was moved or removed. | Install it on the Agent again, then link again. |
 | `Host key verification failed` | The Agent's ssh identity changed, usually after a reinstall. | Link again. |

@@ -23,7 +23,7 @@
 | 4 | Reaching the Agent from any network | Complete |
 | 5 | Menu bar app, notifications, and port forwarding | In progress |
 | 6 | Pairing across networks, and more platforms | Planned |
-| 7 | Installers, packages, and a public release | Planned |
+| 7 | Ready to run programs, an installer, and a public release | In progress |
 
 ## Complete
 
@@ -88,15 +88,16 @@
 | 6 | Pairing across networks, keeping the code safe through a relay | [#19](https://github.com/ado11231/ally/issues/19) |
 | 6 | Watching several Agents from the menu bar | [#109](https://github.com/ado11231/ally/issues/109) |
 | 6 | A setting to use your own iroh relay, and stronger Linux Client support | |
-| 7 | Ready to run programs for macOS and Linux, on Intel and ARM | |
-| 7 | Publishing to crates.io, AUR, and Homebrew | [#17](https://github.com/ado11231/ally/issues/17) |
-| 7 | A one line installer, and `ally doctor` to check a setup | |
+| 7 | The first release, `v0.1.0`, and the README switched to the one line installer | [#122](https://github.com/ado11231/ally/issues/122) |
+| 7 | Publishing to crates.io | [#17](https://github.com/ado11231/ally/issues/17) |
 
 * Phase 7 is done when a newcomer goes from install to a working `ally run` in under five minutes, with no help.
+* Built for Phase 7: each version tag builds ready to run programs for macOS and Linux, on Intel and ARM, and `install.sh` installs them with no Rust. Neither has run against a real release yet.
+* Dropped on November 5, 2026: Homebrew and AUR packages, since the programs and the installer cover both systems.
 
 ## Known Limitations
 
-* Starting by itself on a macOS Agent is untested.
+* On a macOS Agent, starting by itself after a restart and login is untested. Installing it, and coming back after a crash, are tested below.
 * After a power loss, the first iroh connection is untested. A crash is tested below.
 * Edits in a session whose connection dropped stay on the Agent until `ally sync --pull`.
 * Untested: file watchers in sessions, and two Clients on one Agent account at once.
@@ -256,4 +257,6 @@
 5. A Next.js project kept its 373 MB `node_modules` of 11,050 files on the Agent, and a sync of one changed file took 0.1 seconds.
 6. A Python project kept its 132 MB `.venv` with numpy and pandas on the Agent.
 7. Found and fixed: runs used ssh's bare PATH, so Homebrew tools such as `tmux` were missing from `ally run`. Runs now use the login shell's PATH.
-8. Not tested: `attach`, starting by itself with launchd, and a separate Mac as the Agent.
+8. `ally --via iroh run echo hi` ran over iroh while the network path also answered, and syncs followed it. `--via tailnet` worked, and `--via local` refused with its fix while no local address was saved.
+9. `ally start --boot` wrote the launchd file and Ally started in 3.3 seconds. It kept running after leaving the start screen, and launchd started it again 2 seconds after it was killed.
+10. Not tested: `attach`, a restart and login, and a separate Mac as the Agent.

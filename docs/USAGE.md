@@ -81,6 +81,7 @@ ally link 192.168.1.9:7433:K7QW9ZR2
 
 * Commands run with the Agent's own tools. Install what you need there, such as inside `ally attach`.
 * `~/.local/bin`, `~/.cargo/bin`, and `~/.opencode/bin` are on the PATH of everything Ally starts.
+* Runs use the PATH of the Agent account's login shell, such as Homebrew's folders from `~/.zprofile`. A tool set up only for interactive shells, in `~/.zshrc` or `~/.bashrc`, is found in sessions but not in runs.
 * Versions are not matched. `.nvmrc` or `rust-toolchain.toml` still decide them.
 
 ## Run Work

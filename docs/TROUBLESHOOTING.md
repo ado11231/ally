@@ -4,16 +4,26 @@
 
 ## Contents
 
-1. [Starting The Agent](#starting-the-agent)
-2. [Starting By Itself](#starting-by-itself)
-3. [Linking](#linking)
-4. [Reaching The Agent](#reaching-the-agent)
-5. [Running Commands](#running-commands)
-6. [Syncing Files](#syncing-files)
-7. [Jobs And GPU](#jobs-and-gpu)
-8. [The Menu Bar App](#the-menu-bar-app)
-9. [Removing Ally](#removing-ally)
-10. [Getting Help](#getting-help)
+1. [Installing](#installing)
+2. [Starting The Agent](#starting-the-agent)
+3. [Starting By Itself](#starting-by-itself)
+4. [Linking](#linking)
+5. [Reaching The Agent](#reaching-the-agent)
+6. [Running Commands](#running-commands)
+7. [Syncing Files](#syncing-files)
+8. [Jobs And GPU](#jobs-and-gpu)
+9. [The Menu Bar App](#the-menu-bar-app)
+10. [Removing Ally](#removing-ally)
+11. [Getting Help](#getting-help)
+
+## Installing
+
+| Message | Meaning | Fix |
+| --- | --- | --- |
+| `Could not download https://github.com/ado11231/ally/releases/...` | The installer could not reach GitHub. | Check the internet connection, then run the install line again. |
+| `The download does not match its checksum` | The download was cut short or changed on the way, so it is not installed. | Run the install line again. |
+| `There is no ready to run Ally for <cpu>` | Ready to run programs exist for Intel and ARM only. | Build it with Rust: `cargo install --locked --git https://github.com/ado11231/ally ally-cli`. |
+| `! <home>/.local/bin is not on PATH` | Ally is installed, but the shell cannot find `ally` yet. | Run the line printed below it, then open a new terminal. |
 
 ## Starting The Agent
 

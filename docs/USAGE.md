@@ -207,6 +207,7 @@ ally --via iroh run cargo build
 * Lists forwarded ports under Ports. A click opens one in the browser.
 * When the Agent is unreachable, shows why and the fix.
 * Notifies when a run of 10 seconds or more ends, a job is cut off by a lost connection or restart, the Agent goes offline or returns, memory, disk, or GPU heat needs attention, or a server starts in a run or session. A click on a ready server opens it.
+* When more than 3 jobs end within a minute, the rest come as one notification, such as `4 more jobs ended on archbox` with how many failed.
 * No notifications? Turn them on in System Settings, Notifications, Ally.
 
 ## More Than One Agent

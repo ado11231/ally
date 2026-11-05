@@ -52,7 +52,7 @@ cargo test --workspace
 ```
 
 * After changing the menu bar app, also run `swift build -c release --package-path crates/ally-cli/menubar`.
-* CI runs the same checks on Linux and macOS for every pull request.
+* CI runs the same checks on Linux and macOS for every pull request, and checks that the crates still package for crates.io with `cargo publish --workspace --dry-run --locked`.
 * Unit tests sit in a `tests` module at the bottom of the file they test. Tests of the finished program are in `crates/ally-cli/tests/`.
 * Every rule or decision needs a test, such as which files are source, what a sync copies, when a notification is sent, or how an error is worded. Code that only starts another program, such as `ssh`, is tested on real machines.
 

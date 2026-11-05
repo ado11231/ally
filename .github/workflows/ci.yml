@@ -31,6 +31,8 @@ jobs:
         run: cargo clippy --workspace --all-targets
       - name: Tests
         run: cargo test --workspace
+      - name: Packaging
+        run: cargo publish --workspace --dry-run --locked
       - name: Menu bar app
         if: runner.os == 'macOS'
         run: swift build -c release --package-path crates/ally-cli/menubar

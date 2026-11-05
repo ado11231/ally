@@ -21,6 +21,7 @@ ally-agent = { path = "../ally-agent", version = "0.1.0" }
 anyhow = { workspace = true }
 iroh = { workspace = true }
 clap = { workspace = true }
+clap_complete = { workspace = true }
 crossterm = { workspace = true }
 directories = { workspace = true }
 serde = { workspace = true }

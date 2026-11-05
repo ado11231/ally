@@ -17,7 +17,8 @@
 11. [More Than One Agent](#more-than-one-agent)
 12. [Project Settings](#project-settings)
 13. [What Ally Copies](#what-ally-copies)
-14. [Remove Ally](#remove-ally)
+14. [Shell Completions](#shell-completions)
+15. [Remove Ally](#remove-ally)
 
 ## Words Used Here
 
@@ -244,6 +245,18 @@ exclude = ["data/", "*.mp4"]
 | Rust | `target` goes to Agent storage. |
 | Node | `node_modules` stays in the Agent's copy. |
 | Python | `.venv` stays in the Agent's copy. |
+
+## Shell Completions
+
+* Tab completes Ally's commands and options. Nothing is offered among a run's own arguments.
+* Add the line for your shell to its startup file, then open a new terminal:
+
+| Shell | Line |
+| --- | --- |
+| zsh, in `~/.zshrc` after `compinit` | `source <(ally completions zsh)` |
+| bash, in `~/.bashrc` | `source <(ally completions bash)` |
+| fish | `ally completions fish > ~/.config/fish/completions/ally.fish`, once |
+| elvish, in `~/.config/elvish/rc.elv` | `eval (ally completions elvish \| slurp)` |
 
 ## Remove Ally
 

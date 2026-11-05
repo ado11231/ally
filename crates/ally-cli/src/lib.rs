@@ -186,6 +186,12 @@ enum Commands {
         watch: bool,
     },
 
+    #[command(about = "Print a shell completion script, for bash, zsh, fish, or elvish")]
+    Completions {
+        #[arg(value_parser = ["bash", "zsh", "fish", "elvish"])]
+        shell: String,
+    },
+
     #[command(about = "Show the Agent's live use in the macOS menu bar")]
     Menubar {
         /// Quit the app, stop it starting at login, and delete it.
@@ -283,6 +289,7 @@ pub async fn run() {
         },
         Commands::Health { watch } => commands::health::health(cli.agent, watch).await,
         Commands::Menubar { remove } => commands::menubar::menubar(cli.agent, remove).await,
+        Commands::Completions { shell } => completions(&shell),
     };
 
     match result {
@@ -305,6 +312,26 @@ fn internal_rsh(args: Vec<String>) -> anyhow::Result<i32> {
         route::assume(agent, &token);
     }
     Err(ssh::exec_for_rsync(agent, args))
+}
+
+fn completions(shell: &str) -> anyhow::Result<i32> {
+    let shell: clap_complete::Shell = shell.parse().map_err(|error| anyhow::anyhow!("{error}"))?;
+    clap_complete::generate(shell, &mut completed(), "ally", &mut std::io::stdout());
+    Ok(0)
+}
+
+/// The commands as completion offers them: without the hidden helpers, and with Ally's
+/// options only before the command, so nothing is offered among a run's own arguments.
+fn completed() -> clap::Command {
+    let full = Cli::command();
+    clap::Command::new("ally")
+        .args(full.get_arguments().map(|arg| arg.clone().global(false)))
+        .subcommands(
+            full.get_subcommands()
+                .filter(|command| !command.is_hide_set())
+                .cloned(),
+        )
+        .mut_subcommand("run", |run| run.disable_help_flag(true))
 }
 
 /// Read color before Clap renders help. Stop at run so remote flags remain untouched.

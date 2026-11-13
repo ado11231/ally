@@ -79,116 +79,53 @@ pub fn find(start: &Path) -> Option<Project> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
+    use crate::storage::testing::TempDir;
 
-    /// A throwaway directory tree. Tests touch the real filesystem because that is
-    /// what detection does, and faking it would test the fake.
-    struct Sandbox {
-        root: PathBuf,
-    }
-
-    impl Sandbox {
-        fn new(name: &str) -> Sandbox {
-            let root = std::env::temp_dir().join(format!("ally-stack-{name}"));
-            let _ = fs::remove_dir_all(&root);
-            fs::create_dir_all(&root).expect("sandbox should be creatable");
-
-            Sandbox { root }
-        }
-
-        fn dir(&self, path: &str) -> PathBuf {
-            let dir = self.root.join(path);
-            fs::create_dir_all(&dir).expect("directory should be creatable");
-            dir
-        }
-
-        fn file(&self, path: &str) -> &Sandbox {
-            let file = self.root.join(path);
-
-            if let Some(parent) = file.parent() {
-                fs::create_dir_all(parent).expect("parent should be creatable");
+    /// Each python marker alone is enough, both together still mean one stack so the split
+    /// is not applied twice, and a project with two languages reports both, or `target`
+    /// would stay in the source copy.
+    #[test]
+    fn markers_name_each_stack_once() {
+        let cases: [(&[&str], &[Stack]); 7] = [
+            (&["Cargo.toml"], &[Stack::Rust]),
+            (&["package.json"], &[Stack::Node]),
+            (&["pyproject.toml"], &[Stack::Python]),
+            (&["requirements.txt"], &[Stack::Python]),
+            (&["pyproject.toml", "requirements.txt"], &[Stack::Python]),
+            (&["Cargo.toml", "package.json"], &[Stack::Rust, Stack::Node]),
+            (&["README.md", "src/Cargo.toml"], &[]),
+        ];
+        for (files, expected) in cases {
+            let dir = TempDir::new("stack");
+            for file in files {
+                dir.write(file, "");
             }
-
-            fs::write(&file, "").expect("file should be writable");
-            self
-        }
-    }
-
-    impl Drop for Sandbox {
-        fn drop(&mut self) {
-            let _ = fs::remove_dir_all(&self.root);
+            let mut stacks = stacks_in(dir.path());
+            stacks.sort_by_key(|stack| format!("{stack:?}"));
+            let mut expected = expected.to_vec();
+            expected.sort_by_key(|stack| format!("{stack:?}"));
+            assert_eq!(stacks, expected, "{files:?}");
         }
     }
 
     #[test]
-    fn a_cargo_project_is_rust() {
-        let sandbox = Sandbox::new("rust");
-        sandbox.file("Cargo.toml");
+    fn an_empty_directory_is_not_a_project() {
+        let dir = TempDir::new("stack-empty");
 
-        assert_eq!(stacks_in(&sandbox.root), vec![Stack::Rust]);
-    }
-
-    #[test]
-    fn a_package_json_is_node() {
-        let sandbox = Sandbox::new("node");
-        sandbox.file("package.json");
-
-        assert_eq!(stacks_in(&sandbox.root), vec![Stack::Node]);
-    }
-
-    #[test]
-    fn either_python_marker_is_enough() {
-        let modern = Sandbox::new("py-modern");
-        modern.file("pyproject.toml");
-
-        let older = Sandbox::new("py-older");
-        older.file("requirements.txt");
-
-        assert_eq!(stacks_in(&modern.root), vec![Stack::Python]);
-        assert_eq!(stacks_in(&older.root), vec![Stack::Python]);
-    }
-
-    /// Both python markers in one project must not report python twice, or the
-    /// split would be applied twice.
-    #[test]
-    fn two_python_markers_still_mean_one_stack() {
-        let sandbox = Sandbox::new("py-both");
-        sandbox.file("pyproject.toml").file("requirements.txt");
-
-        assert_eq!(stacks_in(&sandbox.root), vec![Stack::Python]);
-    }
-
-    /// A tauri app, or a rust api with a node frontend. Missing the first stack would
-    /// leave `target` in the source copy, which is the whole thing we are trying to avoid.
-    #[test]
-    fn a_polyglot_project_reports_every_stack() {
-        let sandbox = Sandbox::new("polyglot");
-        sandbox.file("Cargo.toml").file("package.json");
-
-        let stacks = stacks_in(&sandbox.root);
-
-        assert!(stacks.contains(&Stack::Rust), "stacks were: {stacks:?}");
-        assert!(stacks.contains(&Stack::Node), "stacks were: {stacks:?}");
-        assert_eq!(stacks.len(), 2);
-    }
-
-    #[test]
-    fn an_empty_directory_has_no_stack() {
-        let sandbox = Sandbox::new("empty");
-
-        assert!(stacks_in(&sandbox.root).is_empty());
-        assert_eq!(find(&sandbox.root), None);
+        assert!(stacks_in(dir.path()).is_empty());
+        assert_eq!(find(dir.path()), None);
     }
 
     #[test]
     fn the_root_is_found_from_a_directory_below_it() {
-        let sandbox = Sandbox::new("nested");
-        sandbox.file("Cargo.toml");
-        let deep = sandbox.dir("src/commands/inner");
+        let dir = TempDir::new("stack-nested");
+        dir.write("Cargo.toml", "");
+        let deep = dir.path().join("src/commands/inner");
+        std::fs::create_dir_all(&deep).unwrap();
 
         let project = find(&deep).expect("should find the project above");
 
-        assert_eq!(project.root, sandbox.root);
+        assert_eq!(project.root, dir.path());
         assert!(project.uses(Stack::Rust));
     }
 
@@ -196,43 +133,33 @@ mod tests {
     /// is the thing you meant.
     #[test]
     fn the_nearest_root_wins() {
-        let sandbox = Sandbox::new("workspace");
-        sandbox.file("Cargo.toml");
-        sandbox.file("crates/inner/Cargo.toml");
+        let dir = TempDir::new("stack-workspace");
+        dir.write("Cargo.toml", "");
+        dir.write("crates/inner/Cargo.toml", "");
 
-        let project = find(&sandbox.root.join("crates/inner")).expect("should find inner");
+        let project = find(&dir.path().join("crates/inner")).expect("should find inner");
 
-        assert_eq!(project.root, sandbox.root.join("crates/inner"));
+        assert_eq!(project.root, dir.path().join("crates/inner"));
     }
 
-    /// An ally.toml marks a project even when nothing else does, so an override
-    /// can name a stack ally would not have detected.
+    /// An ally.toml or a container file marks a project even when nothing else does, so
+    /// an override can name a stack ally would not have detected.
     #[test]
-    fn an_ally_toml_alone_marks_a_project() {
-        let sandbox = Sandbox::new("override");
-        sandbox.file("ally.toml");
-
-        let project = find(&sandbox.root).expect("ally.toml should mark a root");
-
-        assert_eq!(project.root, sandbox.root);
-        assert!(project.stacks.is_empty());
-    }
-
-    #[test]
-    fn a_container_file_alone_marks_a_project() {
+    fn a_settings_or_container_file_alone_marks_a_project() {
         for marker in [
+            "ally.toml",
             "compose.yaml",
             "compose.yml",
             "docker-compose.yml",
             "docker-compose.yaml",
             "Dockerfile",
         ] {
-            let sandbox = Sandbox::new(&format!("container-{marker}"));
-            sandbox.file(marker);
+            let dir = TempDir::new("stack-marker");
+            dir.write(marker, "");
 
-            let project = find(&sandbox.root).expect("a container file should mark a root");
+            let project = find(dir.path()).expect("the file should mark a root");
 
-            assert_eq!(project.root, sandbox.root, "{marker}");
+            assert_eq!(project.root, dir.path(), "{marker}");
             assert!(project.stacks.is_empty(), "{marker}");
         }
     }

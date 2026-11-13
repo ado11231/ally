@@ -9,12 +9,6 @@
 
 <p align="center">run terminal processes on your stronger computer. use your gaming PC or mini computer as a server.</p>
 
-## What It Does
-
-* Builds, servers, and coding agents run on the powerful machine. You keep your own editor, terminal, and browser.
-* Only your code is copied. Build files stay on the powerful machine, and work keeps running when the laptop closes.
-* No account and no network setup. It works from anywhere after one link.
-
 ## Setup
 
 * The **Agent** is the powerful computer. The **Client** is the one you work on.
@@ -53,8 +47,3 @@ curl -fsSL https://raw.githubusercontent.com/ado11231/ally/master/install.sh | s
 | `ally storage` | Lists the project copies on the Agent, and frees their space. |
 | `ally forward <port>` | Opens an Agent port at `localhost` here. |
 | `ally doctor` | Checks the whole setup, and prints the fix for each problem. |
-
-* Every command and option is in [USAGE.md](https://github.com/ado11231/ally/blob/master/docs/USAGE.md).
-* On a Mac, `ally link` also offers a menu bar app that shows how busy the Agent is and when a run finishes. It needs `xcode-select --install`.
-
-<p align="center"><img src="https://raw.githubusercontent.com/ado11231/ally/master/docs/media/menubar.png" alt="The Ally menu bar panel" width="360"></p>

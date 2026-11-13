@@ -665,6 +665,7 @@ pub fn signal_group(pid: u32, start: u64, signal: i32) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testing::Root;
 
     #[test]
     fn user_folders_go_in_front_once() {
@@ -732,7 +733,7 @@ mod tests {
 
     #[test]
     fn a_project_link_is_readable_and_never_replaces_other_files() {
-        let home = crate::testing::Root::new();
+        let home = Root::new();
         let copy = home.0.join("copy");
         fs::create_dir(&copy).unwrap();
         let link = project_link(&home.0, "my app", "abcdef0123456789", &copy).unwrap();
@@ -767,7 +768,7 @@ mod tests {
     /// the name frees up, instead of gaining a second.
     #[test]
     fn a_copy_keeps_its_link_when_its_plain_name_frees_up() {
-        let home = crate::testing::Root::new();
+        let home = Root::new();
         let (old, copy) = (home.0.join("old"), home.0.join("copy"));
         fs::create_dir(&old).unwrap();
         fs::create_dir(&copy).unwrap();
@@ -813,7 +814,6 @@ mod tests {
             assert!(!is_utf8(locale), "{locale:?}");
         }
     }
-    use crate::testing::Root;
 
     fn running(root: &Path, pid: Option<u32>, start: Option<u64>) -> Job {
         let mut job = new_job(JobKind::Run, None, "sleep".into());

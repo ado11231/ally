@@ -249,9 +249,21 @@ mod tests {
 
     #[test]
     fn identifiers_are_lowercase_hex_of_fixed_length() {
-        assert!(check_id(&new_id()).is_ok());
-        assert!(check_id("ABCDEF0123456789abcdef0123456789").is_err());
-        assert!(check_id("../../../../etc").is_err());
+        check_id(&new_id()).unwrap();
+        check_id(&"0".repeat(32)).unwrap();
+        for bad in [
+            "",
+            "ABCDEF0123456789abcdef0123456789",
+            "0123456789abcdef0123456789abcde",
+            "0123456789abcdef0123456789abcdef0",
+            "0123456789abcdef0123456789abcdeg",
+            "../../../../etc",
+            "ffffffffffffffff/../../../../etc",
+            &"é".repeat(16),
+        ] {
+            let error = check_id(bad).unwrap_err().to_string();
+            assert_eq!(error, "Invalid Ally identifier", "{bad:?}");
+        }
     }
 
     #[test]
@@ -259,9 +271,23 @@ mod tests {
         let dir = TempDir::new("safe");
         let outside = TempDir::new("outside");
         std::os::unix::fs::symlink(outside.path(), dir.path().join("link")).unwrap();
-        assert!(safe_path(dir.path(), "link/file").is_err());
-        assert!(create_parents(dir.path(), "link/file").is_err());
-        assert!(safe_path(dir.path(), "missing/deeper/file").is_ok());
+        for error in [
+            safe_path(dir.path(), "link/file").unwrap_err(),
+            create_parents(dir.path(), "link/file").unwrap_err(),
+            safe_path(dir.path(), "link/deeper/file").unwrap_err(),
+        ] {
+            assert!(
+                error
+                    .to_string()
+                    .starts_with("Unsafe parent path for link/"),
+                "{error}"
+            );
+        }
+        assert_eq!(
+            safe_path(dir.path(), "missing/deeper/file").unwrap(),
+            dir.path().join("missing/deeper/file")
+        );
+        assert!(!outside.path().join("file").exists());
         create_parents(dir.path(), "real/deeper/file").unwrap();
         assert!(dir.path().join("real/deeper").is_dir());
     }

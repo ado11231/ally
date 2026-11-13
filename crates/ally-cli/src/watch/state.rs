@@ -657,6 +657,15 @@ mod tests {
     }
 
     #[test]
+    fn a_run_exactly_worth_noticing_is_told() {
+        let mut watch = Watch::new("archbox");
+        watch.jobs(&[]);
+        let notices = watch.jobs(&[run("a", JobState::Completed, WORTH_NOTICING)]);
+        assert_eq!(notices.len(), 1);
+        assert_eq!(notices[0].body, "10 sec · app");
+    }
+
+    #[test]
     fn a_failure_names_the_exit_code() {
         let mut watch = Watch::new("archbox");
         watch.jobs(&[]);
@@ -673,7 +682,7 @@ mod tests {
         assert!(
             watch
                 .jobs(&[
-                    run("a", JobState::Completed, 9),
+                    run("a", JobState::Completed, WORTH_NOTICING - 1),
                     run("b", JobState::Failed, 2),
                     run("c", JobState::Stopped, 600),
                     job("d", JobKind::Session, JobState::Ended, 600),
@@ -713,21 +722,36 @@ mod tests {
         assert!(notices[0].body.contains("Connection dropped"));
     }
 
+    /// Counted in characters, so a command with accents or emoji is never cut mid character.
     #[test]
-    fn long_commands_are_shortened() {
-        let long = "x".repeat(60);
-        let shortened = short(&long);
+    fn only_commands_past_the_width_are_shortened() {
+        let fits = "x".repeat(COMMAND_WIDTH);
+        assert_eq!(short(&fits), fits);
+        assert_eq!(short(""), "");
+        let shortened = short(&"x".repeat(COMMAND_WIDTH + 1));
         assert_eq!(shortened.chars().count(), COMMAND_WIDTH);
         assert!(shortened.ends_with('…'));
+        let wide = short(&"é".repeat(COMMAND_WIDTH * 2));
+        assert_eq!(wide, format!("{}…", "é".repeat(COMMAND_WIDTH - 1)));
     }
 
     #[test]
-    fn durations_are_brief() {
-        assert_eq!(brief(1), "1 sec");
-        assert_eq!(brief(48), "48 sec");
-        assert_eq!(brief(192), "3 min");
-        assert_eq!(brief(3600), "1 hr");
-        assert_eq!(brief(3900), "1 hr 5 min");
+    fn durations_are_brief_on_both_sides_of_each_unit() {
+        let cases = [
+            (0, "0 sec"),
+            (1, "1 sec"),
+            (59, "59 sec"),
+            (60, "1 min"),
+            (119, "1 min"),
+            (3599, "59 min"),
+            (3600, "1 hr"),
+            (3659, "1 hr"),
+            (3900, "1 hr 5 min"),
+            (90_000, "25 hr"),
+        ];
+        for (seconds, text) in cases {
+            assert_eq!(brief(seconds), text, "{seconds}");
+        }
     }
 
     #[test]

@@ -225,19 +225,11 @@ mod tests {
     }
 
     #[test]
-    fn the_usual_port_is_written_plainly() {
+    fn only_an_unusual_port_gets_brackets() {
         assert_eq!(host_pattern("10.0.0.9", None), "10.0.0.9");
         assert_eq!(host_pattern("10.0.0.9", Some(22)), "10.0.0.9");
-    }
-
-    #[test]
-    fn an_unusual_port_gets_brackets() {
         assert_eq!(host_pattern("10.0.0.9", Some(2222)), "[10.0.0.9]:2222");
-    }
-
-    #[test]
-    fn the_marker_names_the_client() {
-        assert_eq!(marker("laptop"), "ally:laptop");
+        assert_eq!(host_pattern("archbox", Some(1)), "[archbox]:1");
     }
 
     #[test]
@@ -274,7 +266,30 @@ mod tests {
 
     #[test]
     fn something_that_is_not_a_key_is_refused() {
-        assert!(authorized_line("archbox", "hello there").is_err());
+        for bad in [
+            "",
+            "hello there",
+            "ssh-ed25519",
+            "command=\"sh\" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5",
+        ] {
+            assert_eq!(
+                authorized_line("archbox", bad).unwrap_err().to_string(),
+                "That does not look like an SSH public key",
+                "{bad:?}"
+            );
+        }
+    }
+
+    /// Anything after the key material is dropped, so a key cannot carry a second line.
+    #[test]
+    fn a_key_becomes_exactly_one_line() {
+        let line = authorized_line(
+            "archbox",
+            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5\nssh-rsa AAAAB3 attacker",
+        )
+        .unwrap();
+
+        assert_eq!(line, "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5 ally:archbox");
     }
 
     /// An SSH line file is replaced by a rename, so a failed write can never leave the

@@ -904,8 +904,15 @@ mod tests {
         initialize(&root.0, &id);
         let run = crate::jobs::new_job(JobKind::Run, Some((&id, "app")), "cargo build".into());
         crate::jobs::save(&root.0, &run).unwrap();
-        assert!(clean(&root.0, &id).is_err());
-        assert!(remove(&root.0, None, &id).is_err());
+        for error in [
+            clean(&root.0, &id).unwrap_err(),
+            remove(&root.0, None, &id).unwrap_err(),
+        ] {
+            let error = error.to_string();
+            assert!(error.contains("has a run in progress"), "{error}");
+            assert!(error.contains(storage::short_id(&run.id)), "{error}");
+        }
+        assert!(Paths::new(&root.0, &id).unwrap().source.is_dir());
     }
 
     struct TempDirLike(PathBuf);

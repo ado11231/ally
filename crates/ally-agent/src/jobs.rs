@@ -665,6 +665,7 @@ pub fn signal_group(pid: u32, start: u64, signal: i32) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testing::Root;
 
     #[test]
     fn user_folders_go_in_front_once() {
@@ -732,7 +733,7 @@ mod tests {
 
     #[test]
     fn a_project_link_is_readable_and_never_replaces_other_files() {
-        let home = crate::testing::Root::new();
+        let home = Root::new();
         let copy = home.0.join("copy");
         fs::create_dir(&copy).unwrap();
         let link = project_link(&home.0, "my app", "abcdef0123456789", &copy).unwrap();
@@ -767,7 +768,7 @@ mod tests {
     /// the name frees up, instead of gaining a second.
     #[test]
     fn a_copy_keeps_its_link_when_its_plain_name_frees_up() {
-        let home = crate::testing::Root::new();
+        let home = Root::new();
         let (old, copy) = (home.0.join("old"), home.0.join("copy"));
         fs::create_dir(&old).unwrap();
         fs::create_dir(&copy).unwrap();
@@ -813,7 +814,6 @@ mod tests {
             assert!(!is_utf8(locale), "{locale:?}");
         }
     }
-    use crate::testing::Root;
 
     fn running(root: &Path, pid: Option<u32>, start: Option<u64>) -> Job {
         let mut job = new_job(JobKind::Run, None, "sleep".into());
@@ -889,13 +889,35 @@ mod tests {
     fn prefixes_must_be_unique_and_well_formed() {
         let root = Root::new();
         let me = std::process::id();
-        let job = running(&root.0, Some(me), process_start(me));
+        for id in ["abcd0000", "abcd1111"] {
+            let mut job = new_job(JobKind::Run, None, "sleep".into());
+            job.id = format!("{id}{}", "0".repeat(24));
+            job.pid = Some(me);
+            job.process_start = process_start(me);
+            save(&root.0, &job).unwrap();
+        }
+        let found = |query: &str| find_active(&root.0, query).map(|job| job.id);
+        let failed = |query: &str| find_active(&root.0, query).unwrap_err().to_string();
+
         assert_eq!(
-            find_active(&root.0, storage::short_id(&job.id)).unwrap().id,
-            job.id
+            found("abcd0").unwrap(),
+            format!("abcd0000{}", "0".repeat(24))
         );
-        assert!(find_active(&root.0, "ab").is_err());
-        assert!(find_active(&root.0, "../x").is_err());
+        assert_eq!(
+            found("ABCD1").unwrap(),
+            format!("abcd1111{}", "0".repeat(24))
+        );
+        assert_eq!(
+            failed("abcd"),
+            "abcd matches several jobs. Use more characters"
+        );
+        assert_eq!(
+            failed("ffff"),
+            "No running Ally job matches ffff. See ally ps"
+        );
+        for bad in ["", "abc", "../x", "abcd-0", "abcdé"] {
+            assert_eq!(failed(bad), "Pass the job ID shown by ally ps", "{bad:?}");
+        }
     }
 
     #[test]

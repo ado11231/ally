@@ -105,6 +105,10 @@ fn parse_code(code: &str) -> anyhow::Result<(String, u16, String)> {
     let [host, port, token] = parts.as_slice() else {
         anyhow::bail!("That does not look like a pairing code. Expected host:port:code");
     };
+    anyhow::ensure!(
+        !host.is_empty() && !token.is_empty(),
+        "That does not look like a pairing code. Expected host:port:code"
+    );
 
     let port: u16 = port
         .parse()
@@ -131,9 +135,23 @@ mod tests {
         assert_eq!(parse_code("  10.0.0.4:7433:ABCD2345\n").unwrap().1, 7433);
     }
 
+    /// An empty token would reach the Agent as a wrong code and use up one of its tries.
     #[test]
-    fn a_code_missing_a_part_is_rejected() {
-        assert!(parse_code("10.0.0.4:7433").is_err());
+    fn a_code_missing_or_with_an_empty_part_is_rejected() {
+        for bad in [
+            "",
+            "10.0.0.4:7433",
+            "10.0.0.4:7433:ABCD2345:extra",
+            ":7433:ABCD2345",
+            "10.0.0.4:7433:",
+            "  \n",
+        ] {
+            assert_eq!(
+                parse_code(bad).unwrap_err().to_string(),
+                "That does not look like a pairing code. Expected host:port:code",
+                "{bad:?}"
+            );
+        }
     }
 
     #[test]
@@ -146,10 +164,13 @@ mod tests {
 
     #[test]
     fn a_port_that_is_not_a_number_is_reported() {
-        let err = parse_code("10.0.0.4:door:ABCD2345")
-            .unwrap_err()
-            .to_string();
-
-        assert!(err.contains("door"), "message was: {err}");
+        for port in ["door", "", "65536", "-1"] {
+            let code = format!("10.0.0.4:{port}:ABCD2345");
+            assert_eq!(
+                parse_code(&code).unwrap_err().to_string(),
+                format!("'{port}' is not a port number")
+            );
+        }
+        assert_eq!(parse_code("10.0.0.4:65535:ABCD2345").unwrap().1, 65535);
     }
 }

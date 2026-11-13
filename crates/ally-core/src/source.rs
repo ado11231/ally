@@ -638,7 +638,10 @@ mod tests {
         assert!(manifest.contains_key("code"));
 
         symlink("../outside", dir.path().join("escape")).unwrap();
-        assert!(scan(dir.path(), &rules(dir.path(), &[]), &Manifest::new(), None).is_err());
+        let error = scan(dir.path(), &rules(dir.path(), &[]), &Manifest::new(), None)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("escape"), "{error}");
     }
 
     #[test]
@@ -649,23 +652,30 @@ mod tests {
             executable: false,
             link: Some(target.to_string()),
         };
+        let refused = |manifest: &Manifest, name: &str| {
+            let error = check_links(manifest, &r).unwrap_err().to_string();
+            assert!(
+                error.starts_with(&format!("Unsafe source link {name}.")),
+                "{error}"
+            );
+        };
         let mut manifest = Manifest::from([("here".to_string(), link("."))]);
         manifest.insert("sneaky".to_string(), link("here/../secret"));
-        assert!(check_links(&manifest, &r).is_err());
+        refused(&manifest, "sneaky");
 
         let mut manifest = Manifest::from([("deep".to_string(), link("a/b"))]);
         manifest.insert("up".to_string(), link("deep/../c"));
         assert!(check_links(&manifest, &r).is_ok());
 
         let manifest = Manifest::from([("env".to_string(), link("config/.env"))]);
-        assert!(check_links(&manifest, &r).is_err());
+        refused(&manifest, "env");
 
         let mut manifest = Manifest::from([("loop".to_string(), link("loop2"))]);
         manifest.insert("loop2".to_string(), link("loop"));
-        assert!(check_links(&manifest, &r).is_err());
+        refused(&manifest, "loop");
 
         let manifest = Manifest::from([("abs".to_string(), link("/etc/passwd"))]);
-        assert!(check_links(&manifest, &r).is_err());
+        refused(&manifest, "abs");
     }
 
     #[test]

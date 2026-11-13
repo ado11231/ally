@@ -563,11 +563,6 @@ mod tests {
         remote(args).command_line()
     }
 
-    #[test]
-    fn quotes_nothing_when_unnecessary() {
-        assert_eq!(cmd(&["hello"]), "echo hello");
-    }
-
     /// The redirect is a fixed suffix, so a quiet command still quotes every argument.
     #[test]
     fn a_quiet_command_discards_only_its_own_output() {
@@ -576,24 +571,29 @@ mod tests {
         assert_eq!(command.command_line(), "echo 'a b' '>x' >/dev/null");
     }
 
+    /// The Agent's shell sees each argument as one literal word, so nothing in it can run.
     #[test]
-    fn quotes_arguments_containing_spaces() {
-        assert_eq!(cmd(&["hello world"]), "echo 'hello world'");
-    }
-
-    #[test]
-    fn handles_embedded_single_quote() {
-        assert_eq!(cmd(&["it's"]), r"echo 'it'\''s'");
-    }
-
-    #[test]
-    fn dollar_sign_stays_literal() {
-        assert_eq!(cmd(&["$HOME"]), "echo '$HOME'");
-    }
-
-    #[test]
-    fn semicolon_stays_literal() {
-        assert_eq!(cmd(&["a; whoami"]), "echo 'a; whoami'");
+    fn every_argument_reaches_the_agent_as_one_literal_word() {
+        let cases = [
+            ("hello", "echo hello"),
+            ("--force", "echo --force"),
+            ("hello world", "echo 'hello world'"),
+            ("", "echo ''"),
+            ("it's", r"echo 'it'\''s'"),
+            ("$HOME", "echo '$HOME'"),
+            ("a; whoami", "echo 'a; whoami'"),
+            ("$(rm -rf ~)", "echo '$(rm -rf ~)'"),
+            ("`id`", "echo '`id`'"),
+            ("*.rs", "echo '*.rs'"),
+            ("a\nb", "echo 'a\nb'"),
+        ];
+        for (argument, line) in cases {
+            assert_eq!(cmd(&[argument]), line, "{argument:?}");
+        }
+        assert_eq!(
+            shell_words::split(&cmd(&["a b", "", "it's"])).unwrap(),
+            ["echo", "a b", "", "it's"]
+        );
     }
 
     #[test]
@@ -614,13 +614,14 @@ mod tests {
         assert_eq!(argv[argv.len() - 2], "localbox");
     }
 
+    /// The known hosts path is quoted because ssh splits this option on whitespace.
     #[test]
-    fn user_port_and_key_reach_ssh() {
+    fn user_port_key_and_known_hosts_reach_ssh_only_when_set() {
         let mut command = remote(&["hi"]);
         command.user = Some("me".to_string());
         command.port = Some(2222);
         command.identity_file = Some(PathBuf::from("/keys/ally"));
-        command.known_hosts = Some(PathBuf::from("/keys/known_hosts"));
+        command.known_hosts = Some(PathBuf::from("/App Support/known_hosts"));
 
         let argv = command.to_ssh_args();
 
@@ -637,19 +638,18 @@ mod tests {
             "argv was: {argv:?}"
         );
         assert!(
-            argv.contains(&"UserKnownHostsFile=\"/keys/known_hosts\"".to_string()),
+            argv.contains(&"UserKnownHostsFile=\"/App Support/known_hosts\"".to_string()),
             "argv was: {argv:?}"
         );
-    }
-
-    #[test]
-    fn ssh_is_told_to_keep_quiet_about_itself() {
-        let argv = remote(&["hi"]).to_ssh_args();
-
-        assert!(
-            argv.contains(&"LogLevel=ERROR".to_string()),
-            "argv was: {argv:?}"
-        );
+        let plain = remote(&["hi"]).to_ssh_args();
+        for flag in [
+            "-i",
+            "-p",
+            "IdentitiesOnly=yes",
+            "StrictHostKeyChecking=yes",
+        ] {
+            assert!(!plain.contains(&flag.to_string()), "{flag} in {plain:?}");
+        }
     }
 
     #[test]
@@ -673,20 +673,6 @@ mod tests {
         for unknown in ["xterm-kitty", "xterm-ghostty", "alacritty", "wezterm", ""] {
             assert_eq!(remote_terminal(unknown), "xterm-256color", "{unknown}");
         }
-    }
-
-    /// Quote the known hosts path because SSH splits this option on whitespace.
-    #[test]
-    fn a_known_hosts_path_with_a_space_stays_one_path() {
-        let mut command = remote(&["hi"]);
-        command.known_hosts = Some(PathBuf::from("/App Support/known_hosts"));
-
-        let argv = command.to_ssh_args();
-
-        assert!(
-            argv.contains(&"UserKnownHostsFile=\"/App Support/known_hosts\"".to_string()),
-            "argv was: {argv:?}"
-        );
     }
 
     #[test]
@@ -806,13 +792,6 @@ mod tests {
             shared_socket(&routes[0]),
             shared_socket(&share_route("ado", "10.0.0.193", None))
         );
-    }
-
-    #[test]
-    fn no_key_configured_means_no_i_flag() {
-        let argv = remote(&["hi"]).to_ssh_args();
-
-        assert!(!argv.contains(&"-i".to_string()), "argv was: {argv:?}");
     }
 
     #[test]

@@ -412,9 +412,18 @@ mod tests {
         assert!(error.contains("Update Ally"), "{error}");
 
         a.write_u32(MAX_FRAME + 1).await.unwrap();
-        assert!(read_frame::<_, Request>(&mut b).await.is_err());
+        let error = read_frame::<_, Request>(&mut b).await.unwrap_err();
+        assert_eq!(error.to_string(), "Control message is too large");
 
+        a.write_u32(5).await.unwrap();
+        a.write_all(b"{}").await.unwrap();
         drop(a);
+        let error = read_frame::<_, Request>(&mut b).await.unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Control connection closed in the middle of a message"
+        );
+
         let (mut c, d) = tokio::io::duplex(64);
         drop(d);
         assert!(read_frame::<_, Request>(&mut c).await.unwrap().is_none());

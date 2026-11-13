@@ -921,7 +921,7 @@ mod tests {
         }
 
         assert!(agent.pairing.lock().unwrap().is_none());
-        assert!(open(&agent).is_err());
+        assert_eq!(open(&agent).err().unwrap(), EXPIRED);
     }
 
     #[test]

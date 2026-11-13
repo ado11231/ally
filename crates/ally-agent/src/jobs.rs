@@ -889,13 +889,35 @@ mod tests {
     fn prefixes_must_be_unique_and_well_formed() {
         let root = Root::new();
         let me = std::process::id();
-        let job = running(&root.0, Some(me), process_start(me));
+        for id in ["abcd0000", "abcd1111"] {
+            let mut job = new_job(JobKind::Run, None, "sleep".into());
+            job.id = format!("{id}{}", "0".repeat(24));
+            job.pid = Some(me);
+            job.process_start = process_start(me);
+            save(&root.0, &job).unwrap();
+        }
+        let found = |query: &str| find_active(&root.0, query).map(|job| job.id);
+        let failed = |query: &str| find_active(&root.0, query).unwrap_err().to_string();
+
         assert_eq!(
-            find_active(&root.0, storage::short_id(&job.id)).unwrap().id,
-            job.id
+            found("abcd0").unwrap(),
+            format!("abcd0000{}", "0".repeat(24))
         );
-        assert!(find_active(&root.0, "ab").is_err());
-        assert!(find_active(&root.0, "../x").is_err());
+        assert_eq!(
+            found("ABCD1").unwrap(),
+            format!("abcd1111{}", "0".repeat(24))
+        );
+        assert_eq!(
+            failed("abcd"),
+            "abcd matches several jobs. Use more characters"
+        );
+        assert_eq!(
+            failed("ffff"),
+            "No running Ally job matches ffff. See ally ps"
+        );
+        for bad in ["", "abc", "../x", "abcd-0", "abcdé"] {
+            assert_eq!(failed(bad), "Pass the job ID shown by ally ps", "{bad:?}");
+        }
     }
 
     #[test]

@@ -536,9 +536,6 @@ mod tests {
             .collect()
     }
 
-    /// An interrupted step can leave a symlink where a regular file used to be. Reading
-    /// the destination's permissions must not follow that link, or the restored file
-    /// inherits the mode of whatever the link pointed at, possibly outside the project.
     #[test]
     fn overwriting_settles_only_the_chosen_conflicts_for_the_sender() {
         let base = manifest(&[("a.rs", "0"), ("b.rs", "0")]);
@@ -547,7 +544,7 @@ mod tests {
         let settled = overwrite(
             plan(&base, &sender, &receiver),
             &sender,
-            &["a.rs".to_string()],
+            &["a.rs".to_string(), "not-a-conflict.rs".to_string()],
         );
         assert_eq!(settled.changes, ["a.rs"]);
         assert_eq!(settled.conflicts, ["b.rs"]);
@@ -556,14 +553,33 @@ mod tests {
 
     #[test]
     fn names_that_differ_only_in_case_are_found() {
-        let names = manifest(&[("NOTES.md", "a"), ("notes.md", "b"), ("src/main.rs", "c")]);
+        let names = manifest(&[
+            ("NOTES.md", "a"),
+            ("Notes.md", "b"),
+            ("notes.md", "c"),
+            ("Src/lib.rs", "d"),
+            ("src/lib.rs", "e"),
+            ("Café.txt", "f"),
+            ("cafÉ.txt", "g"),
+            ("src/main.rs", "h"),
+        ]);
+        let pair = |one: &str, other: &str| (one.to_string(), other.to_string());
         assert_eq!(
             case_clashes(&names),
-            [("NOTES.md".to_string(), "notes.md".to_string())]
+            [
+                pair("NOTES.md", "Notes.md"),
+                pair("Café.txt", "cafÉ.txt"),
+                pair("NOTES.md", "notes.md"),
+                pair("Src/lib.rs", "src/lib.rs"),
+            ]
         );
         assert!(case_clashes(&manifest(&[("a.rs", "a"), ("b.rs", "b")])).is_empty());
+        assert!(case_clashes(&Manifest::new()).is_empty());
     }
 
+    /// An interrupted step can leave a symlink where a regular file used to be. Reading
+    /// the destination's permissions must not follow that link, or the restored file
+    /// inherits the mode of whatever the link pointed at, possibly outside the project.
     #[test]
     fn undoing_a_symlink_does_not_take_its_targets_permissions() {
         let root = TempDir::new("undo");

@@ -254,8 +254,10 @@ mod tests {
     fn capacity_preserves_small_values_and_fractional_gib() {
         assert_eq!(capacity(0), "0.0 MiB");
         assert_eq!(capacity(512), "512.0 MiB");
+        assert_eq!(capacity(1023), "1023.0 MiB");
         assert_eq!(capacity(1024), "1.0 GiB");
         assert_eq!(capacity(1536), "1.5 GiB");
+        assert_eq!(capacity(4 * 1024 * 1024), "4096.0 GiB");
     }
 
     #[test]

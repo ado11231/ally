@@ -83,7 +83,7 @@ pub async fn run(agent: Option<String>) -> anyhow::Result<i32> {
                     watch.name(),
                     message.clone(),
                 )));
-                for notice in watch.failed(&message) {
+                for notice in watch.failed(&message, ally_core::storage::now()) {
                     emit(&Event::Notice(notice));
                 }
                 watch.failures()

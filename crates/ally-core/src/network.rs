@@ -51,36 +51,50 @@ impl Network {
 mod tests {
     use super::*;
 
+    /// Tailscale hands out 100.64.0.0 to 100.127.255.255. The rest of 100.x is public.
     #[test]
-    fn a_tailnet_address_is_named() {
-        assert_eq!(Network::of("100.67.90.119"), Network::Tailnet);
-    }
-
-    #[test]
-    fn a_home_network_address_is_named() {
-        assert_eq!(Network::of("192.168.1.20"), Network::Local);
-        assert_eq!(Network::of("10.0.0.193"), Network::Local);
-    }
-
-    #[test]
-    fn a_public_hundred_address_is_not_tailscale() {
-        assert_eq!(Network::of("100.20.0.1"), Network::Other);
-    }
-
-    #[test]
-    fn loopback_is_this_machine() {
-        assert_eq!(Network::of("127.0.0.1"), Network::ThisMachine);
-        assert_eq!(Network::of("::1"), Network::ThisMachine);
-    }
-
-    #[test]
-    fn a_host_name_is_other() {
-        assert_eq!(Network::of("archbox.local"), Network::Other);
+    fn each_address_is_judged_at_the_edges_of_its_range() {
+        let cases = [
+            ("127.0.0.1", Network::ThisMachine),
+            ("127.255.255.254", Network::ThisMachine),
+            ("::1", Network::ThisMachine),
+            ("100.64.0.0", Network::Tailnet),
+            ("100.67.90.119", Network::Tailnet),
+            ("100.127.255.255", Network::Tailnet),
+            ("100.63.255.255", Network::Other),
+            ("100.128.0.0", Network::Other),
+            ("10.0.0.193", Network::Local),
+            ("172.16.0.1", Network::Local),
+            ("172.31.255.255", Network::Local),
+            ("172.32.0.1", Network::Other),
+            ("192.168.1.20", Network::Local),
+            ("8.8.8.8", Network::Other),
+            ("fd7a:115c:a1e0::1", Network::Other),
+            ("archbox.local", Network::Other),
+            ("", Network::Other),
+        ];
+        for (host, network) in cases {
+            assert_eq!(Network::of(host), network, "{host:?}");
+        }
     }
 
     #[test]
     fn the_local_network_is_preferred_over_the_tailnet() {
-        assert!(Network::Local < Network::Tailnet);
-        assert!(Network::Other < Network::Tailnet);
+        let mut networks = [
+            Network::Tailnet,
+            Network::Other,
+            Network::Local,
+            Network::ThisMachine,
+        ];
+        networks.sort();
+        assert_eq!(
+            networks,
+            [
+                Network::ThisMachine,
+                Network::Local,
+                Network::Other,
+                Network::Tailnet
+            ]
+        );
     }
 }

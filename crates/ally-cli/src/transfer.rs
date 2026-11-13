@@ -672,8 +672,17 @@ mod tests {
             "/Users/me/Library/Application\\ Support/ally"
         );
         assert_eq!(escape_remote("/a/$(x)&b").unwrap(), "/a/\\$\\(x\\)\\&b");
-        assert!(escape_remote("/it's").is_err());
-        assert!(escape_remote("/a\nb").is_err());
+        assert_eq!(
+            escape_remote("/home/me/.local/share/ally-1").unwrap(),
+            "/home/me/.local/share/ally-1"
+        );
+        for bad in ["", "/it's", "/say \"hi\"", "/a\nb", "/a\tb", "/a\0b"] {
+            let error = escape_remote(bad).unwrap_err().to_string();
+            assert!(
+                error.starts_with("The Agent storage path contains"),
+                "{bad:?}: {error}"
+            );
+        }
     }
 
     #[test]

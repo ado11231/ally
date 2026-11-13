@@ -10,7 +10,7 @@ pub mod state;
 use crate::client::{Control, unexpected};
 use crate::forward;
 use crate::route::{self, Route};
-use crate::ssh::RemoteCommand;
+use crate::ssh::{self, RemoteCommand};
 use ally_core::config::{Agent, Config};
 use ally_core::control::{Job, Listening, Request, Response};
 use ally_core::protocol::Health;
@@ -95,6 +95,7 @@ pub async fn run(agent: Option<String>) -> anyhow::Result<i32> {
             }
         };
         route::forget();
+        ssh::check_share_again();
         let wait = BACKOFF[(failures as usize).saturating_sub(1).min(BACKOFF.len() - 1)];
         tokio::select! {
             () = tokio::time::sleep(wait) => {}

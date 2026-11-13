@@ -213,12 +213,12 @@ impl Config {
         Ok(self.agents.remove(index))
     }
 
-    /// Write the config back out, creating the directory the first time.
     /// The names of every linked Agent.
     pub fn names(&self) -> Vec<String> {
         self.agents.iter().map(|agent| agent.name.clone()).collect()
     }
 
+    /// Write the config back out, creating the directory the first time.
     pub fn save(&self) -> anyhow::Result<PathBuf> {
         let file = path()?;
 
@@ -431,10 +431,20 @@ mod tests {
     #[test]
     fn removing_the_default_agent_clears_the_default() {
         let mut config = config(TWO);
-        config.remove("laptop").unwrap();
+        assert_eq!(config.remove("laptop").unwrap().name, "laptop");
 
         assert_eq!(config.default, None);
+        assert_eq!(config.names(), ["archbox"]);
         assert!(config.remove("laptop").is_err());
+    }
+
+    #[test]
+    fn removing_another_agent_keeps_the_default() {
+        let mut config = config(TWO);
+        config.remove("archbox").unwrap();
+
+        assert_eq!(config.default.as_deref(), Some("laptop"));
+        assert_eq!(config.names(), ["laptop"]);
     }
 
     #[test]
@@ -470,9 +480,10 @@ mod tests {
         let text = toml::to_string_pretty(&config).expect("config should encode");
         let back: Config = toml::from_str(&text).expect("config should decode");
 
+        assert_eq!(toml::to_string_pretty(&back).unwrap(), text);
         assert_eq!(
-            back.agents[0].specs.as_ref().unwrap().gpus[0].name,
-            "RTX 3070"
+            back.agents[0].specs.as_ref().unwrap().gpus[0].vram_mib,
+            Some(8192)
         );
         assert_eq!(back.agents[0].daemon_port(), 7433);
     }
@@ -494,5 +505,8 @@ mod tests {
     #[test]
     fn an_agent_with_no_recorded_program_falls_back_to_the_path() {
         assert_eq!(agent("archbox").program(), "ally");
+        let mut recorded = agent("archbox");
+        recorded.program = Some("/home/me/.local/bin/ally".to_string());
+        assert_eq!(recorded.program(), "/home/me/.local/bin/ally");
     }
 }

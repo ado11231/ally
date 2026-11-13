@@ -17,6 +17,10 @@ const WORTH_NOTICING: u64 = 10;
 /// reported as an outage.
 const FAILURES_BEFORE_UNREACHABLE: u32 = 2;
 
+/// Seconds since the first failed check before the Agent counts as unreachable, so a
+/// switch between networks, which reconnects within this, is not reported as an outage.
+const SILENT_BEFORE_UNREACHABLE: u64 = 60;
+
 /// Free workspace space must recover this far past the warning before it can warn again.
 const DISK_RECOVERED_MIB: u64 = DISK_WARNING_MIB * 2;
 
@@ -39,6 +43,8 @@ pub struct Watch {
     /// Finished jobs already accounted for. Empty until the first answer sets the baseline.
     known: Option<HashSet<String>>,
     failures: u32,
+    /// When the first check failed since the Agent last answered.
+    silent_since: Option<u64>,
     unreachable: bool,
     alarms: HashSet<Alarm>,
     /// Servers in Ally jobs. Empty until the first answer sets the baseline.
@@ -72,6 +78,7 @@ impl Watch {
             name: name.to_string(),
             known: None,
             failures: 0,
+            silent_since: None,
             unreachable: false,
             alarms: HashSet::new(),
             servers: None,
@@ -91,6 +98,7 @@ impl Watch {
     /// The Agent answered, over the path named `path`.
     pub fn reached(&mut self, path: &str) -> Vec<Notice> {
         self.failures = 0;
+        self.silent_since = None;
         if !std::mem::take(&mut self.unreachable) {
             return Vec::new();
         }
@@ -103,11 +111,16 @@ impl Watch {
         }]
     }
 
-    /// The Agent did not answer, for the reason in `error`. The notice uses the same plain
-    /// words as the offline screen rather than the raw error, plus the fix when there is one.
-    pub fn failed(&mut self, error: &str) -> Vec<Notice> {
+    /// The Agent did not answer at `now`, for the reason in `error`. The notice uses the same
+    /// plain words as the offline screen rather than the raw error, plus the fix when there
+    /// is one.
+    pub fn failed(&mut self, error: &str, now: u64) -> Vec<Notice> {
         self.failures += 1;
-        if self.unreachable || self.failures < FAILURES_BEFORE_UNREACHABLE {
+        let since = *self.silent_since.get_or_insert(now);
+        if self.unreachable
+            || self.failures < FAILURES_BEFORE_UNREACHABLE
+            || now.saturating_sub(since) < SILENT_BEFORE_UNREACHABLE
+        {
             return Vec::new();
         }
         self.unreachable = true;
@@ -722,8 +735,8 @@ mod tests {
         let refused = "Could not reach archbox: Ally is not running on the Agent. Run ally start there: Connection refused (os error 111)";
         let mut watch = Watch::new("archbox");
         assert!(watch.reached("local network").is_empty());
-        assert!(watch.failed(refused).is_empty());
-        let notices = watch.failed(refused);
+        assert!(watch.failed(refused, 1_000).is_empty());
+        let notices = watch.failed(refused, 1_060);
         assert_eq!(notices[0].kind, NoticeKind::Unreachable);
         assert_eq!(notices[0].title, "archbox is unavailable");
         assert_eq!(notices[0].subtitle, None);
@@ -731,7 +744,7 @@ mod tests {
             notices[0].body,
             "Ally stopped there. Run ally start on archbox."
         );
-        assert!(watch.failed(refused).is_empty());
+        assert!(watch.failed(refused, 1_090).is_empty());
         let notices = watch.reached("tailnet");
         assert_eq!(notices[0].kind, NoticeKind::Back);
         assert_eq!(notices[0].body, "Via tailnet");
@@ -741,8 +754,8 @@ mod tests {
     #[test]
     fn an_offline_cause_without_a_fix_explains_itself() {
         let mut watch = Watch::new("archbox");
-        watch.failed("something new");
-        let notices = watch.failed("something new");
+        watch.failed("something new", 1_000);
+        let notices = watch.failed("something new", 1_060);
         assert_eq!(notices[0].title, "archbox is unavailable");
         assert_eq!(notices[0].body, "something new");
     }
@@ -750,9 +763,18 @@ mod tests {
     #[test]
     fn one_failure_between_answers_is_not_an_outage() {
         let mut watch = Watch::new("archbox");
-        watch.failed("slow");
+        watch.failed("slow", 1_000);
         watch.reached("local network");
-        assert!(watch.failed("slow").is_empty());
+        assert!(watch.failed("slow", 1_060).is_empty());
+    }
+
+    #[test]
+    fn a_network_switch_shorter_than_a_minute_is_not_an_outage() {
+        let mut watch = Watch::new("archbox");
+        assert!(watch.failed("did not answer in time", 1_000).is_empty());
+        assert!(watch.failed("did not answer in time", 1_020).is_empty());
+        assert!(watch.failed("did not answer in time", 1_059).is_empty());
+        assert!(watch.reached("local network").is_empty());
     }
 
     #[test]

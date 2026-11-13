@@ -58,6 +58,13 @@ const SHARE_CHECK: Duration = Duration::from_secs(3);
 /// The shared connection is checked once per process, before its first reuse.
 static SHARE_CHECKED: AtomicBool = AtomicBool::new(false);
 
+/// Check the shared connection again before its next reuse. A process that outlives one
+/// network, such as the menu bar helper, calls this after losing the Agent, so a connection
+/// that died with the old network is closed rather than waited on.
+pub fn check_share_again() {
+    SHARE_CHECKED.store(false, Ordering::SeqCst);
+}
+
 /// Whether `child` exits within `limit`, however it ends. One that does not is stopped.
 fn exits_within(mut child: std::process::Child, limit: Duration) -> bool {
     let started = Instant::now();
